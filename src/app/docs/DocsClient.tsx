@@ -61,6 +61,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
     const [mode, setMode] = useState<Mode>('viewer');
     const [search, setSearch] = useState('');
     const [fullscreen, setFullscreen] = useState(false);
+    const [sortBy, setSortBy] = useState<'date' | 'alpha'>('date');
 
     // Viewer state
     const [viewerFiles, setViewerFiles] = useState<LocalFileEntry[]>(initialLocalDocs);
@@ -96,10 +97,19 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
     );
 
     const filteredViewerFiles = useMemo(() => {
-        if (!search.trim()) return viewerFiles;
-        const q = search.toLowerCase();
-        return viewerFiles.filter(f => f.title.toLowerCase().includes(q) || f.category.toLowerCase().includes(q));
-    }, [viewerFiles, search]);
+        let list = [...viewerFiles];
+        if (search.trim()) {
+            const q = search.toLowerCase();
+            list = list.filter(f => f.title.toLowerCase().includes(q) || f.category.toLowerCase().includes(q));
+        }
+        
+        if (sortBy === 'date') {
+            list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        } else {
+            list.sort((a, b) => a.title.localeCompare(b.title));
+        }
+        return list;
+    }, [viewerFiles, search, sortBy]);
 
     useEffect(() => {
         if (mode !== 'viewer' || !selectedViewerFile?.path) return;
@@ -130,6 +140,16 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
     }, []);
 
     // ─── Repo logic ───────────────────────────────────────────────────────────
+
+    const sortedRepoDocs = useMemo(() => {
+        const list = [...repoDocs];
+        if (sortBy === 'date') {
+            list.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+        } else {
+            list.sort((a, b) => a.title.localeCompare(b.title));
+        }
+        return list;
+    }, [repoDocs, sortBy]);
 
     const loadRepoDocs = useCallback(() => {
         let url = '/api/documents';
@@ -292,22 +312,47 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                         </button>
                     </div>
 
-                    {/* Search */}
-                    <div className="relative flex-shrink-0 group">
-                        <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
-                        <input
-                            type="text"
-                            placeholder={mode === 'repo' ? 'Search curated database...' : 'Search workspace files...'}
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                if (mode === 'viewer' && e.target.value.length > 2) searchViewer(e.target.value);
-                            }}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && mode === 'viewer') searchViewer(search);
-                            }}
-                            className="w-full bg-[#101010] border border-[#1a1a1a] rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-600 font-medium"
-                        />
+                    {/* Search & Sort */}
+                    <div className="flex flex-col gap-4 flex-shrink-0">
+                        <div className="relative group">
+                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder={mode === 'repo' ? 'Search curated database...' : 'Search workspace files...'}
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    if (mode === 'viewer' && e.target.value.length > 2) searchViewer(e.target.value);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && mode === 'viewer') searchViewer(search);
+                                }}
+                                className="w-full bg-[#101010] border border-[#1a1a1a] rounded-2xl pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-all placeholder:text-slate-600 font-medium"
+                            />
+                        </div>
+
+                        <div className="flex bg-[#101010] border border-[#1a1a1a] rounded-xl p-0.5 w-max">
+                            <button
+                                onClick={() => setSortBy('date')}
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                    sortBy === 'date' ? "bg-[#1a1a1a] text-indigo-400 shadow-sm" : "text-slate-500 hover:text-slate-400"
+                                )}
+                            >
+                                <Clock className="w-3 h-3" />
+                                Date
+                            </button>
+                            <button
+                                onClick={() => setSortBy('alpha')}
+                                className={cn(
+                                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                                    sortBy === 'alpha' ? "bg-[#1a1a1a] text-indigo-400 shadow-sm" : "text-slate-500 hover:text-slate-400"
+                                )}
+                            >
+                                <FileText className="w-3 h-3" />
+                                Alpha
+                            </button>
+                        </div>
                     </div>
 
                     {/* Quick Filters / Roots */}
@@ -407,7 +452,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                             </div>
                         ))}
 
-                        {mode === 'repo' && repoDocs.map(doc => (
+                        {mode === 'repo' && sortedRepoDocs.map(doc => (
                             <div
                                 key={doc.id}
                                 onClick={() => loadRepoDetail(doc.id)}
