@@ -10,8 +10,7 @@ export interface WorkflowTemplate {
     description?: string;
     agentRole: AgentRole;
     agentId?: string; // specific agent like 'alice', 'bob'
-    estimatedMinutes: number;
-    model: string;
+    timeoutSeconds: number; // Hard limit - workflow killed if exceeds this
     systemPrompt?: string;
     validationChecklist: string[];
     tags: string[];

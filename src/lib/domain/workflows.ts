@@ -22,8 +22,7 @@ export function getWorkflowTemplates(role?: string): WorkflowTemplate[] {
         description: (row as any).description,
         agentRole: (row as any).agent_role,
         agentId: (row as any).agent_id,
-        estimatedMinutes: (row as any).estimated_minutes,
-        model: (row as any).model,
+        timeoutSeconds: (row as any).timeout_seconds,
         systemPrompt: (row as any).system_prompt,
         validationChecklist: (row as any).validation_checklist ? JSON.parse((row as any).validation_checklist) : [],
         tags: (row as any).tags ? JSON.parse((row as any).tags) : [],
@@ -44,8 +43,7 @@ export function getWorkflowTemplateById(id: string): WorkflowTemplate | null {
         description: row.description,
         agentRole: row.agent_role,
         agentId: row.agent_id,
-        estimatedMinutes: row.estimated_minutes,
-        model: row.model,
+        timeoutSeconds: row.timeout_seconds,
         systemPrompt: row.system_prompt,
         validationChecklist: row.validation_checklist ? JSON.parse(row.validation_checklist) : [],
         tags: row.tags ? JSON.parse(row.tags) : [],
@@ -286,7 +284,7 @@ export function createWorkflow(input: {
     description?: string;
     agentRole: string;
     agentId?: string;
-    estimatedMinutes?: number;
+    timeoutSeconds?: number;
     model?: string;
     systemPrompt?: string;
     validationChecklist?: string[];
@@ -296,7 +294,7 @@ export function createWorkflow(input: {
     const id = 'wf-' + Math.random().toString(36).substring(2, 10);
     
     db.prepare(`
-        INSERT INTO workflow_templates (id, name, description, agent_role, agent_id, estimated_minutes, model, system_prompt, validation_checklist, tags, created_at, updated_at)
+        INSERT INTO workflow_templates (id, name, description, agent_role, agent_id, timeout_seconds, model, system_prompt, validation_checklist, tags, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
         id,
@@ -304,7 +302,7 @@ export function createWorkflow(input: {
         input.description || null,
         input.agentRole,
         input.agentId || null,
-        input.estimatedMinutes || 30,
+        input.timeoutSeconds || 30,
         input.model || 'gemini-2.5-flash',
         input.systemPrompt || null,
         input.validationChecklist ? JSON.stringify(input.validationChecklist) : '[]',
@@ -319,7 +317,7 @@ export function createWorkflow(input: {
         description: input.description,
         agentRole: input.agentRole,
         agentId: input.agentId,
-        estimatedMinutes: input.estimatedMinutes || 30,
+        timeoutSeconds: input.timeoutSeconds || 30,
         model: input.model || 'gemini-2.5-flash',
         systemPrompt: input.systemPrompt,
         validationChecklist: input.validationChecklist || [],
@@ -342,7 +340,7 @@ export function updateWorkflow(id: string, updates: Partial<WorkflowTemplate>): 
     if (updates.description !== undefined) { fields.push('description = ?'); params.push(updates.description); }
     if (updates.agentRole !== undefined) { fields.push('agent_role = ?'); params.push(updates.agentRole); }
     if (updates.agentId !== undefined) { fields.push('agent_id = ?'); params.push(updates.agentId); }
-    if (updates.estimatedMinutes !== undefined) { fields.push('estimated_minutes = ?'); params.push(updates.estimatedMinutes); }
+    if (updates.timeoutSeconds !== undefined) { fields.push('timeout_seconds = ?'); params.push(updates.timeoutSeconds); }
     if (updates.model !== undefined) { fields.push('model = ?'); params.push(updates.model); }
     if (updates.systemPrompt !== undefined) { fields.push('system_prompt = ?'); params.push(updates.systemPrompt); }
     if (updates.validationChecklist !== undefined) { fields.push('validation_checklist = ?'); params.push(JSON.stringify(updates.validationChecklist)); }

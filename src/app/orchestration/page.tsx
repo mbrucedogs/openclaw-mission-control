@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { 
     GitBranch, Layers, Settings, Play, Plus, Edit3, Trash2, 
     CheckCircle, AlertCircle, Clock, User, Cpu, ChevronRight,
-    Save, X, ArrowRight
+    Save, X, ArrowRight, Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,8 +14,9 @@ interface Workflow {
     description?: string;
     agentRole: string;
     agentId?: string;
-    estimatedMinutes: number;
+    timeoutSeconds: number;
     model: string;
+    systemPrompt?: string;
     validationChecklist: string[];
     tags: string[];
     useCount: number;
@@ -148,12 +149,36 @@ export default function OrchestrationPage() {
 
 function WorkflowsTab({ workflows, onRefresh }: { workflows: Workflow[]; onRefresh: () => void }) {
     const [expandedWorkflow, setExpandedWorkflow] = useState<string | null>(null);
+    const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const groupedByRole = workflows.reduce((acc, wf) => {
         if (!acc[wf.agentRole]) acc[wf.agentRole] = [];
         acc[wf.agentRole].push(wf);
         return acc;
     }, {} as Record<string, Workflow[]>);
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this workflow?')) return;
+        
+        try {
+            const res = await fetch('/api/workflows', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id }),
+            });
+            
+            if (res.ok) {
+                onRefresh();
+            } else {
+                alert('Failed to delete workflow');
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('Error deleting workflow');
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -164,11 +189,51 @@ function WorkflowsTab({ workflows, onRefresh }: { workflows: Workflow[]; onRefre
                         Reusable work definitions for agents. Each workflow defines what an agent does.
                     </p>
                 </div>
-                <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-lg transition-colors">
+                <button 
+                    onClick={() => setIsCreating(true)}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-lg transition-colors"
+                >
                     <Plus className="w-3.5 h-3.5" />
                     New Workflow
                 </button>
             </div>
+
+            {(isCreating || editingWorkflow) && (
+                <WorkflowForm 
+                    workflow={editingWorkflow} 
+                    onSave={async (data) => {
+                        setIsSaving(true);
+                        try {
+                            const url = '/api/workflows';
+                            const method = editingWorkflow ? 'PUT' : 'POST';
+                            const body = editingWorkflow ? { ...data, id: editingWorkflow.id } : data;
+                            
+                            const res = await fetch(url, {
+                                method,
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                            });
+                            
+                            if (res.ok) {
+                                setIsCreating(false);
+                                setEditingWorkflow(null);
+                                onRefresh();
+                            } else {
+                                alert('Failed to save workflow');
+                            }
+                        } catch (err) {
+                            console.error('Save error:', err);
+                            alert('Error saving workflow');
+                        }
+                        setIsSaving(false);
+                    }}
+                    onCancel={() => {
+                        setIsCreating(false);
+                        setEditingWorkflow(null);
+                    }}
+                    isSaving={isSaving}
+                />
+            )}
 
             <div className="space-y-6">
                 {Object.entries(groupedByRole).map(([role, roleWorkflows]) => (
@@ -190,6 +255,8 @@ function WorkflowsTab({ workflows, onRefresh }: { workflows: Workflow[]; onRefre
                                     onToggle={() => setExpandedWorkflow(
                                         expandedWorkflow === workflow.id ? null : workflow.id
                                     )}
+                                    onEdit={() => setEditingWorkflow(workflow)}
+                                    onDelete={() => handleDelete(workflow.id)}
                                 />
                             ))}
                         </div>
@@ -200,10 +267,172 @@ function WorkflowsTab({ workflows, onRefresh }: { workflows: Workflow[]; onRefre
     );
 }
 
-function WorkflowCard({ workflow, isExpanded, onToggle }: { 
+function WorkflowForm({ workflow, onSave, onCancel, isSaving }: { 
+    workflow?: Workflow | null;
+    onSave: (data: any) => void;
+    onCancel: () => void;
+    isSaving: boolean;
+}) {
+    const [agents, setAgents] = useState<any[]>([]);
+    const [formData, setFormData] = useState({
+        name: workflow?.name || '',
+        description: workflow?.description || '',
+        agentId: workflow?.agentId || '',
+        timeoutSeconds: workflow?.timeoutSeconds || 30,
+        systemPrompt: workflow?.systemPrompt || '',
+        validationChecklist: workflow?.validationChecklist?.join('\n') || '',
+        tags: workflow?.tags?.join(', ') || '',
+    });
+
+    useEffect(() => {
+        fetch('/api/agents')
+            .then(r => r.json())
+            .then(setAgents)
+            .catch(console.error);
+    }, []);
+
+    const selectedAgent = agents.find(a => a.id === formData.agentId);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.agentId) {
+            alert('Please select an agent');
+            return;
+        }
+        onSave({
+            ...formData,
+            agentRole: selectedAgent?.role || 'researcher',
+            timeoutSeconds: parseInt(formData.timeoutSeconds as any),
+            validationChecklist: formData.validationChecklist.split('\n').filter(s => s.trim()),
+            tags: formData.tags.split(',').map(s => s.trim()).filter(s => s),
+        });
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="bg-[#111] border border-[#222] rounded-xl p-6 mb-6">
+            <h3 className="text-sm font-bold text-white mb-4">{workflow ? 'Edit Workflow' : 'New Workflow'}</h3>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Name *</label>
+                    <input
+                        type="text"
+                        value={formData.name}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                        required
+                    />
+                </div>
+                
+                <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Description</label>
+                    <input
+                        type="text"
+                        value={formData.description}
+                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                </div>
+                
+                <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Agent *</label>
+                    <select
+                        value={formData.agentId}
+                        onChange={e => setFormData({ ...formData, agentId: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                        required
+                    >
+                        <option value="">Select an agent...</option>
+                        {agents.map(agent => (
+                            <option key={agent.id} value={agent.id}>
+                                {agent.name} ({agent.role})
+                            </option>
+                        ))}
+                    </select>
+                    {selectedAgent && (
+                        <p className="text-[10px] text-slate-500 mt-1">
+                            Uses model: {selectedAgent.model || 'Default'}
+                        </p>
+                    )}
+                </div>
+                
+                <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Estimated Minutes</label>
+                    <input
+                        type="number"
+                        value={formData.timeoutSeconds}
+                        onChange={e => setFormData({ ...formData, timeoutSeconds: parseInt(e.target.value) })}
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                </div>
+                
+                <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">System Prompt</label>
+                    <textarea
+                        value={formData.systemPrompt}
+                        onChange={e => setFormData({ ...formData, systemPrompt: e.target.value })}
+                        rows={3}
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white resize-none"
+                    />
+                </div>
+                
+                <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Validation Checklist (one per line)</label>
+                    <textarea
+                        value={formData.validationChecklist}
+                        onChange={e => setFormData({ ...formData, validationChecklist: e.target.value })}
+                        rows={3}
+                        placeholder="- Item 1&#10;- Item 2&#10;- Item 3"
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white resize-none"
+                    />
+                </div>
+                
+                <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Tags (comma separated)</label>
+                    <input
+                        type="text"
+                        value={formData.tags}
+                        onChange={e => setFormData({ ...formData, tags: e.target.value })}
+                        placeholder="research, analysis, quick"
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                </div>
+            </div>
+            
+            <div className="flex gap-2">
+                <button
+                    type="submit"
+                    disabled={isSaving || !formData.agentId}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black px-4 py-2 rounded-lg"
+                >
+                    {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {isSaving ? 'Saving...' : 'Save Workflow'}
+                </button>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black px-4 py-2"
+                >
+                    <X className="w-3.5 h-3.5" />
+                    Cancel
+                </button>
+            </div>
+        </form>
+    );
+}
+
+function WorkflowCard({ 
+    workflow, 
+    isExpanded, 
+    onToggle,
+    onEdit,
+    onDelete
+}: { 
     workflow: Workflow; 
     isExpanded: boolean;
     onToggle: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
 }) {
     return (
         <div 
@@ -234,11 +463,7 @@ function WorkflowCard({ workflow, isExpanded, onToggle }: {
                 <div className="flex items-center gap-4 mt-4 text-[10px] text-slate-500">
                     <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {workflow.estimatedMinutes}min
-                    </span>
-                    <span className="flex items-center gap-1">
-                        <Cpu className="w-3 h-3" />
-                        {workflow.model.split('-')[0]}
+                        {workflow.timeoutSeconds}min
                     </span>
                 </div>
             </div>
@@ -246,6 +471,15 @@ function WorkflowCard({ workflow, isExpanded, onToggle }: {
             {isExpanded && (
                 <div className="px-5 pb-5 border-t border-[#222]">
                     <div className="pt-4 space-y-4">
+                        {workflow.systemPrompt && (
+                            <div>
+                                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                                    System Prompt
+                                </h5>
+                                <p className="text-xs text-slate-400 bg-[#0a0a0a] p-3 rounded">{workflow.systemPrompt}</p>
+                            </div>
+                        )}
+
                         <div>
                             <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
                                 Validation Checklist
@@ -276,11 +510,17 @@ function WorkflowCard({ workflow, isExpanded, onToggle }: {
                         )}
 
                         <div className="flex gap-2 pt-2">
-                            <button className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white py-2 rounded-lg hover:bg-slate-800 transition-colors">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                            >
                                 <Edit3 className="w-3.5 h-3.5" />
                                 Edit
                             </button>
-                            <button className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 py-2 rounded-lg hover:bg-slate-800 transition-colors">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                            >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 Delete
                             </button>
@@ -302,8 +542,32 @@ function PipelinesTab({ pipelines, workflows, onRefresh }: {
     onRefresh: () => void;
 }) {
     const [expandedPipeline, setExpandedPipeline] = useState<string | null>(null);
+    const [editingPipeline, setEditingPipeline] = useState<Pipeline | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     const workflowMap = new Map(workflows.map(w => [w.id, w]));
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this pipeline?')) return;
+        
+        try {
+            const res = await fetch('/api/pipelines', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id }),
+            });
+            
+            if (res.ok) {
+                onRefresh();
+            } else {
+                alert('Failed to delete pipeline');
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('Error deleting pipeline');
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -314,11 +578,52 @@ function PipelinesTab({ pipelines, workflows, onRefresh }: {
                         Sequences of workflows. Pipelines define the path a task takes through agents.
                     </p>
                 </div>
-                <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-lg transition-colors">
+                <button 
+                    onClick={() => setIsCreating(true)}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-lg transition-colors"
+                >
                     <Plus className="w-3.5 h-3.5" />
                     New Pipeline
                 </button>
             </div>
+
+            {(isCreating || editingPipeline) && (
+                <PipelineForm 
+                    pipeline={editingPipeline}
+                    workflows={workflows}
+                    onSave={async (data) => {
+                        setIsSaving(true);
+                        try {
+                            const url = '/api/pipelines';
+                            const method = editingPipeline ? 'PUT' : 'POST';
+                            const body = editingPipeline ? { ...data, id: editingPipeline.id } : data;
+                            
+                            const res = await fetch(url, {
+                                method,
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                            });
+                            
+                            if (res.ok) {
+                                setIsCreating(false);
+                                setEditingPipeline(null);
+                                onRefresh();
+                            } else {
+                                alert('Failed to save pipeline');
+                            }
+                        } catch (err) {
+                            console.error('Save error:', err);
+                            alert('Error saving pipeline');
+                        }
+                        setIsSaving(false);
+                    }}
+                    onCancel={() => {
+                        setIsCreating(false);
+                        setEditingPipeline(null);
+                    }}
+                    isSaving={isSaving}
+                />
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {pipelines.map(pipeline => (
@@ -330,6 +635,8 @@ function PipelinesTab({ pipelines, workflows, onRefresh }: {
                         onToggle={() => setExpandedPipeline(
                             expandedPipeline === pipeline.id ? null : pipeline.id
                         )}
+                        onEdit={() => setEditingPipeline(pipeline)}
+                        onDelete={() => handleDelete(pipeline.id)}
                     />
                 ))}
             </div>
@@ -337,16 +644,176 @@ function PipelinesTab({ pipelines, workflows, onRefresh }: {
     );
 }
 
+function PipelineForm({ 
+    pipeline, 
+    workflows,
+    onSave, 
+    onCancel, 
+    isSaving 
+}: { 
+    pipeline?: Pipeline | null;
+    workflows: Workflow[];
+    onSave: (data: any) => void;
+    onCancel: () => void;
+    isSaving: boolean;
+}) {
+    const [formData, setFormData] = useState({
+        name: pipeline?.name || '',
+        description: pipeline?.description || '',
+        steps: pipeline?.steps || [],
+    });
+    const [selectedWorkflow, setSelectedWorkflow] = useState('');
+
+    const addStep = () => {
+        if (!selectedWorkflow) return;
+        setFormData({
+            ...formData,
+            steps: [...formData.steps, { workflowId: selectedWorkflow, onFailure: 'stop' }],
+        });
+        setSelectedWorkflow('');
+    };
+
+    const removeStep = (index: number) => {
+        setFormData({
+            ...formData,
+            steps: formData.steps.filter((_, i) => i !== index),
+        });
+    };
+
+    const updateStep = (index: number, updates: any) => {
+        const newSteps = [...formData.steps];
+        newSteps[index] = { ...newSteps[index], ...updates };
+        setFormData({ ...formData, steps: newSteps });
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(formData);
+    };
+
+    const workflowMap = new Map(workflows.map(w => [w.id, w]));
+
+    return (
+        <form onSubmit={handleSubmit} className="bg-[#111] border border-[#222] rounded-xl p-6 mb-6">
+            <h3 className="text-sm font-bold text-white mb-4">{pipeline ? 'Edit Pipeline' : 'New Pipeline'}</h3>
+            
+            <div className="space-y-4 mb-6">
+                <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Name</label>
+                    <input
+                        type="text"
+                        value={formData.name}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                        required
+                    />
+                </div>
+                
+                <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Description</label>
+                    <input
+                        type="text"
+                        value={formData.description}
+                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                    />
+                </div>
+
+                <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Steps</label>
+                    
+                    <div className="space-y-2 mb-4">
+                        {formData.steps.map((step, i) => {
+                            const wf = workflowMap.get(step.workflowId);
+                            return (
+                                <div key={i} className="flex items-center gap-2 p-3 bg-[#0a0a0a] rounded-lg">
+                                    <span className="text-xs text-slate-500 w-6">{i + 1}.</span>
+                                    <div className="flex-1">
+                                        <span className="text-sm text-white">{wf?.name || step.workflowId}</span>
+                                        <span className="text-xs text-slate-500 ml-2">({wf?.agentRole})</span>
+                                    </div>
+                                    <select
+                                        value={step.onFailure}
+                                        onChange={e => updateStep(i, { onFailure: e.target.value })}
+                                        className="bg-[#111] border border-[#222] rounded px-2 py-1 text-xs text-white"
+                                    >
+                                        <option value="stop">Stop</option>
+                                        <option value="continue">Continue</option>
+                                        <option value="skip">Skip</option>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeStep(i)}
+                                        className="p-1 text-slate-500 hover:text-red-400"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex gap-2">
+                        <select
+                            value={selectedWorkflow}
+                            onChange={e => setSelectedWorkflow(e.target.value)}
+                            className="flex-1 bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                        >
+                            <option value="">Select workflow...</option>
+                            {workflows.map(w => (
+                                <option key={w.id} value={w.id}>
+                                    {w.name} ({w.agentRole})
+                                </option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={addStep}
+                            disabled={!selectedWorkflow}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg"
+                        >
+                            Add Step
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div className="flex gap-2">
+                <button
+                    type="submit"
+                    disabled={isSaving || formData.steps.length === 0}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black px-4 py-2 rounded-lg"
+                >
+                    {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {isSaving ? 'Saving...' : 'Save Pipeline'}
+                </button>
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black px-4 py-2"
+                >
+                    <X className="w-3.5 h-3.5" />
+                    Cancel
+                </button>
+            </div>
+        </form>
+    );
+}
+
 function PipelineCard({ 
     pipeline, 
     workflowMap, 
     isExpanded, 
-    onToggle 
+    onToggle,
+    onEdit,
+    onDelete
 }: { 
     pipeline: Pipeline; 
     workflowMap: Map<string, Workflow>;
     isExpanded: boolean;
     onToggle: () => void;
+    onEdit: () => void;
+    onDelete: () => void;
 }) {
     const stepsWithData = pipeline.steps.map(step => ({
         ...step,
@@ -428,7 +895,7 @@ function PipelineCard({
                                                 {step.workflow?.name || step.workflowId}
                                             </p>
                                             <p className="text-[10px] text-slate-500">
-                                                {step.workflow?.agentRole} • {step.workflow?.estimatedMinutes}min
+                                                {step.workflow?.agentRole} • {step.workflow?.timeoutSeconds}min
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1">
@@ -448,17 +915,26 @@ function PipelineCard({
                         </div>
 
                         <div className="flex gap-2 pt-2">
-                            <button className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white py-2 rounded-lg hover:bg-slate-800 transition-colors">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                            >
                                 <Edit3 className="w-3.5 h-3.5" />
                                 Edit
                             </button>
                             {!pipeline.isDynamic && (
-                                <button className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white py-2 rounded-lg hover:bg-slate-800 transition-colors">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-white py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                                >
                                     <Play className="w-3.5 h-3.5" />
                                     Test Run
                                 </button>
                             )}
-                            <button className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 py-2 rounded-lg hover:bg-slate-800 transition-colors">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                            >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 Delete
                             </button>
