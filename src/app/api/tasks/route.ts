@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTasks, getTaskById, createTask, updateTask, deleteTask, TaskFilters } from '@/lib/domain/tasks';
-import { analyzeTask, getInitialOwner, generateDynamicValidationCriteria } from '@/lib/pipeline';
+import { matchPipelineToTask, setTaskPipeline } from '@/lib/domain/workflows';
 import { TaskStatus, Priority } from '@/lib/types';
 import { randomUUID } from 'crypto';
 
@@ -44,16 +44,29 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Title is required' }, { status: 400 });
         }
 
-        // MAX: Analyze task and determine dynamic pipeline
-        const analysis = analyzeTask(body.title, body.description);
+        // MAX: Match task to pipeline
+        const pipelineMatch = matchPipelineToTask(body.title, body.description);
         
-        // Use provided values or MAX's analysis
-        const owner = body.owner || analysis.initialOwner;
-        const priority = (body.priority as Priority) || analysis.priority;
-        const validationCriteria = body.validationCriteria || analysis.validationCriteria;
+        // Determine owner from pipeline
+        let owner = body.owner;
+        if (!owner && pipelineMatch.workflowIds) {
+            // Get first workflow to determine owner
+            const { getWorkflowTemplateById } = await import('@/lib/domain/workflows');
+            const firstWorkflow = await getWorkflowTemplateById(pipelineMatch.workflowIds[0]);
+            owner = firstWorkflow?.agentId || 'matt';
+        } else if (!owner && pipelineMatch.pipelineId) {
+            // Get pipeline and first step
+            const { getPipelineById } = await import('@/lib/domain/workflows');
+            const pipeline = await getPipelineById(pipelineMatch.pipelineId);
+            if (pipeline?.steps[0]) {
+                const { getWorkflowTemplateById } = await import('@/lib/domain/workflows');
+                const firstWorkflow = await getWorkflowTemplateById(pipeline.steps[0].workflowId);
+                owner = firstWorkflow?.agentId || 'matt';
+            }
+        }
+        owner = owner || 'matt';
         
-        // Store pipeline in task metadata for handoff logic
-        const pipeline = analysis.pipeline;
+        const priority = (body.priority as Priority) || 'normal';
         
         const task = createTask({
             title: body.title,
@@ -65,20 +78,23 @@ export async function POST(req: Request) {
             reviewer: body.reviewer,
             project: body.project,
             executionMode: body.executionMode || 'local',
-            validationCriteria: {
-                ...validationCriteria,
-                // Store pipeline in validation criteria for handoff logic
-                _pipeline: pipeline,
-                _currentStep: 0,
-            },
+            validationCriteria: body.validationCriteria,
         });
+
+        // Store pipeline match for this task
+        setTaskPipeline(task.id, pipelineMatch);
 
         return NextResponse.json({
             ...task,
             _meta: {
-                pipeline: analysis.pipeline,
-                estimatedAgents: analysis.estimatedAgents,
-                canSkipQA: analysis.canSkipQA,
+                pipelineMatch: pipelineMatch.matched ? {
+                    pipelineId: pipelineMatch.pipelineId,
+                    pipelineName: pipelineMatch.pipelineName,
+                    workflowIds: pipelineMatch.workflowIds,
+                    isDynamic: pipelineMatch.isDynamic,
+                    confidence: pipelineMatch.confidence,
+                    reason: pipelineMatch.reason,
+                } : null,
             }
         }, { status: 201 });
     } catch (error) {

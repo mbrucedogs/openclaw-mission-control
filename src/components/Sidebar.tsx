@@ -24,7 +24,8 @@ import {
     SearchCode,
     Activity,
     SearchIcon,
-    LogOut
+    LogOut,
+    Settings
 } from 'lucide-react';
 
 const navigation = [
@@ -32,6 +33,7 @@ const navigation = [
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
+    { name: 'Orchestration', href: '/orchestration', icon: Settings },
     { name: 'Memory', href: '/memories', icon: Brain },
     { name: 'Docs', href: '/docs', icon: FileText },
     { name: 'Office', href: '/office', icon: Monitor },
