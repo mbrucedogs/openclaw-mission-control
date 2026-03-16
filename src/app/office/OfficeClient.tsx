@@ -48,6 +48,35 @@ export function OfficeClient({ agents }: { agents: any[] }) {
         return main?.id || agents[0]?.id || '';
     });
     const [liveSessions, setLiveSessions] = useState<any[]>([]);
+    const [agentTasks, setAgentTasks] = useState<Record<string, any[]>>({});
+    const [loading, setLoading] = useState(true);
+
+    // Fetch assigned tasks for all agents
+    useEffect(() => {
+        const fetchTasks = async () => {
+            try {
+                const res = await fetch('/api/tasks');
+                if (res.ok) {
+                    const tasks = await res.json();
+                    // Group tasks by owner
+                    const tasksByAgent: Record<string, any[]> = {};
+                    tasks.forEach((task: any) => {
+                        const owner = task.owner || 'unassigned';
+                        if (!tasksByAgent[owner]) tasksByAgent[owner] = [];
+                        tasksByAgent[owner].push(task);
+                    });
+                    setAgentTasks(tasksByAgent);
+                }
+            } catch (err) {
+                console.error('Failed to fetch tasks', err);
+            }
+            setLoading(false);
+        };
+
+        fetchTasks();
+        const interval = setInterval(fetchTasks, 10000); // Refresh every 10s
+        return () => clearInterval(interval);
+    }, []);
     
     // Default Positions (Mapping both technical IDs and friendly aliases)
     const defaultPositions: Record<string, {x: number, y: number}> = {

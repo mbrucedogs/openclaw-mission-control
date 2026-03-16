@@ -150,15 +150,31 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const loadDetails = useCallback(async () => {
+        console.log('Loading details for task:', task.id);
         try {
             const [cRes, aRes, eRes] = await Promise.all([
                 fetch(`/api/tasks/${task.id}/comments`),
                 fetch(`/api/tasks/${task.id}/activity`),
                 fetch(`/api/tasks/${task.id}/evidence`),
             ]);
-            if (cRes.ok) setComments(await cRes.json());
-            if (aRes.ok) setActivity(await aRes.json());
-            if (eRes.ok) setEvidence(await eRes.json());
+            console.log('Comments response:', cRes.status);
+            console.log('Activity response:', aRes.status);
+            console.log('Evidence response:', eRes.status);
+            if (cRes.ok) {
+                const cData = await cRes.json();
+                console.log('Comments data:', cData);
+                setComments(cData);
+            }
+            if (aRes.ok) {
+                const aData = await aRes.json();
+                console.log('Activity data:', aData);
+                setActivity(aData);
+            }
+            if (eRes.ok) {
+                const eData = await eRes.json();
+                console.log('Evidence data:', eData);
+                setEvidence(eData);
+            }
         } catch (err) {
             console.error('Failed to load task details:', err);
         }
