@@ -1,19 +1,21 @@
 export type Priority = 'urgent' | 'high' | 'normal' | 'low';
 
+// TASK STATUS
+// Valid statuses for tasks. Use ONLY these exact values.
+// 'Complete' means done/finished - no other values (Completed, Done, etc.)
 export type TaskStatus =
-    'Recurring' |
-    'Backlog' |
-    'Research' |
-    'Ready for Implementation' |
-    'In Progress' |
-    'Implementation' |
-    'Ready for QA' |
-    'QA' |
-    'Ready for Review' |
-    'Review' |
-    'Changes Requested' |
-    'Complete' |
-    'Scheduled';
+    | 'Recurring'
+    | 'Backlog'
+    | 'Research'
+    | 'Ready for Implementation'
+    | 'In Progress'
+    | 'Implementation'
+    | 'Ready for QA'
+    | 'QA'
+    | 'Ready for Review'
+    | 'Review'
+    | 'Changes Requested'
+    | 'Complete';
 
 // ============================================================================
 // TASK COMMENTS
@@ -94,7 +96,7 @@ export interface TaskEvidence {
 }
 
 // ============================================================================
-// VALIDATION CRITERIA
+// ENHANCED TASK
 // ============================================================================
 
 export interface ValidationCriteria {
@@ -103,10 +105,6 @@ export interface ValidationCriteria {
     codeRequirements?: string[];
     verificationSteps?: string[];
 }
-
-// ============================================================================
-// ENHANCED TASK
-// ============================================================================
 
 export interface Task {
     id: string;
@@ -147,108 +145,4 @@ export interface Task {
     comments?: TaskComment[];
     activity?: TaskActivity[];
     evidence?: TaskEvidence[];
-}
-
-// ============================================================================
-// OTHER TYPES
-// ============================================================================
-
-export interface Project {
-    id: string;
-    name: string;
-    description?: string;
-    status: 'active' | 'completed' | 'on-hold';
-    progress: number;
-    taskIds: string[];
-}
-
-export interface Agent {
-    id: string;
-    name: string;
-    role: string;
-    mission?: string;
-    status: 'idle' | 'busy' | 'offline';
-    responsibilities: string[];
-    layer?: 'governance' | 'pipeline' | 'automation';
-    order?: number;
-    folder?: string;
-    soulContent?: string;
-}
-
-export interface ScheduleJob {
-    id: string;
-    name: string;
-    cron?: string;
-    nextRunAt?: string;
-    taskId?: string;
-    agentId: string;
-}
-
-// Legacy global activity (kept for backward compat)
-export interface ActivityEvent {
-    id: string;
-    type: 'task_created' | 'task_updated' | 'task_moved' | 'comment_added' | 'status_changed';
-    message: string;
-    actor: string;
-    timestamp: string;
-    metadata?: Record<string, any>;
-}
-
-export interface MemoryEntry {
-    id: string;
-    content: string;
-    timestamp: string;
-    category: 'daily' | 'long-term';
-    tags: string[];
-}
-
-// ─── Repo Document (Database-backed) ──────────────────────────────────────────
-
-export type DocumentType = 'note' | 'research' | 'decision' | 'reference' | 'plan';
-
-export interface RepoDocument {
-    id: number;
-    title: string;
-    summary?: string;
-    content?: string;
-    source_url?: string;
-    document_type: DocumentType;
-    folder_id?: number;
-    tags: string[];
-    updated_at: string;
-}
-
-export interface DocumentFolder {
-    id: number;
-    name: string;
-    created_at: string;
-}
-
-export interface LinkedTask {
-    id: number;
-    task_id: string;
-    title: string;
-    status: string;
-    link_type: string;
-}
-
-// ─── Local File (Filesystem-backed Viewer) ────────────────────────────────────
-
-export interface LocalFile {
-    path: string;
-    name: string;
-    size: number;
-    modified: number;
-    root: string;
-    content?: string;
-}
-
-// Legacy alias for backward compat
-export interface DocumentEntry {
-    id: string;
-    title: string;
-    path: string;
-    category: string;
-    projectId?: string;
-    updatedAt: string;
 }

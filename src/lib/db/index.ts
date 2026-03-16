@@ -19,46 +19,60 @@ export function ensureInit() {
 
 // Auto-init on load in node environment
 if (typeof window === 'undefined') {
-  if (needsInit) {
-    ensureInit();
-    console.log('Created new database with enhanced task schema');
-  } else {
-    // Check if new tables exist, if not, migration needed
-    const checkTable = db.prepare(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name='task_comments'"
+  try {
+    // Check if tasks table exists
+    const checkTasksTable = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'"
     ).get();
-    if (!checkTable) {
-      console.log('Migrating database to new schema...');
-      // Backup old data
-      const tasks = db.prepare('SELECT * FROM tasks').all() as any[];
-      const projects = db.prepare('SELECT * FROM projects').all() as any[];
-      const agents = db.prepare('SELECT * FROM agents').all() as any[];
-      
-      // Re-init with new schema
+    
+    if (!checkTasksTable) {
+      // No tasks table - fresh init (either new file or wiped)
+      console.log('Initializing fresh database...');
       ensureInit();
-      
-      // Restore data (migrate fields)
-      const insertTask = db.prepare(`
-        INSERT INTO tasks (id, title, description, status, priority, owner, requestedBy, reviewer, project, executionMode, scheduleRef, createdAt, updatedAt, isStuck, retryCount)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `);
-      for (const t of tasks) {
-        insertTask.run(
-          t.id, t.title, t.description, t.status, t.priority || 'normal', t.owner, t.requestedBy, t.reviewer, t.project, t.executionMode, t.scheduleRef, t.createdAt, t.updatedAt, t.isStuck || 0, t.retryCount || 0
-        );
+      console.log('Database initialized');
+    } else {
+      // Check if new tables exist, if not, migration needed
+      const checkTable = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='task_comments'"
+      ).get();
+      if (!checkTable) {
+        console.log('Migrating database to new schema...');
+        // Backup old data
+        const tasks = db.prepare('SELECT * FROM tasks').all() as any[];
+        const projects = db.prepare('SELECT * FROM projects').all() as any[];
+        const agents = db.prepare('SELECT * FROM agents').all() as any[];
+        
+        // Re-init with new schema
+        ensureInit();
+        
+        // Restore data (migrate fields)
+        const insertTask = db.prepare(`
+          INSERT INTO tasks (id, title, description, status, priority, owner, requestedBy, reviewer, project, executionMode, scheduleRef, createdAt, updatedAt, isStuck, retryCount)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const t of tasks) {
+          insertTask.run(
+            t.id, t.title, t.description, t.status, t.priority || 'normal', t.owner, t.requestedBy, t.reviewer, t.project, t.executionMode, t.scheduleRef, t.createdAt, t.updatedAt, t.isStuck || 0, t.retryCount || 0
+          );
+        }
+        
+        const insertProject = db.prepare('INSERT INTO projects (id, name, description, status, progress) VALUES (?, ?, ?, ?, ?)');
+        for (const p of projects) {
+          insertProject.run(p.id, p.name, p.description, p.status, p.progress || 0);
+        }
+        
+        const insertAgent = db.prepare('INSERT INTO agents (id, name, role, mission, status) VALUES (?, ?, ?, ?, ?)');
+        for (const a of agents) {
+          insertAgent.run(a.id, a.name, a.role, a.mission, a.status);
+        }
+        
+        console.log('Migration complete');
       }
-      
-      const insertProject = db.prepare('INSERT INTO projects (id, name, description, status, progress) VALUES (?, ?, ?, ?, ?)');
-      for (const p of projects) {
-        insertProject.run(p.id, p.name, p.description, p.status, p.progress || 0);
-      }
-      
-      const insertAgent = db.prepare('INSERT INTO agents (id, name, role, mission, status) VALUES (?, ?, ?, ?, ?)');
-      for (const a of agents) {
-        insertAgent.run(a.id, a.name, a.role, a.mission, a.status);
-      }
-      
-      console.log('Migration complete');
     }
+  } catch (err) {
+    console.error('Database init error:', err);
+    // Force re-init on error
+    console.log('Forcing database re-initialization...');
+    ensureInit();
   }
 }

@@ -6,6 +6,24 @@ import {
 import { randomUUID } from 'crypto';
 
 // ============================================================================
+// STATUS NORMALIZATION
+// Ensures consistent status values across the system
+// ============================================================================
+
+const STATUS_NORMALIZATION: Record<string, TaskStatus> = {
+    // Only normalize variations of valid statuses
+    // 'done' is NOT valid - only 'Complete' should be used
+    'completed': 'Complete',
+    'in-progress': 'In Progress',
+    'inprogress': 'In Progress',
+};
+
+function normalizeStatus(status: string): TaskStatus {
+    const normalized = status.toLowerCase().trim();
+    return STATUS_NORMALIZATION[normalized] || (status as TaskStatus);
+}
+
+// ============================================================================
 // TASK CRUD
 // ============================================================================
 
@@ -132,13 +150,19 @@ export function updateTask(id: string, input: UpdateTaskInput, actor: string = '
     const oldStatus = task.status;
     const now = new Date().toISOString();
 
+    // Normalize status if provided
+    let normalizedStatus = input.status;
+    if (input.status) {
+        normalizedStatus = normalizeStatus(input.status);
+    }
+
     // Build update dynamically
     const updates: string[] = [];
     const values: any[] = [];
 
     if (input.title !== undefined) { updates.push('title = ?'); values.push(input.title); }
     if (input.description !== undefined) { updates.push('description = ?'); values.push(input.description); }
-    if (input.status !== undefined) { updates.push('status = ?'); values.push(input.status); }
+    if (normalizedStatus !== undefined) { updates.push('status = ?'); values.push(normalizedStatus); }
     if (input.priority !== undefined) { updates.push('priority = ?'); values.push(input.priority); }
     if (input.owner !== undefined) { updates.push('owner = ?'); values.push(input.owner); }
     if (input.reviewer !== undefined) { updates.push('reviewer = ?'); values.push(input.reviewer); }
@@ -155,8 +179,8 @@ export function updateTask(id: string, input: UpdateTaskInput, actor: string = '
     db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...values);
 
     // Log status change if applicable
-    if (input.status && input.status !== oldStatus) {
-        logTaskActivity(id, actor, 'user', 'status_changed', { oldStatus, newStatus: input.status });
+    if (normalizedStatus && normalizedStatus !== oldStatus) {
+        logTaskActivity(id, actor, 'user', 'status_changed', { oldStatus, newStatus: normalizedStatus });
     } else {
         logTaskActivity(id, actor, 'user', 'updated', {});
     }

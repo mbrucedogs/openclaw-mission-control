@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import {
     Plus, Search, RefreshCcw, X, MessageSquare, FileText, Activity,
     AlertCircle, CheckCircle, Clock, Zap, Pencil, Trash2, ChevronRight,
-    Paperclip, PlayCircle, CheckCircle2, RotateCcw, ArrowRightLeft
+    Paperclip, PlayCircle, CheckCircle2, RotateCcw, ArrowRightLeft,
+    Loader2
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, Agent, Project, TaskComment, TaskActivity, TaskEvidence, CommentType } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -16,13 +17,13 @@ const COLUMNS: { label: string; status: TaskStatus; dot: string }[] = [
     { label: 'Backlog',     status: 'Backlog',       dot: 'bg-slate-500' },
     { label: 'In Progress', status: 'In Progress',   dot: 'bg-blue-500' },
     { label: 'Review',      status: 'Review',        dot: 'bg-amber-500' },
-    { label: 'Done',        status: 'Complete',      dot: 'bg-emerald-500' },
+    { label: 'Complete',    status: 'Complete',      dot: 'bg-emerald-500' },
 ];
 
 // Tasks that map to columns
 function getColumnTasks(tasks: Task[], status: TaskStatus): Task[] {
     if (status === 'In Progress') {
-        // All active work: Research, Implementation, etc.
+        // All active work statuses go to "In Progress" column
         return tasks.filter(t => 
             t.status === 'In Progress' || 
             t.status === 'Implementation' ||
@@ -31,6 +32,7 @@ function getColumnTasks(tasks: Task[], status: TaskStatus): Task[] {
         );
     }
     if (status === 'Review') {
+        // All review/QA statuses go to "Review" column
         return tasks.filter(t => 
             t.status === 'Review' || 
             t.status === 'Ready for QA' || 
@@ -39,6 +41,7 @@ function getColumnTasks(tasks: Task[], status: TaskStatus): Task[] {
             t.status === 'Changes Requested'
         );
     }
+    // "Complete" column only shows "Complete" status
     return tasks.filter(t => t.status === status);
 }
 
@@ -130,7 +133,7 @@ function getActivityColor(type: string) {
     }
 }
 
-// ─── Enhanced Task Detail Modal ────────────────────────────────────────────────
+// ─── Task Detail Modal ────────────────────────────────────────────────────────
 
 type DetailTab = 'overview' | 'comments' | 'activity' | 'evidence';
 
@@ -148,45 +151,69 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
     const [commentType, setCommentType] = useState<CommentType>('note');
     const [loading, setLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [dataLoaded, setDataLoaded] = useState(false);
 
     const loadDetails = useCallback(async () => {
-        console.log('Loading details for task:', task.id);
+        console.log('TaskDetailModal: Loading details for task:', task.id);
         try {
             const [cRes, aRes, eRes] = await Promise.all([
                 fetch(`/api/tasks/${task.id}/comments`),
                 fetch(`/api/tasks/${task.id}/activity`),
                 fetch(`/api/tasks/${task.id}/evidence`),
             ]);
-            console.log('Comments response:', cRes.status);
-            console.log('Activity response:', aRes.status);
-            console.log('Evidence response:', eRes.status);
+            
+            console.log('TaskDetailModal: Responses:', { 
+                comments: cRes.status, 
+                activity: aRes.status, 
+                evidence: eRes.status 
+            });
+            
             if (cRes.ok) {
                 const cData = await cRes.json();
-                console.log('Comments data:', cData);
-                setComments(cData);
+                console.log('TaskDetailModal: Comments loaded:', cData.length);
+                setComments(Array.isArray(cData) ? cData : []);
+            } else {
+                console.error('TaskDetailModal: Comments fetch failed:', cRes.status);
+                setComments([]);
             }
+            
             if (aRes.ok) {
                 const aData = await aRes.json();
-                console.log('Activity data:', aData);
-                setActivity(aData);
+                console.log('TaskDetailModal: Activity loaded:', aData.length);
+                setActivity(Array.isArray(aData) ? aData : []);
+            } else {
+                console.error('TaskDetailModal: Activity fetch failed:', aRes.status);
+                setActivity([]);
             }
+            
             if (eRes.ok) {
                 const eData = await eRes.json();
-                console.log('Evidence data:', eData);
-                setEvidence(eData);
+                console.log('TaskDetailModal: Evidence loaded:', eData.length);
+                setEvidence(Array.isArray(eData) ? eData : []);
+            } else {
+                console.error('TaskDetailModal: Evidence fetch failed:', eRes.status);
+                setEvidence([]);
             }
+            
+            setDataLoaded(true);
         } catch (err) {
-            console.error('Failed to load task details:', err);
+            console.error('TaskDetailModal: Failed to load task details:', err);
+            setComments([]);
+            setActivity([]);
+            setEvidence([]);
+            setDataLoaded(true);
         }
     }, [task.id]);
 
-    useEffect(() => { loadDetails(); }, [loadDetails]);
+    useEffect(() => { 
+        loadDetails(); 
+    }, [loadDetails]);
 
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
         setLoading(true);
         try {
-            await fetch(`/api/tasks/${task.id}/comments`, {
+            const res = await fetch(`/api/tasks/${task.id}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -196,20 +223,27 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
                     authorType: 'user'
                 }),
             });
-            setNewComment('');
-            await loadDetails();
-        } finally {
-            setLoading(false);
+            if (res.ok) {
+                setNewComment('');
+                await loadDetails();
+            }
+        } catch (err) {
+            console.error('Failed to add comment:', err);
         }
+        setLoading(false);
     };
 
     const handleDelete = async () => {
         if (!confirm('Are you sure you want to delete this task?')) return;
         setIsDeleting(true);
-        await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+        try {
+            await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+            onDeleted();
+            onClose();
+        } catch (err) {
+            console.error('Failed to delete task:', err);
+        }
         setIsDeleting(false);
-        onDeleted();
-        onClose();
     };
 
     const tabButton = (tab: DetailTab, label: string, icon: React.ReactNode, count?: number) => (
@@ -257,6 +291,7 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
                                 )}
                             </div>
                             <h2 className="text-xl font-black text-white tracking-tight leading-snug">{task.title}</h2>
+                            <p className="text-[10px] text-slate-600 font-mono">{task.id}</p>
                         </div>
                         <div className="flex items-center gap-1">
                             <button onClick={onEdit} className="p-2 text-slate-500 hover:text-white transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
@@ -265,7 +300,6 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
                         </div>
                     </div>
 
-                    {/* Metadata bar */}
                     <div className="flex items-center gap-6 mt-4">
                         <div className="flex items-center gap-2">
                             <div className={cn('w-6 h-6 rounded flex items-center justify-center text-[10px] font-black text-white', ownerColor(task.owner))}>
@@ -298,263 +332,255 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
-                    {activeTab === 'overview' && (
-                        <div className="space-y-6">
-                            {/* Description */}
-                            {task.description && (
-                                <div>
-                                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Description</h3>
-                                    <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4 text-sm text-slate-300 whitespace-pre-wrap">
-                                        {task.description}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Blocker info */}
-                            {task.isStuck && (
-                                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <AlertCircle className="w-4 h-4 text-red-400" />
-                                        <h3 className="text-[11px] font-black text-red-400 uppercase tracking-widest">Blocked</h3>
-                                    </div>
-                                    <p className="text-sm text-red-300/80">{task.stuckReason || 'No reason provided'}</p>
-                                    {task.stuckSince && (
-                                        <p className="text-xs text-red-400/60 mt-1">Since {formatDate(task.stuckSince)}</p>
+                    {!dataLoaded ? (
+                        <div className="flex items-center justify-center h-full">
+                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                        </div>
+                    ) : (
+                        <>
+                            {activeTab === 'overview' && (
+                                <div className="space-y-6">
+                                    {task.description && (
+                                        <div>
+                                            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Description</h3>
+                                            <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4 text-sm text-slate-300 whitespace-pre-wrap">
+                                                {task.description}
+                                            </div>
+                                        </div>
                                     )}
-                                </div>
-                            )}
 
-                            {/* Validation criteria */}
-                            {task.validationCriteria && (
-                                <div>
-                                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Validation Criteria</h3>
-                                    <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4">
-                                        <p className="text-sm text-slate-300 font-medium mb-3"><strong>Done means:</strong> {task.validationCriteria.doneMeans}</p>
-                                        {task.validationCriteria.checklist?.length > 0 && (
-                                            <ul className="space-y-1">
-                                                {task.validationCriteria.checklist.map((item, i) => (
-                                                    <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
-                                                        <span className="text-slate-600 mt-0.5">•</span>
-                                                        {item}
-                                                    </li>
+                                    {task.isStuck && (
+                                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <AlertCircle className="w-4 h-4 text-red-400" />
+                                                <h3 className="text-[11px] font-black text-red-400 uppercase tracking-widest">Blocked</h3>
+                                            </div>
+                                            <p className="text-sm text-red-300/80">{task.stuckReason || 'No reason provided'}</p>
+                                            {task.stuckSince && (
+                                                <p className="text-xs text-red-400/60 mt-1">Since {formatDate(task.stuckSince)}</p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {task.validationCriteria && (
+                                        <div>
+                                            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Validation Criteria</h3>
+                                            <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4">
+                                                <p className="text-sm text-slate-300 font-medium mb-3"><strong>Done means:</strong> {task.validationCriteria.doneMeans}</p>
+                                                {task.validationCriteria.checklist?.length > 0 && (
+                                                    <ul className="space-y-1">
+                                                        {task.validationCriteria.checklist.map((item, i) => (
+                                                            <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                                                                <span className="text-slate-600 mt-0.5">•</span>
+                                                                {item}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activity.length > 0 && (
+                                        <div>
+                                            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Recent Activity</h3>
+                                            <div className="space-y-2">
+                                                {activity.slice(0, 3).map(act => (
+                                                    <div key={act.id} className="flex items-center gap-3 p-3 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg">
+                                                        <div className={cn('w-7 h-7 rounded flex items-center justify-center', getActivityColor(act.activityType))}>
+                                                            {getActivityIcon(act.activityType)}
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="text-xs text-slate-300">
+                                                                <span className="font-bold">{act.actor}</span> {act.activityType.replace(/_/g, ' ')}
+                                                            </p>
+                                                            {act.details?.blockerReason && (
+                                                                <p className="text-[10px] text-slate-500 mt-0.5">{act.details.blockerReason}</p>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-600">{timeAgo(act.createdAt)}</span>
+                                                    </div>
                                                 ))}
-                                            </ul>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-4 gap-4 pt-4 border-t border-[#222]">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Created</p>
+                                            <p className="text-xs text-slate-400">{formatDate(task.createdAt)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Retry Count</p>
+                                            <p className="text-xs text-slate-400">{task.retryCount} / {task.maxRetries}</p>
+                                        </div>
+                                        {task.startedAt && (
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Started</p>
+                                                <p className="text-xs text-slate-400">{formatDate(task.startedAt)}</p>
+                                            </div>
+                                        )}
+                                        {task.completedAt && (
+                                            <div>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Completed</p>
+                                                <p className="text-xs text-slate-400">{formatDate(task.completedAt)}</p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
                             )}
 
-                            {/* Recent activity preview */}
-                            {activity.length > 0 && (
-                                <div>
-                                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Recent Activity</h3>
-                                    <div className="space-y-2">
-                                        {activity.slice(0, 3).map(act => (
-                                            <div key={act.id} className="flex items-center gap-3 p-3 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg">
-                                                <div className={cn('w-7 h-7 rounded flex items-center justify-center', getActivityColor(act.activityType))}>
-                                                    {getActivityIcon(act.activityType)}
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-xs text-slate-300">
-                                                        <span className="font-bold">{act.actor}</span> {act.activityType.replace(/_/g, ' ')}
-                                                    </p>
-                                                    {act.details?.blockerReason && (
-                                                        <p className="text-[10px] text-slate-500 mt-0.5">{act.details.blockerReason}</p>
+                            {activeTab === 'comments' && (
+                                <div className="space-y-4">
+                                    <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4">
+                                        <div className="flex gap-2 mb-3">
+                                            {(['note', 'blocker', 'qa_finding'] as CommentType[]).map(type => (
+                                                <button
+                                                    key={type}
+                                                    onClick={() => setCommentType(type)}
+                                                    className={cn(
+                                                        'flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded transition-colors',
+                                                        commentType === type 
+                                                            ? COMMENT_TYPE_COLORS[type] + ' border border-current opacity-100'
+                                                            : 'text-slate-500 hover:text-slate-300 border border-transparent'
                                                     )}
-                                                </div>
-                                                <span className="text-[10px] text-slate-600">{timeAgo(act.createdAt)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Stats */}
-                            <div className="grid grid-cols-4 gap-4 pt-4 border-t border-[#222]">
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Created</p>
-                                    <p className="text-xs text-slate-400">{formatDate(task.createdAt)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Retry Count</p>
-                                    <p className="text-xs text-slate-400">{task.retryCount} / {task.maxRetries}</p>
-                                </div>
-                                {task.startedAt && (
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Started</p>
-                                        <p className="text-xs text-slate-400">{formatDate(task.startedAt)}</p>
-                                    </div>
-                                )}
-                                {task.completedAt && (
-                                    <div>
-                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Completed</p>
-                                        <p className="text-xs text-slate-400">{formatDate(task.completedAt)}</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'comments' && (
-                        <div className="space-y-4">
-                            {/* Add comment */}
-                            <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4">
-                                <div className="flex gap-2 mb-3">
-                                    {(['note', 'blocker', 'qa_finding'] as CommentType[]).map(type => (
-                                        <button
-                                            key={type}
-                                            onClick={() => setCommentType(type)}
-                                            className={cn(
-                                                'flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded transition-colors',
-                                                commentType === type 
-                                                    ? COMMENT_TYPE_COLORS[type] + ' border border-current opacity-100'
-                                                    : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                                            )}
-                                        >
-                                            {COMMENT_TYPE_ICONS[type]}
-                                            {type}
-                                        </button>
-                                    ))}
-                                </div>
-                                <textarea
-                                    value={newComment}
-                                    onChange={e => setNewComment(e.target.value)}
-                                    placeholder="Add a comment..."
-                                    rows={3}
-                                    className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600 resize-none"
-                                />
-                                <div className="flex justify-end mt-2">
-                                    <button
-                                        onClick={handleAddComment}
-                                        disabled={!newComment.trim() || loading}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-lg disabled:opacity-40"
-                                    >
-                                        {loading ? 'Posting...' : 'Post Comment'}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Comments list */}
-                            {comments.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <MessageSquare className="w-8 h-8 text-slate-700 mx-auto mb-3" />
-                                    <p className="text-sm text-slate-500">No comments yet</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {comments.map(comment => (
-                                        <div key={comment.id} className="flex gap-3 p-4 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg">
-                                            <div className={cn('w-8 h-8 rounded flex items-center justify-center flex-shrink-0', ownerColor(comment.author))}>
-                                                <span className="text-[10px] font-black text-white">{ownerInitial(comment.author)}</span>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-xs font-bold text-slate-300">{comment.author}</span>
-                                                    <span className={cn('text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded', COMMENT_TYPE_COLORS[comment.commentType])}>
-                                                        {comment.commentType}
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-600">{timeAgo(comment.createdAt)}</span>
-                                                </div>
-                                                <p className="text-sm text-slate-400 whitespace-pre-wrap">{comment.content}</p>
-                                            </div>
+                                                >
+                                                    {COMMENT_TYPE_ICONS[type]}
+                                                    {type}
+                                                </button>
+                                            ))}
                                         </div>
-                                    ))}
+                                        <textarea
+                                            value={newComment}
+                                            onChange={e => setNewComment(e.target.value)}
+                                            placeholder="Add a comment..."
+                                            rows={3}
+                                            className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600 resize-none"
+                                        />
+                                        <div className="flex justify-end mt-2">
+                                            <button
+                                                onClick={handleAddComment}
+                                                disabled={!newComment.trim() || loading}
+                                                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-lg disabled:opacity-40"
+                                            >
+                                                {loading ? 'Posting...' : 'Post Comment'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {comments.length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <MessageSquare className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                                            <p className="text-sm text-slate-500">No comments yet</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {comments.map(comment => (
+                                                <div key={comment.id} className="flex gap-3 p-4 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg">
+                                                    <div className={cn('w-8 h-8 rounded flex items-center justify-center flex-shrink-0', ownerColor(comment.author))}>
+                                                        <span className="text-[10px] font-black text-white">{ownerInitial(comment.author)}</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-xs font-bold text-slate-300">{comment.author}</span>
+                                                            <span className={cn('text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded', COMMENT_TYPE_COLORS[comment.commentType])}>
+                                                                {comment.commentType}
+                                                            </span>
+                                                            <span className="text-[10px] text-slate-600">{timeAgo(comment.createdAt)}</span>
+                                                        </div>
+                                                        <p className="text-sm text-slate-400 whitespace-pre-wrap">{comment.content}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </div>
-                    )}
 
-                    {activeTab === 'activity' && (
-                        <div className="space-y-2">
-                            {activity.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <Clock className="w-8 h-8 text-slate-700 mx-auto mb-3" />
-                                    <p className="text-sm text-slate-500">No activity yet</p>
-                                </div>
-                            ) : (
-                                <div className="relative">
-                                    {/* Timeline line */}
-                                    <div className="absolute left-4 top-0 bottom-0 w-px bg-[#1a1a1e]" />
-                                    
-                                    {activity.map((act, i) => (
-                                        <div key={act.id} className="flex gap-4 py-3 relative">
-                                            {/* Timeline dot */}
-                                            <div className={cn(
-                                                'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 relative z-10',
-                                                getActivityColor(act.activityType)
-                                            )}>
-                                                {getActivityIcon(act.activityType)}
-                                            </div>
-                                            
-                                            <div className="flex-1 pt-0.5">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-xs font-bold text-slate-300">{act.actor}</span>
-                                                    <span className="text-xs text-slate-500">{act.activityType.replace(/_/g, ' ')}</span>
-                                                    <span className="text-[10px] text-slate-600">{timeAgo(act.createdAt)}</span>
-                                                </div>
-                                                
-                                                {/* Activity details */}
-                                                {act.details && (
-                                                    <div className="text-xs text-slate-500 space-y-0.5">
-                                                        {act.details.oldStatus && act.details.newStatus && (
-                                                            <p>{act.details.oldStatus} → {act.details.newStatus}</p>
-                                                        )}
-                                                        {act.details.fromOwner && act.details.toOwner && (
-                                                            <p>Handover: {act.details.fromOwner} → {act.details.toOwner}</p>
-                                                        )}
-                                                        {act.details.blockerReason && (
-                                                            <p className="text-red-400/80">{act.details.blockerReason}</p>
-                                                        )}
-                                                        {act.details.errorMessage && (
-                                                            <p className="text-amber-400/80">{act.details.errorMessage}</p>
+                            {activeTab === 'activity' && (
+                                <div className="space-y-2">
+                                    {activity.length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <Clock className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                                            <p className="text-sm text-slate-500">No activity yet</p>
+                                        </div>
+                                    ) : (
+                                        <div className="relative">
+                                            <div className="absolute left-4 top-0 bottom-0 w-px bg-[#1a1a1e]" />
+                                            {activity.map((act, i) => (
+                                                <div key={act.id} className="flex gap-4 py-3 relative">
+                                                    <div className={cn('w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 relative z-10', getActivityColor(act.activityType))}>
+                                                        {getActivityIcon(act.activityType)}
+                                                    </div>
+                                                    <div className="flex-1 pt-0.5">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-xs font-bold text-slate-300">{act.actor}</span>
+                                                            <span className="text-xs text-slate-500">{act.activityType.replace(/_/g, ' ')}</span>
+                                                            <span className="text-[10px] text-slate-600">{timeAgo(act.createdAt)}</span>
+                                                        </div>
+                                                        {act.details && (
+                                                            <div className="text-xs text-slate-500 space-y-0.5">
+                                                                {act.details.oldStatus && act.details.newStatus && (
+                                                                    <p>{act.details.oldStatus} → {act.details.newStatus}</p>
+                                                                )}
+                                                                {act.details.fromOwner && act.details.toOwner && (
+                                                                    <p>Handover: {act.details.fromOwner} → {act.details.toOwner}</p>
+                                                                )}
+                                                                {act.details.blockerReason && (
+                                                                    <p className="text-red-400/80">{act.details.blockerReason}</p>
+                                                                )}
+                                                                {act.details.errorMessage && (
+                                                                    <p className="text-amber-400/80">{act.details.errorMessage}</p>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </div>
-                                                )}
-                                            </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             )}
-                        </div>
-                    )}
 
-                    {activeTab === 'evidence' && (
-                        <div className="space-y-4">
-                            {evidence.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <Paperclip className="w-8 h-8 text-slate-700 mx-auto mb-3" />
-                                    <p className="text-sm text-slate-500">No evidence yet</p>
-                                </div>
-                            ) : (
-                                <div className="grid gap-3">
-                                    {evidence.map(ev => (
-                                        <div key={ev.id} className="flex items-start gap-3 p-4 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg hover:border-slate-700 transition-colors">
-                                            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                                                {ev.evidenceType === 'file' ? <FileText className="w-5 h-5 text-blue-400" /> :
-                                                 ev.evidenceType === 'url' ? <Activity className="w-5 h-5 text-blue-400" /> :
-                                                 ev.evidenceType === 'screenshot' ? <Activity className="w-5 h-5 text-blue-400" /> :
-                                                 <FileText className="w-5 h-5 text-blue-400" />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-0.5">{ev.evidenceType}</p>
-                                                <a 
-                                                    href={ev.url} 
-                                                    target="_blank" 
-                                                    rel="noreferrer"
-                                                    className="text-sm text-blue-400 hover:text-blue-300 break-all"
-                                                >
-                                                    {ev.url}
-                                                </a>
-                                                {ev.description && (
-                                                    <p className="text-xs text-slate-500 mt-1">{ev.description}</p>
-                                                )}
-                                                <p className="text-[10px] text-slate-600 mt-2">Added by {ev.addedBy} • {timeAgo(ev.addedAt)}</p>
-                                            </div>
+                            {activeTab === 'evidence' && (
+                                <div className="space-y-4">
+                                    {evidence.length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <Paperclip className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                                            <p className="text-sm text-slate-500">No evidence yet</p>
                                         </div>
-                                    ))}
+                                    ) : (
+                                        <div className="grid gap-3">
+                                            {evidence.map(ev => (
+                                                <div key={ev.id} className="flex items-start gap-3 p-4 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg hover:border-slate-700 transition-colors">
+                                                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                                        {ev.evidenceType === 'file' ? <FileText className="w-5 h-5 text-blue-400" /> :
+                                                         ev.evidenceType === 'url' ? <Activity className="w-5 h-5 text-blue-400" /> :
+                                                         ev.evidenceType === 'screenshot' ? <Activity className="w-5 h-5 text-blue-400" /> :
+                                                         <FileText className="w-5 h-5 text-blue-400" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-0.5">{ev.evidenceType}</p>
+                                                        <a 
+                                                            href={ev.url} 
+                                                            target="_blank" 
+                                                            rel="noreferrer"
+                                                            className="text-sm text-blue-400 hover:text-blue-300 break-all"
+                                                        >
+                                                            {ev.url}
+                                                        </a>
+                                                        {ev.description && (
+                                                            <p className="text-xs text-slate-500 mt-1">{ev.description}</p>
+                                                        )}
+                                                        <p className="text-[10px] text-slate-600 mt-2">Added by {ev.addedBy} • {timeAgo(ev.addedAt)}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
-                        </div>
+                        </>
                     )}
                 </div>
             </div>
@@ -589,7 +615,6 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
                 task.priority === 'urgent' ? 'border-red-500/20' : '',
             )}
         >
-            {/* Priority & badges */}
             <div className="flex items-center gap-2 mb-3">
                 {task.priority && task.priority !== 'normal' && (
                     <span className={cn(
@@ -618,7 +643,6 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
                 )}
             </div>
 
-            {/* Title */}
             <div className="flex items-start gap-2 mb-3">
                 <div className={cn(
                     'w-2 h-2 rounded-full flex-shrink-0 mt-1',
@@ -633,7 +657,6 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
                 <h3 className="text-[13px] font-black text-slate-100 leading-snug line-clamp-2">{task.title}</h3>
             </div>
 
-            {/* Blocker indicator */}
             {task.isStuck && (
                 <div className="mb-3 px-3 py-2 bg-red-500/5 border border-red-500/10 rounded">
                     <p className="text-[10px] text-red-400/80 line-clamp-1">
@@ -643,14 +666,12 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
                 </div>
             )}
 
-            {/* Description */}
             {task.description && (
                 <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed mb-4">
                     {task.description}
                 </p>
             )}
 
-            {/* Footer */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <div className={cn('w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black text-white flex-shrink-0', ownerColor(task.owner))}>
@@ -665,7 +686,6 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
                 <span className="text-[9px] font-bold text-slate-600">{timeAgo(task.updatedAt)}</span>
             </div>
 
-            {/* Move button */}
             {nextCol && (
                 <button
                     onClick={(e) => { e.stopPropagation(); move(nextCol.status); }}
@@ -679,7 +699,7 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
     );
 }
 
-// ─── New Task Modal (simplified) ─────────────────────────────────────────────
+// ─── New Task Modal ────────────────────────────────────────────────────────────
 
 function TaskFormModal({ task, onClose, onSaved, agents, projects }: {
     task?: Task;
@@ -811,7 +831,6 @@ function TaskFormModal({ task, onClose, onSaved, agents, projects }: {
                         </div>
                     </div>
 
-                    {/* Validation Criteria */}
                     <div className="p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg space-y-3">
                         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Validation Criteria</p>
                         <div>
@@ -886,7 +905,7 @@ export default function TasksPage() {
 
     const load = useCallback(async () => {
         const [t, a, ag, pr] = await Promise.all([
-            fetch('/api/tasks?include=comments,evidence').then(r => r.json()),
+            fetch('/api/tasks').then(r => r.json()),
             fetch('/api/activity').then(r => r.json()),
             fetch('/api/agents').then(r => r.json()),
             fetch('/api/projects').then(r => r.json()),
