@@ -4,6 +4,8 @@ import os from 'os';
 import { execSync } from 'child_process';
 import { db } from '@/lib/db';
 import { Task, TaskStatus, Agent } from '@/lib/types';
+import { WORKSPACE_ROOTS } from '@/lib/config';
+import { listWorkspaceFiles } from '@/lib/domain/documents';
 
 const WORKSPACE_ROOT = '/Volumes/Data/openclaw/workspace';
 
@@ -113,29 +115,13 @@ function getAllMarkdownFiles(dirPath: string, fileList: string[] = []): string[]
 function ingestDocuments() {
     const insertDoc = db.prepare('INSERT OR REPLACE INTO local_documents (id, title, path, category, updatedAt) VALUES (?, ?, ?, ?, ?)');
 
-    const sourceDirs: Array<{ dir: string; category: string }> = [
-        { dir: path.join(WORKSPACE_ROOT, 'tmp'), category: 'Tasks' },
-        { dir: path.join(WORKSPACE_ROOT, 'docs'), category: 'Docs' },
-        { dir: path.join(WORKSPACE_ROOT, 'memory'), category: 'Memory' },
-        { dir: path.join(WORKSPACE_ROOT, 'projects'), category: 'Projects' },
-    ];
-
-    for (const { dir, category } of sourceDirs) {
+    for (const dir of WORKSPACE_ROOTS) {
         if (!fs.existsSync(dir)) continue;
-        const files = getAllMarkdownFiles(dir);
+        const category = dir.split('/').pop() || 'Unknown';
+        const files = listWorkspaceFiles(dir);
 
-        for (const filePath of files) {
-            try {
-                const stats = fs.statSync(filePath);
-                const file = path.basename(filePath);
-                const title = file.replace(/\.md$/, '').replace(/-/g, ' '); // Removed txt
-                const relativePath = path.relative(dir, filePath);
-                // Sanitize ID so there are no spaces or slashes
-                const id = `${category.toLowerCase()}-${relativePath.replace(/[\/\\]/g, '-')}`;
-                insertDoc.run(id, title, filePath, category, stats.mtime.toISOString());
-            } catch {
-                // skip
-            }
+        for (const doc of files) {
+            insertDoc.run(doc.id, doc.title, doc.path, doc.category, doc.updatedAt);
         }
     }
 }

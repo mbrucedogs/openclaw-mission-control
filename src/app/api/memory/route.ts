@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listWorkspaceFiles, searchWorkspaceFiles, getLocalFileContent } from '@/lib/domain/documents';
-
-const WORKSPACE_ROOTS = [
-    '/Volumes/Data/openclaw/workspace/memory',
-    '/Volumes/Data/openclaw/workspace/tmp',
-    '/Volumes/Data/openclaw/workspace/docs',
-    '/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/docs/plans',
-];
+import { WORKSPACE_ROOTS } from '@/lib/config';
 
 export async function GET(req: NextRequest) {
     const action = req.nextUrl.searchParams.get('action');
@@ -16,8 +10,17 @@ export async function GET(req: NextRequest) {
 
     switch (action) {
         case 'list': {
-            const targetRoot = root || WORKSPACE_ROOTS[0];
-            const files = listWorkspaceFiles(targetRoot);
+            let files: any[] = [];
+            if (root) {
+                files = listWorkspaceFiles(root);
+            } else {
+                files = WORKSPACE_ROOTS.flatMap(r => listWorkspaceFiles(r));
+            }
+
+            if (query) {
+                const q = query.toLowerCase();
+                files = files.filter(f => f.title.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
+            }
             return NextResponse.json({ files, roots: WORKSPACE_ROOTS });
         }
 

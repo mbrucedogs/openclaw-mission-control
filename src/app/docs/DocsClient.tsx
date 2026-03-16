@@ -111,14 +111,15 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
     }, [selectedViewerFile, mode]);
 
     const switchViewerRoot = useCallback((root: string) => {
-        setViewerRoot(root);
-        fetch(`/api/memory?action=list&root=${encodeURIComponent(root)}`)
+        const nextRoot = root === viewerRoot ? '' : root;
+        setViewerRoot(nextRoot);
+        fetch(`/api/memory?action=list&root=${encodeURIComponent(nextRoot)}`)
             .then(r => r.json())
             .then(data => {
                 setViewerFiles(data.files || []);
                 if (data.files?.length) setViewerSelected(data.files[0].id);
             }).catch(() => {});
-    }, []);
+    }, [viewerRoot]);
 
     const searchViewer = useCallback((q: string) => {
         if (!q.trim()) return;
@@ -148,7 +149,17 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
             loadRepoDocs();
             loadFolders();
         }
-    }, [mode]); // Removed loadRepoDocs and loadFolders from deps to avoid infinite loops if they aren't memoized perfectly, but they are. Simplified to mode.
+    }, [mode, loadRepoDocs, loadFolders]);
+
+    useEffect(() => {
+        if (mode === 'viewer') {
+            fetch(`/api/memory?action=list&root=${encodeURIComponent(viewerRoot)}`)
+                .then(r => r.json())
+                .then(data => {
+                    setViewerFiles(data.files || []);
+                }).catch(() => {});
+        }
+    }, [mode, viewerRoot]);
 
     const loadRepoDetail = useCallback((id: number) => {
         setRepoSelected(id);
@@ -329,6 +340,17 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                             </div>
                         ) : (
                             <div className="flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => switchViewerRoot('')}
+                                    className={cn(
+                                        "text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl transition-all border",
+                                        viewerRoot === '' 
+                                            ? "bg-indigo-600/10 border-indigo-600/50 text-indigo-400" 
+                                            : "bg-[#101010] border-[#1a1a1a] text-slate-500 hover:border-slate-700 hover:text-slate-300"
+                                    )}
+                                >
+                                    All
+                                </button>
                                 {viewerRoots.map(root => {
                                     const label = root.split('/').pop() || root;
                                     return (
@@ -716,5 +738,3 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
         </div>
     );
 }
-
-// Add CSS for custom scrollbar in globals.css or component

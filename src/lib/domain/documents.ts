@@ -1,6 +1,8 @@
 import { db } from '../db';
 import { DocumentEntry, RepoDocument, DocumentFolder, LinkedTask } from '../types';
 import fs from 'fs';
+import path from 'path';
+import { WORKSPACE_ROOTS, EXCLUDED_FOLDERS, ALLOWED_EXTENSIONS } from '../config';
 
 // ─── Viewer Mode (filesystem-backed, via local_documents table) ───────────────
 
@@ -26,23 +28,39 @@ export function getLocalFileContent(filePath: string): string {
     }
 }
 
-/** List workspace files with metadata */
-export function listWorkspaceFiles(rootDir: string): DocumentEntry[] {
-    if (!fs.existsSync(rootDir)) return [];
-    const files = fs.readdirSync(rootDir).filter(f =>
-        (f.endsWith('.md') || f.endsWith('.txt')) && !f.startsWith('.')
-    );
-    return files.map(f => {
-        const fullPath = `${rootDir}/${f}`;
-        const stats = fs.statSync(fullPath);
-        return {
-            id: f,
-            title: f.replace(/\.(md|txt)$/, '').replace(/-/g, ' '),
-            path: fullPath,
-            category: rootDir.split('/').pop() || 'unknown',
-            updatedAt: stats.mtime.toISOString(),
-        };
-    });
+/** List workspace files recursively with metadata */
+export function listWorkspaceFiles(rootDir: string, relativeDir: string = ''): DocumentEntry[] {
+    const fullDirPath = relativeDir ? path.join(rootDir, relativeDir) : rootDir;
+    if (!fs.existsSync(fullDirPath)) return [];
+
+    let results: DocumentEntry[] = [];
+    const items = fs.readdirSync(fullDirPath);
+
+    for (const item of items) {
+        if (item.startsWith('.') || EXCLUDED_FOLDERS.includes(item)) continue;
+
+        const fullPath = path.join(fullDirPath, item);
+        const itemRelativePath = relativeDir ? path.join(relativeDir, item) : item;
+        
+        try {
+            const stats = fs.statSync(fullPath);
+            if (stats.isDirectory()) {
+                results = results.concat(listWorkspaceFiles(rootDir, itemRelativePath));
+            } else if (ALLOWED_EXTENSIONS.some(ext => item.endsWith(ext))) {
+                results.push({
+                    id: itemRelativePath.replace(/[\/\\]/g, '-'),
+                    title: item.replace(/\.[^/.]+$/, '').replace(/-/g, ' '),
+                    path: fullPath,
+                    category: rootDir.split('/').pop() || 'unknown',
+                    updatedAt: stats.mtime.toISOString(),
+                });
+            }
+        } catch {
+            // skip unreadable
+        }
+    }
+
+    return results;
 }
 
 /** Search workspace files by content */
