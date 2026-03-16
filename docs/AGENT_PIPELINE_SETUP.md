@@ -1,451 +1,256 @@
-# OpenClaw Multi-Agent Pipeline Setup Guide
+# Agent Pipeline Setup Guide
 
-This document explains the orchestrated multi-agent workflow for OpenClaw. Follow these steps to replicate this setup in your own OpenClaw instance.
-
----
+This document explains how to configure agents for the alex-mission-control orchestration system.
 
 ## Overview
 
-This is an **orchestrated pipeline** where multiple specialized agents work together to process tasks from a central task board (Mission Control). The system automatically:
+The orchestration system uses a **hybrid pipeline model**:
 
-- Monitors for new tasks every 2 minutes
-- Routes work to the appropriate agent based on task type and status
-- Tracks progress through the pipeline
-- Ensures quality gates are passed before completion
+1. **Predefined Workflows** - Reusable work templates (Research, Build, Document, etc.)
+2. **Predefined Pipelines** - Common sequences (Research → Build → Review)
+3. **Dynamic Assembly** - Primary AI builds custom pipelines when no match exists
 
----
+## Required Agents
 
-## Agent Roles
+Configure these agents in your OpenClaw `openclaw.json`:
 
-### Max (Orchestrator)
-**Role:** Conductor, not musician. Routes tasks, manages the pipeline, ensures nothing gets stuck.
+```json
+{
+  "agents": [
+    {
+      "id": "alice",
+      "name": "Alice",
+      "role": "researcher",
+      "description": "Research and analysis specialist"
+    },
+    {
+      "id": "bob", 
+      "name": "Bob",
+      "role": "builder",
+      "description": "Code implementation specialist"
+    },
+    {
+      "id": "charlie",
+      "name": "Charlie", 
+      "role": "tester",
+      "description": "QA and testing specialist"
+    },
+    {
+      "id": "aegis",
+      "name": "Aegis",
+      "role": "reviewer", 
+      "description": "Final review and approval"
+    },
+    {
+      "id": "tron",
+      "name": "Tron",
+      "role": "automation",
+      "description": "Automation and scripting"
+    },
+    {
+      "id": "max",
+      "name": "Max",
+      "role": "orchestrator",
+      "description": "Primary AI - manages pipeline execution"
+    }
+  ]
+}
+```
 
-**Responsibilities:**
-- Monitors Mission Control task board via cron job every 2 minutes
-- Spawns appropriate subagents when work is detected
-- Tracks task flow through the pipeline
-- Intervenes when tasks are blocked or stuck
-- Creates tasks using proper contract format
-
-**Never does:** Direct implementation work. Always delegates.
-
----
+## Agent Roles Explained
 
 ### Alice (Researcher)
-**Role:** Gathers information, analyzes requirements, documents findings.
+- **Workflows:** wf-research, wf-document
+- **Tasks:** Research topics, analyze videos, write documentation
+- **Skills:** Information gathering, analysis, documentation
 
-**Queue:** `owner=alice`, `status=In Progress`
+### Bob (Builder)
+- **Workflows:** wf-build, wf-quick-fix
+- **Tasks:** Implement features, fix bugs, write code
+- **Skills:** Coding, implementation, debugging
 
-**Typical Tasks:**
-- Research topics
-- Analyze feasibility
-- Document blockers or capability gaps
-- Create evidence files for downstream agents
+### Charlie (Tester)
+- **Workflows:** wf-test
+- **Tasks:** QA testing, verification, edge case testing
+- **Skills:** Testing, validation, quality assurance
 
-**Handoff:** Completes research → hands to Bob
+### Aegis (Reviewer)
+- **Workflows:** wf-review
+- **Tasks:** Final approval, quality gates, sign-off
+- **Skills:** Review, judgment, decision making
 
----
+### Tron (Automation)
+- **Workflows:** wf-automate
+- **Tasks:** Create scripts, automation, cron jobs
+- **Skills:** Scripting, automation, system integration
 
-### Bob (Implementer)
-**Role:** Does the actual work. Codes, builds, creates, executes.
+### Max (Orchestrator / Primary AI)
+- **Role:** Pipeline conductor, not musician
+- **Responsibilities:**
+  - Analyzes tasks and matches to pipelines
+  - Spawns agents for each workflow step
+  - Monitors progress and reviews deliverables
+  - Communicates with agents (asks questions, requests changes)
+  - Resolves blockers and manages handoffs
+  - Enforces workflow timeouts
+  - Saves successful dynamic patterns
 
-**Queue:** `owner=bob`, `status=In Progress`
+## Workflow Configuration
 
-**Typical Tasks:**
-- Write code
-- Build features
-- Execute plans
-- Create deliverables
+Workflows are stored in the database and define:
 
-**Handoff:** Completes implementation → hands to Charlie
-
----
-
-### Charlie (QA/Tester)
-**Role:** Validates work, runs tests, checks quality gates.
-
-**Queue:** `owner=charlie`, `status=Review`
-
-**Typical Tasks:**
-- Review implementation
-- Run test suites
-- Verify acceptance criteria
-- Document QA findings
-
-**Handoff:** Passes QA → hands to Aegis
-**Handoff:** Fails QA → returns to Bob
-
----
-
-### Aegis (Final Review)
-**Role:** Final approval, merge decisions, completion sign-off.
-
-**Queue:** `owner=aegis`, `status=Review`
-
-**Typical Tasks:**
-- Final review of evidence
-- Approve task completion
-- Mark tasks as Complete
-- Document final notes
-
-**Handoff:** Approves → marks Complete
-
----
-
-## Task Lifecycle
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Backlog   │────▶│    Alice    │────▶│     Bob     │────▶│   Charlie   │────▶│    Aegis    │
-│  (Created)  │     │  (Research) │     │(Implement)  │     │   (QA/Review)│    │(Final Review)│
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-                                                                                          │
-                                                                                          ▼
-                                                                                   ┌─────────────┐
-                                                                                   │   Complete  │
-                                                                                   └─────────────┘
+```typescript
+interface WorkflowTemplate {
+  id: string;              // e.g., "wf-research"
+  name: string;            // e.g., "Research"
+  agentRole: string;       // researcher, builder, tester, reviewer, automation
+  agentId?: string;        // Specific agent (alice, bob, etc.)
+  timeoutSeconds: number;  // Hard limit - killed if exceeded
+  systemPrompt?: string;   // Instructions for the agent
+  validationChecklist: string[];  // What "done" means
+}
 ```
 
-### Status Flow
-1. **Backlog** → Task created, not yet assigned
-2. **In Progress** → Alice or Bob actively working
-3. **Review** → Charlie or Aegis validating
-4. **Complete** → Aegis approved, done
+## Built-in Workflows
 
----
+| ID | Name | Agent | Timeout | Purpose |
+|----|------|-------|---------|---------|
+| wf-research | Research | alice | 1800s | Investigate and document |
+| wf-build | Build | bob | 3600s | Implement features |
+| wf-quick-fix | Quick Fix | bob | 900s | Fix bugs quickly |
+| wf-test | Test | charlie | 1200s | QA and validation |
+| wf-review | Review | aegis | 900s | Final approval |
+| wf-document | Document | alice | 1800s | Write documentation |
+| wf-automate | Automate | tron | 1800s | Create automation |
 
-## Task Contract Format
+## Pipeline Configuration
 
-All tasks MUST follow this structure:
+Pipelines are sequences of workflows:
 
-```markdown
-## Type
-[Research | Implementation | QA Review | Final Review]
+```typescript
+interface Pipeline {
+  id: string;
+  name: string;
+  steps: PipelineStep[];
+  isDynamic: boolean;  // true if Primary AI assembled it
+}
 
-## Required Outcome
-[Clear statement of what "done" looks like]
-
-## Checklist
-- [ ] Step 1
-- [ ] Step 2
-- [ ] Step 3
-
-## Code Requirements
-- [ ] Requirement 1
-- [ ] Requirement 2
-
-## Verification
-[How to verify the task is complete]
-
-## Done Means
-[Specific, measurable definition of completion]
+interface PipelineStep {
+  workflowId: string;
+  onFailure: 'stop' | 'continue' | 'skip';
+}
 ```
 
----
+## Built-in Pipelines
 
-## Setup Instructions
+| ID | Name | Steps | Purpose |
+|----|------|-------|---------|
+| pl-standard | Standard Build | Research → Build → Test → Review | Full development cycle |
+| pl-research | Research Only | Research → Document → Review | Research tasks |
+| pl-quick-fix | Quick Fix | Quick Fix → Review | Bug fixes |
+| pl-docs | Documentation | Document → Review | Documentation tasks |
+| pl-automation | Automation | Automate → Review | Automation scripts |
 
-### Step 1: Create the Dispatcher Cron Job
+## How Execution Works
 
-Add this cron job to check for tasks every 2 minutes:
-
-```bash
-openclaw cron add \
-  --name "Pipeline Dispatcher" \
-  --every 120000 \
-  --isolated \
-  --model "ollama/qwen3.5:35b-a3b" \
-  --message "DISPATCHER: Check Mission Control for tasks.
-
-Run these exact commands:
-1. curl -s 'http://localhost:4000/api/tasks?owner=alice&status=In%20Progress' | jq '. | length'
-2. curl -s 'http://localhost:4000/api/tasks?owner=bob&status=In%20Progress' | jq '. | length'
-3. curl -s 'http://localhost:4000/api/tasks?owner=charlie&status=Review' | jq '. | length'
-4. curl -s 'http://localhost:4000/api/tasks?owner=aegis&status=Review' | jq '. | length'
-
-If any return >0, spawn that agent with sessions_spawn runtime='subagent'.
-Reply HEARTBEAT_OK if all are 0."
-```
-
-### Step 2: Configure Mission Control API
-
-Ensure your OpenClaw instance can reach:
-- `http://localhost:4000/api/tasks`
-
-Set environment variables if authentication is required:
-```bash
-export MISSION_CONTROL_API_KEY="your-key"
-export MISSION_CONTROL_URL="http://localhost:4000"
-```
-
-### Step 3: Create Agent Skills (Optional)
-
-For each agent role, create a skill file at `~/.agents/skills/`:
-
-**alice-researcher/SKILL.md:**
-```markdown
-# Alice Researcher
-
-## Role
-Research tasks, analyze requirements, document findings.
-
-## When to Use
-- Task owner is "alice"
-- Task status is "In Progress"
-- Task type is "Research"
-
-## Workflow
-1. Read task description
-2. Research the topic
-3. Document findings in evidence file
-4. Update task status to "Review"
-5. Hand off to Charlie (QA)
-```
-
-**bob-implementer/SKILL.md:**
-```markdown
-# Bob Implementer
-
-## Role
-Execute implementation tasks, write code, build features.
-
-## When to Use
-- Task owner is "bob"
-- Task status is "In Progress"
-- Task type is "Implementation"
-
-## Workflow
-1. Read task requirements
-2. Implement solution
-3. Test implementation
-4. Update task status to "Review"
-5. Hand off to Charlie (QA)
-```
-
-**charlie-tester/SKILL.md:**
-```markdown
-# Charlie QA
-
-## Role
-Validate implementations, run tests, verify acceptance criteria.
-
-## When to Use
-- Task owner is "charlie"
-- Task status is "Review"
-- Task type is "QA Review"
-
-## Workflow
-1. Review evidence from Bob
-2. Run verification steps
-3. Document QA findings
-4. If PASS: Update owner to "aegis", keep status "Review"
-5. If FAIL: Return to Bob with notes
-```
-
-**aegis-reviewer/SKILL.md:**
-```markdown
-# Aegis Final Review
-
-## Role
-Final approval, merge decisions, completion sign-off.
-
-## When to Use
-- Task owner is "aegis"
-- Task status is "Review"
-- Task type is "Final Review"
-
-## Workflow
-1. Review all evidence
-2. Verify QA passed
-3. Make final decision
-4. If APPROVE: Update status to "Complete"
-5. If REJECT: Return to appropriate agent with notes
-```
-
-### Step 4: Test the Pipeline
-
-Create a test task:
-
-```bash
-curl -X POST http://localhost:4000/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Test Pipeline Task",
-    "description": "Test the multi-agent pipeline",
-    "owner": "alice",
-    "status": "In Progress",
-    "type": "Research"
-  }'
-```
-
-Wait 2 minutes. The dispatcher should spawn Alice automatically.
-
----
-
-## Task Handoff Protocol
-
-When an agent completes work, they MUST:
-
-1. **Update the task** via API:
-   ```bash
-   curl -X PATCH http://localhost:4000/api/tasks/<task-id> \
-     -H "Content-Type: application/json" \
-     -d '{"owner": "next-agent", "status": "next-status"}'
-   ```
-
-2. **Add handoff notes** in the task description or evidence field
-
-3. **Create evidence file** if applicable (path referenced in task.evidence)
-
-4. **Log activity** to Mission Control activity endpoint
-
----
-
-## Monitoring
-
-### Check Dispatcher Status
-```bash
-openclaw cron status
-openclaw cron runs <dispatcher-job-id>
-```
-
-### Check Active Subagents
-```bash
-openclaw subagents list
-```
-
-### Check Task Board
-```bash
-curl -s http://localhost:4000/api/tasks | jq '.[] | {title, owner, status}'
-```
-
----
-
-## Troubleshooting
-
-### Dispatcher Not Spawning Agents
-
-**Symptom:** Tasks exist but no subagents spawn.
-
-**Causes:**
-1. Local model overthinking API calls (use cloud models)
-2. API authentication issues
-3. URL encoding problems
-
-**Fix:**
-- Switch to cloud model: `--model "openai-codex/gpt-5.2"`
-- Verify API is accessible: `curl http://localhost:4000/api/tasks`
-- Check auth tokens are configured
-
-### Tasks Stuck in Review
-
-**Symptom:** Task sits in Review status, no Aegis spawn.
-
-**Causes:**
-1. Charlie didn't properly hand off to Aegis
-2. Evidence file missing
-3. Task owner not updated
-
-**Fix:**
-- Manually update task: `curl -X PATCH ... {"owner": "aegis"}`
-- Create missing evidence file
-- Re-run dispatcher
-
-### Subagent Failures
-
-**Symptom:** Subagent spawns but fails immediately.
-
-**Causes:**
-1. Missing skills
-2. Sandbox restrictions
-3. Missing environment variables
-
-**Fix:**
-- Install required skills: `openclaw skills install <skill-name>`
-- Check sandbox permissions
-- Verify env vars are set
-
----
-
-## Best Practices
-
-1. **Always use task contracts** - Clear requirements prevent confusion
-2. **Document evidence** - Every task should have traceable output
-3. **Update status promptly** - Don't leave tasks in limbo
-4. **Hand off explicitly** - Clear owner changes, clear notes
-5. **Monitor the pipeline** - Check cron runs regularly
-6. **Use cloud models for API work** - Local models struggle with complex API calls
-
----
+1. **Task Created** → Primary AI analyzes content
+2. **Pipeline Matched** → Predefined or dynamically assembled
+3. **Agent Spawned** → First workflow step executes
+4. **Primary AI Monitors** → Reviews deliverables, asks questions
+5. **Communication Loop** → Iterate until satisfied
+6. **Handoff** → Route to next agent
+7. **Complete** → Final review and approval
 
 ## Example Task Flow
 
-### Task: "Research YouTube Download Options"
+**Task:** "Research YouTube video on AI patterns"
 
-**Created by:** User  
-**Initial owner:** alice  
-**Status:** In Progress
+**Pipeline Matched:** Research → Document → Review
 
-**Alice does:**
-- Researches YouTube download methods
-- Documents findings in `evidence/youtube-research.md`
-- Updates task: owner → bob, status → In Progress
-
-**Bob does:**
-- Implements chosen solution
-- Tests download functionality
-- Updates task: owner → charlie, status → Review
-
-**Charlie does:**
-- Tests implementation
-- Verifies download works
-- Updates task: owner → aegis, status → Review
-
-**Aegis does:**
-- Reviews all evidence
-- Approves completion
-- Updates task: status → Complete
-
----
-
-## Advanced Configuration
-
-### Custom Agent Names
-
-Edit the dispatcher cron job to use different agent names:
-
-```bash
-# Change these lines in the dispatcher message:
-curl -s 'http://localhost:4000/api/tasks?owner=your-researcher&status=In%20Progress'
-curl -s 'http://localhost:4000/api/tasks?owner=your-builder&status=In%20Progress'
+**Step 1: Research (Alice)**
+```
+Primary AI → Spawns Alice
+"Research this video, extract key patterns"
+↓
+Alice → Extracts transcript → Analyzes → Posts findings
+↓
+Primary AI ← Reviews
+"What tools were mentioned?"
+↓
+Alice → Responds with tools list
+↓
+Primary AI → Satisfied → Spawns Document workflow
 ```
 
-### Different Check Intervals
-
-Change from 2 minutes to 5 minutes:
-```bash
-openclaw cron update <job-id> --every 300000
+**Step 2: Document (Alice)**
+```
+Primary AI → Spawns Alice
+"Create summary document from research"
+↓
+Alice → Writes document → Saves to /docs
+↓
+Primary AI ← Reviews document
+"Add code examples"
+↓
+Alice → Updates document
+↓
+Primary AI → Satisfied → Spawns Review workflow
 ```
 
-### Add More Pipeline Stages
+**Step 3: Review (Aegis)**
+```
+Primary AI → Spawns Aegis
+"Review document for accuracy"
+↓
+Aegis → Reviews → Approves
+↓
+Primary AI → Marks task complete
+```
 
-Add new agents by:
-1. Creating a new skill file
-2. Adding a new curl check to dispatcher
-3. Adding spawn logic for the new agent
-4. Updating handoff protocols
+## Customization
 
----
+### Adding New Workflows
 
-## Support
+1. Go to **Orchestration** → **Workflows**
+2. Click **New Workflow**
+3. Fill in:
+   - Name
+   - Description
+   - Agent (required)
+   - Timeout (seconds)
+   - System Prompt
+   - Validation Checklist
+   - Tags
 
-For issues with this workflow:
-1. Check `openclaw logs --follow`
-2. Verify Mission Control API is running
-3. Ensure all skills are installed
-4. Check cron job status: `openclaw cron status`
+### Adding New Pipelines
 
----
+1. Go to **Orchestration** → **Pipelines**
+2. Click **New Pipeline**
+3. Fill in:
+   - Name
+   - Description
+   - Steps (add workflows in order)
+   - Configure on-failure behavior for each step
 
-*Last updated: 2026-03-15*
-*Version: 1.0*
+## Troubleshooting
+
+**Agent not appearing?**
+- Check OpenClaw config has agent defined
+- Verify `/api/agents` returns the agent
+- Ensure agent role matches workflow requirement
+
+**Pipeline not matching?**
+- Check task has descriptive title
+- Review keyword matching logic
+- Use explicit hint: `[pipeline: research]` in title
+
+**Workflow timing out?**
+- Increase timeoutSeconds for that workflow
+- Check agent has proper tools/skills
+- Review system prompt clarity
+
+## See Also
+
+- [ORCHESTRATION.md](./ORCHESTRATION.md) - Full system documentation
+- [QUICKSTART.md](./QUICKSTART.md) - Get started in 5 minutes
+- [README.md](../README.md) - Project overview

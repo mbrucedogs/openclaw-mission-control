@@ -1,4 +1,4 @@
-# Alex Mission Control
+# Mission Control
 
 A task management and agent orchestration system for OpenClaw autonomous organizations.
 
