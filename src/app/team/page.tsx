@@ -23,18 +23,26 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const iconMap: Record<string, any> = {
-    'max': '🎉',
-    'alice': Search,
-    'bob': Code,
-    'charlie': TestTube,
-    'aegis': Shield,
-    'tron': Zap,
+const getAgentIcon = (agent: any) => {
+    const id = agent.id.toLowerCase();
+    const role = (agent.role || '').toLowerCase();
+    
+    if (id === 'main' || id === 'max' || role.includes('orchestrat')) return '🎉';
+    if (id.includes('alice') || role.includes('research')) return Search;
+    if (id.includes('bob') || role.includes('implement') || role.includes('code')) return Code;
+    if (id.includes('charlie') || role.includes('test') || role.includes('qa')) return TestTube;
+    if (id.includes('aegis') || role.includes('review') || role.includes('standard')) return Shield;
+    if (id.includes('tron') || role.includes('auto') || role.includes('cron') || role.includes('monitor')) return Zap;
+    
+    return User;
 };
 
 export default function TeamPage() {
     const agents = getAgents();
-    const findAgent = (id: string) => agents.find(a => a.id === id);
+    
+    const governanceAgents = agents.filter(a => a.layer === 'governance').sort((a, b) => (a.order || 0) - (b.order || 0));
+    const pipelineAgents = agents.filter(a => a.layer === 'pipeline').sort((a, b) => (a.order || 0) - (b.order || 0));
+    const automationAgents = agents.filter(a => a.layer === 'automation').sort((a, b) => (a.order || 0) - (b.order || 0));
 
     return (
         <div className="max-w-[1400px] p-12 space-y-20">
@@ -53,44 +61,55 @@ export default function TeamPage() {
 
             {/* Hierarchy Layout */}
             <div className="space-y-24 relative pb-20">
-                {/* Max - Orchestrator */}
-                <div className="flex flex-col items-center space-y-8">
-                    <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Governance Layer</div>
-                    <AgentCard agent={findAgent('max')} highlight="border-blue-500/30" />
-                </div>
+                {/* Governance Layer */}
+                {governanceAgents.length > 0 && (
+                    <div className="flex flex-col items-center space-y-8">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Governance Layer</div>
+                        <div className="flex flex-wrap justify-center gap-6">
+                            {governanceAgents.map(a => (
+                                <AgentCard key={a.id} agent={a} highlight="border-blue-500/30" />
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Pipeline Layer */}
-                <div className="space-y-12">
-                    <div className="flex items-center justify-center space-x-4">
-                        <div className="h-px w-24 bg-[#1a1a1a]" />
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center">
-                            WORKFLOW PIPELINE
-                        </span>
-                        <div className="h-px w-24 bg-[#1a1a1a]" />
-                    </div>
+                {pipelineAgents.length > 0 && (
+                    <div className="space-y-12">
+                        <div className="flex items-center justify-center space-x-4">
+                            <div className="h-px w-24 bg-[#1a1a1a]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center">
+                                WORKFLOW PIPELINE
+                            </span>
+                            <div className="h-px w-24 bg-[#1a1a1a]" />
+                        </div>
 
-                    <div className="grid grid-cols-4 gap-6 w-full max-w-6xl">
-                        <AgentCard agent={findAgent('alice')} />
-                        <AgentCard agent={findAgent('bob')} />
-                        <AgentCard agent={findAgent('charlie')} />
-                        <AgentCard agent={findAgent('aegis')} highlight="border-emerald-500/30" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl mx-auto">
+                            {pipelineAgents.map(a => (
+                                <AgentCard key={a.id} agent={a} highlight={a.id === 'aegis' ? 'border-emerald-500/30' : undefined} />
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Automation Layer */}
-                <div className="space-y-12">
-                    <div className="flex items-center justify-center space-x-4">
-                        <div className="h-px w-24 bg-[#1a1a1a]" />
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center">
-                            AUTOMATION LAYER (TRON)
-                        </span>
-                        <div className="h-px w-24 bg-[#1a1a1a]" />
-                    </div>
+                {automationAgents.length > 0 && (
+                    <div className="space-y-12">
+                        <div className="flex items-center justify-center space-x-4">
+                            <div className="h-px w-24 bg-[#1a1a1a]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center">
+                                AUTOMATION LAYER
+                            </span>
+                            <div className="h-px w-24 bg-[#1a1a1a]" />
+                        </div>
 
-                    <div className="flex justify-center">
-                        <AgentCard agent={findAgent('tron')} highlight="border-orange-500/30" />
+                        <div className="flex flex-wrap justify-center gap-6">
+                            {automationAgents.map(a => (
+                                <AgentCard key={a.id} agent={a} highlight="border-orange-500/30" />
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Vertical Lines */}
                 <div className="absolute top-48 left-1/2 -ml-px w-px h-[calc(100%-12rem)] bg-[#1a1a1a] -z-10" />
@@ -102,7 +121,7 @@ export default function TeamPage() {
 function AgentCard({ agent, highlight, badge }: { agent: any, highlight?: string, badge?: string }) {
     if (!agent) return <div className="w-[280px] h-64 bg-[#101010] border border-dashed border-[#1a1a1a] rounded-3xl" />;
 
-    const Icon = iconMap[agent.id];
+    const Icon = getAgentIcon(agent);
 
     return (
         <div className={cn(
@@ -144,3 +163,4 @@ function AgentCard({ agent, highlight, badge }: { agent: any, highlight?: string
         </div>
     );
 }
+

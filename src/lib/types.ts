@@ -52,6 +52,8 @@ export interface Agent {
     mission?: string;
     status: 'idle' | 'busy' | 'offline';
     responsibilities: string[];
+    layer?: 'governance' | 'pipeline' | 'automation';
+    order?: number;
 }
 
 export interface ScheduleJob {

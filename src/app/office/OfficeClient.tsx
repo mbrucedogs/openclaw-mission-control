@@ -27,29 +27,54 @@ import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { Send, X } from 'lucide-react';
 
-const iconMap: Record<string, any> = {
-    max: '🎉',
-    alice: '🔍',
-    bob: '💻',
-    charlie: '🧪',
-    aegis: '🛡️',
-    tron: '⚡',
+const getAgentIcon = (agentOrId: any) => {
+    const id = (typeof agentOrId === 'string' ? agentOrId : agentOrId?.id || '').toLowerCase();
+    const role = (typeof agentOrId === 'string' ? '' : agentOrId?.role || '').toLowerCase();
+    
+    if (id.includes('max')) return '🎉';
+    if (id.includes('alice') || role.includes('research')) return '🔍';
+    if (id.includes('bob') || role.includes('implement') || role.includes('code')) return '💻';
+    if (id.includes('charlie') || role.includes('test') || role.includes('qa')) return '🧪';
+    if (id.includes('aegis') || role.includes('review') || role.includes('standard')) return '🛡️';
+    if (id.includes('tron') || id.includes('heartbeat') || role.includes('auto') || role.includes('cron') || role.includes('monitor')) return '⚡';
+    
+    return '👤';
 };
 
 export function OfficeClient({ agents }: { agents: any[] }) {
-    const [selectedAgent, setSelectedAgent] = useState('max');
+    // Dynamically pick the first agent or a sensible default
+    const [selectedAgent, setSelectedAgent] = useState(() => {
+        const main = agents.find(a => a.id === 'main' || a.id === 'max');
+        return main?.id || agents[0]?.id || '';
+    });
     const [liveSessions, setLiveSessions] = useState<any[]>([]);
     
-    // Map Positions State
-    const defaultPositions = {
+    // Default Positions (Mapping both technical IDs and friendly aliases)
+    const defaultPositions: Record<string, {x: number, y: number}> = {
         max: { x: 2, y: 1 },
+        main: { x: 2, y: 1 },
         alice: { x: 1, y: 4 },
+        'alice-researcher': { x: 1, y: 4 },
         bob: { x: 2, y: 4 },
+        'bob-implementer': { x: 2, y: 4 },
         charlie: { x: 3, y: 4 },
+        'charlie-tester': { x: 3, y: 4 },
         aegis: { x: 4, y: 4 },
         tron: { x: 3, y: 1 },
     };
-    const [positions, setPositions] = useState<Record<string, {x: number, y: number}>>(defaultPositions);
+
+    // Auto-generate positions for new agents
+    const allPositions = { ...defaultPositions };
+    let nextX = 0;
+    
+    agents.forEach(agent => {
+        if (!allPositions[agent.id]) {
+            allPositions[agent.id] = { x: nextX % 6, y: 5 };
+            nextX++;
+        }
+    });
+
+    const [positions, setPositions] = useState<Record<string, {x: number, y: number}>>(allPositions);
 
     useEffect(() => {
         const fetchSessions = async () => {
@@ -69,21 +94,13 @@ export function OfficeClient({ agents }: { agents: any[] }) {
         return () => clearInterval(interval);
     }, []);
 
-    // Map OpenClaw agent names to database agent IDs
-    const OPENCLAW_AGENT_MAP: Record<string, string> = {
-        max: 'main',
-        alice: 'alice-researcher',
-        bob: 'bob-implementer',
-        charlie: 'charlie-tester',
-        aegis: 'aegis',
-        tron: 'tron',
-    };
-
     // Merge static agents from DB with live status from OpenClaw
     const displayAgents = agents.map(agent => {
-        const openclawId = OPENCLAW_AGENT_MAP[agent.id] || agent.id;
-        // Check if ANY active session matches this openclaw agent id
-        const session = liveSessions.find(s => s.agentId === openclawId);
+        // OpenClaw often uses names directly or prefixed IDs
+        const session = liveSessions.find(s => 
+            s.agentId === agent.id || 
+            s.label?.toLowerCase().includes(agent.id.toLowerCase())
+        );
         return {
             ...agent,
             isLive: !!session,
@@ -96,31 +113,28 @@ export function OfficeClient({ agents }: { agents: any[] }) {
         return agent?.isLive ? 'Active' : undefined;
     };
 
-    const selectedOpenClawId = OPENCLAW_AGENT_MAP[selectedAgent] || selectedAgent;
+    const selectedAgentData = displayAgents.find(a => a.id === selectedAgent) || displayAgents[0];
     const agentSessions = liveSessions
-        .filter(s => s.agentId === selectedOpenClawId)
+        .filter(s => s.agentId === selectedAgent || s.label?.toLowerCase().includes(selectedAgent.toLowerCase()))
         .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
         .slice(0, 50);
 
     // Map Actions
     const handleReset = () => {
-        setPositions(defaultPositions);
+        setPositions(allPositions);
     };
 
     const handleGather = () => {
-        setPositions({
-            max: { x: 3, y: 4 },
-            alice: { x: 2, y: 5 },
-            bob: { x: 4, y: 5 },
-            charlie: { x: 3, y: 6 },
-            aegis: { x: 2, y: 6 },
-            tron: { x: 4, y: 6 },
+        const gatherPositions: any = {};
+        displayAgents.forEach((a, i) => {
+            gatherPositions[a.id] = { x: (i % 3) + 2, y: Math.floor(i / 3) + 4 };
         });
+        setPositions(gatherPositions);
     };
 
     const handleWatercooler = () => {
         setPositions({
-            ...defaultPositions,
+            ...allPositions,
             alice: { x: 0, y: 5 },
             bob: { x: 1, y: 5 },
         });
@@ -155,19 +169,59 @@ export function OfficeClient({ agents }: { agents: any[] }) {
 
                         {/* Rendering Agents on the Map */}
                         <div className="relative w-full h-full p-20 grid grid-cols-6 grid-rows-6 gap-0">
-                            {/* Desks (Static) */}
-                            <MapObject x={2} y={1} type="desk" agent="max" status={getAgentStatus('max') || "Orchestrating..."} selected={selectedAgent === 'max'} onClick={() => setSelectedAgent('max')} showAvatar={positions.max.x === defaultPositions.max.x && positions.max.y === defaultPositions.max.y} />
-                            <MapObject x={3} y={1} type="desk" agent="tron" status={getAgentStatus('tron') || "Cron"} selected={selectedAgent === 'tron'} onClick={() => setSelectedAgent('tron')} showAvatar={positions.tron.x === defaultPositions.tron.x && positions.tron.y === defaultPositions.tron.y} />
+                            {/* Static Desks for Anchors */}
+                            {(() => {
+                                const mainAgent = displayAgents.find(a => a.layer === 'governance' || a.role.toLowerCase().includes('orchestrat'));
+                                const tronAgent = displayAgents.find(a => a.layer === 'automation' || a.role.toLowerCase().includes('auto'));
+                                
+                                return (
+                                    <>
+                                        {mainAgent && (
+                                            <MapObject 
+                                                x={2} y={1} type="desk" agent={mainAgent.name} 
+                                                status={getAgentStatus(mainAgent.id) || "Orchestrating..."} 
+                                                selected={selectedAgent === mainAgent.id} 
+                                                onClick={() => setSelectedAgent(mainAgent.id)} 
+                                                showAvatar={positions[mainAgent.id]?.x === 2 && positions[mainAgent.id]?.y === 1} 
+                                            />
+                                        )}
+                                        {tronAgent && (
+                                            <MapObject 
+                                                x={3} y={1} type="desk" agent={tronAgent.name} 
+                                                status={getAgentStatus(tronAgent.id) || "Cron"} 
+                                                selected={selectedAgent === tronAgent.id} 
+                                                onClick={() => setSelectedAgent(tronAgent.id)} 
+                                                showAvatar={positions[tronAgent.id]?.x === 3 && positions[tronAgent.id]?.y === 1} 
+                                            />
+                                        )}
+                                    </>
+                                );
+                            })()}
 
-                            {/* Characters (Dynamic Positions) */}
-                            <MapObject x={positions.alice.x} y={positions.alice.y} type="character" agent="alice" status={getAgentStatus('alice')} selected={selectedAgent === 'alice'} onClick={() => setSelectedAgent('alice')} />
-                            <MapObject x={positions.bob.x} y={positions.bob.y} type="character" agent="bob" status={getAgentStatus('bob')} selected={selectedAgent === 'bob'} onClick={() => setSelectedAgent('bob')} />
-                            <MapObject x={positions.charlie.x} y={positions.charlie.y} type="character" agent="charlie" status={getAgentStatus('charlie')} selected={selectedAgent === 'charlie'} onClick={() => setSelectedAgent('charlie')} />
-                            <MapObject x={positions.aegis.x} y={positions.aegis.y} type="character" agent="aegis" status={getAgentStatus('aegis')} selected={selectedAgent === 'aegis'} onClick={() => setSelectedAgent('aegis')} />
-                            
-                            {/* Extra character avatars for desk workers when they move */}
-                            {positions.max.x !== defaultPositions.max.x && <MapObject x={positions.max.x} y={positions.max.y} type="character" agent="max" status={getAgentStatus('max')} selected={selectedAgent === 'max'} onClick={() => setSelectedAgent('max')} />}
-                            {positions.tron.x !== defaultPositions.tron.x && <MapObject x={positions.tron.x} y={positions.tron.y} type="character" agent="tron" status={getAgentStatus('tron')} selected={selectedAgent === 'tron'} onClick={() => setSelectedAgent('tron')} />}
+                            {/* Dynamic Characters */}
+                            {displayAgents.map(agent => {
+                                const pos = positions[agent.id];
+                                if (!pos) return null;
+
+                                // Don't render character if they are currently shown AT their desk (Governance/Automation anchors)
+                                const isMain = agent.layer === 'governance' || agent.role.toLowerCase().includes('orchestrat');
+                                const isTron = agent.layer === 'automation' || agent.role.toLowerCase().includes('auto');
+                                
+                                if (isMain && pos.x === 2 && pos.y === 1) return null;
+                                if (isTron && pos.x === 3 && pos.y === 1) return null;
+
+                                return (
+                                    <MapObject 
+                                        key={agent.id}
+                                        x={pos.x} y={pos.y} 
+                                        type="character" 
+                                        agent={agent.name} 
+                                        status={getAgentStatus(agent.id)} 
+                                        selected={selectedAgent === agent.id} 
+                                        onClick={() => setSelectedAgent(agent.id)} 
+                                    />
+                                );
+                            })}
 
                             {/* Decorations */}
                             <MapObject x={0} y={4} type="fountain" />
@@ -356,14 +410,4 @@ function MapObject({ x, y, type, agent, status, selected, showAvatar = true, onC
     return null;
 }
 
-function getAgentIcon(id: string) {
-    const icons: any = {
-        max: '🎉',
-        alice: '🔍',
-        bob: '💻',
-        charlie: '🧪',
-        aegis: '🛡️',
-        tron: '⚡',
-    };
-    return icons[id] || '👤';
-}
+

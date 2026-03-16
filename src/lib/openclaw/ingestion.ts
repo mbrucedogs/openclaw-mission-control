@@ -13,37 +13,9 @@ const WORKSPACE_ROOT = '/Volumes/Data/openclaw/workspace';
 
 export async function ingestWorkspace() {
     // better-sqlite3 is synchronous — no async in transactions
-    ingestTeam();
     ingestMemories();
     ingestDocuments();
     ingestScheduleJobs();
-}
-
-// ─── Team ─────────────────────────────────────────────────────────────────────
-
-function ingestTeam() {
-    const agents: Agent[] = [
-        { id: 'max', name: 'Max', role: 'Orchestrator', status: 'idle', responsibilities: ['Decomposition', 'Delegation', 'Coordination'], mission: 'Conductor, not musician. Breaks work into steps and delegates.' },
-        { id: 'alice', name: 'Alice', role: 'Research', status: 'idle', responsibilities: ['Information Gathering', 'Analysis', 'Context'], mission: 'Intelligence gatherer. All research flows through Alice.' },
-        { id: 'bob', name: 'Bob', role: 'Implementation', status: 'idle', responsibilities: ['Coding', 'Development', 'Refactoring'], mission: 'Builder. All implementation flows through Bob.' },
-        { id: 'charlie', name: 'Charlie', role: 'QA', status: 'idle', responsibilities: ['Testing', 'Validation', 'Reports'], mission: 'Quality gatekeeper. All testing flows through Charlie.' },
-        { id: 'aegis', name: 'Aegis', role: 'Review', status: 'idle', responsibilities: ['Validation', 'Standards', 'Approval'], mission: 'Validator. All final approval flows through Aegis.' },
-        { id: 'tron', name: 'Tron', role: 'Automation', status: 'idle', responsibilities: ['Cron Jobs', 'Scheduled Work', 'Triggers'], mission: 'Scheduler. All automated/recurring work flows through Tron.' },
-    ];
-
-    const insertAgent = db.prepare('INSERT OR IGNORE INTO agents (id, name, role, status, mission) VALUES (?, ?, ?, ?, ?)');
-    const insertResp = db.prepare('INSERT INTO responsibilities (agentId, description) VALUES (?, ?)');
-    const hasResps = db.prepare('SELECT COUNT(*) as c FROM responsibilities WHERE agentId = ?');
-
-    for (const agent of agents) {
-        insertAgent.run(agent.id, agent.name, agent.role, agent.status, agent.mission);
-        const count = (hasResps.get(agent.id) as any).c;
-        if (count === 0) {
-            for (const resp of agent.responsibilities) {
-                insertResp.run(agent.id, resp);
-            }
-        }
-    }
 }
 
 

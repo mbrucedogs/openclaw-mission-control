@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mission Control - Autonomous Organization Dashboard
 
-## Getting Started
+Mission Control is a living dashboard for your OpenClaw autonomous organization. It provides a real-time "Command Center" view of your agents, their statuses, tasks, and the overall orchestration pipeline.
 
-First, run the development server:
+> [!IMPORTANT]
+> This application is **dynamically driven** by your OpenClaw workspace. It pulls identities, roles, and hierarchy directly from your Markdown configuration and technical JSON files.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🛠 Prerequisites
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To run this application, you need:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Node.js 18+**
+- **OpenClaw Workspace**: A local directory containing your agent configuration.
+- **OpenClaw Config**: The global `openclaw.json` file (usually at `~/.openclaw/openclaw.json`).
 
-## Learn More
+## 🚀 Quick Start
 
-To learn more about Next.js, take a look at the following resources:
+1.  **Clone and Install**:
+    ```bash
+    npm install
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2.  **Environment Setup**:
+    Ensure your workspace path is correctly set in `src/lib/openclaw/discovery.ts` (currently defaults to `/Volumes/Data/openclaw/workspace`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3.  **Launch Dashboard**:
+    ```bash
+    npm run dev
+    ```
+    Access at `http://localhost:3000`.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🏗 The "Holistic Discovery" System
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Mission Control merges four distinct data sources to build the team roster:
+
+### 1. Global Identity (`openclaw.json`)
+Located at `~/.openclaw/openclaw.json`.
+- **Primary Source for Technical IDs**: This maps "friendly" IDs to technical ones (e.g., `Max` -> `main`). 
+- **Session Correlation**: The app uses these IDs to poll for live agent activity.
+
+### 2. Team Roster (`agents/TEAM-REGISTRY.md`)
+The core list of agents.
+- **Table Detection**: Looks for a Markdown table with `Name`, `Role`, and `Folder`.
+- **Folder Mapping**: Tells the app where to find the "Soul" of each agent.
+
+### 3. Orchestration Flow (`TEAM_GOVERNANCE.md`)
+Defines the hierarchy.
+- **Pipeline Parsing**: The app parses strings like `Matt -> Max -> Alice -> Done` to determine the display order on the **Team** screen.
+- **Layer Assignment**: Automatically categorizes agents into **Governance**, **Pipeline**, and **Automation** layers based on roles and the pipeline flow.
+
+### 4. Agent Profiles (`SOUL.md` & `AGENTS.md`)
+Every agent folder found in the registry must contain these:
+- **`SOUL.md`**: Mission statement extraction from the "Core Identity" section.
+- **`AGENTS.md`**: Skill extraction from the "Skills" or "Roles" section.
+
+---
+
+## 📂 Project Structure
+
+- `src/lib/openclaw/discovery.ts`: The bridge that parses the workspace and merges the data.
+- `src/lib/domain/agents.ts`: Syncs discovered agents into the local SQLite database for status tracking.
+- `src/app/office/OfficeClient.tsx`: The premium 2D floor plan rendering.
+- `src/app/team/page.tsx`: The organizational hierarchy and role cards.
+
+## 🔄 Adding an Agent
+
+To add an agent so they show up in Mission Control:
+1.  Add them to your **Global Config** (`openclaw.json`) if they need session tracking.
+2.  Add a row to your `TEAM-REGISTRY.md`.
+3.  Create their folder with `SOUL.md` and `AGENTS.md`.
+4.  Optionally add them to the arrow-flow in `TEAM_GOVERNANCE.md`.
