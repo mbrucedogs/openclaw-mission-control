@@ -15,6 +15,99 @@ export type TaskStatus =
     'Complete' |
     'Scheduled';
 
+// ============================================================================
+// TASK COMMENTS
+// ============================================================================
+
+export type CommentType = 'note' | 'blocker' | 'handover' | 'qa_finding' | 'evidence_ref' | 'system';
+export type AuthorType = 'agent' | 'user' | 'system';
+
+export interface TaskComment {
+    id: string;
+    taskId: string;
+    author: string;
+    authorType: AuthorType;
+    content: string;
+    commentType: CommentType;
+    parentId?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+// ============================================================================
+// TASK ACTIVITY
+// ============================================================================
+
+export type ActivityType = 
+    | 'created' 
+    | 'updated' 
+    | 'status_changed' 
+    | 'assigned'
+    | 'handover' 
+    | 'comment_added' 
+    | 'evidence_added' 
+    | 'evidence_removed'
+    | 'blocked' 
+    | 'unblocked' 
+    | 'retry_attempt' 
+    | 'started' 
+    | 'completed';
+
+export interface ActivityDetails {
+    oldStatus?: TaskStatus;
+    newStatus?: TaskStatus;
+    fromOwner?: string;
+    toOwner?: string;
+    handoverNotes?: string;
+    blockerReason?: string;
+    blockerType?: 'infrastructure' | 'dependency' | 'clarification' | 'external';
+    attemptNumber?: number;
+    errorMessage?: string;
+    evidenceId?: string;
+    commentId?: string;
+}
+
+export interface TaskActivity {
+    id: string;
+    taskId: string;
+    actor: string;
+    actorType: AuthorType;
+    activityType: ActivityType;
+    details?: ActivityDetails;
+    createdAt: string;
+}
+
+// ============================================================================
+// TASK EVIDENCE
+// ============================================================================
+
+export type EvidenceType = 'file' | 'url' | 'document' | 'screenshot' | 'log';
+
+export interface TaskEvidence {
+    id: string;
+    taskId: string;
+    evidenceType: EvidenceType;
+    url: string;
+    description?: string;
+    addedBy: string;
+    addedAt: string;
+}
+
+// ============================================================================
+// VALIDATION CRITERIA
+// ============================================================================
+
+export interface ValidationCriteria {
+    checklist: string[];
+    doneMeans: string;
+    codeRequirements?: string[];
+    verificationSteps?: string[];
+}
+
+// ============================================================================
+// ENHANCED TASK
+// ============================================================================
+
 export interface Task {
     id: string;
     title: string;
@@ -27,14 +120,38 @@ export interface Task {
     project?: string;
     executionMode: 'local' | 'cloud';
     scheduleRef?: string;
-    evidence?: string; // Links or evidence descriptions
-    retryCount?: number;
-    handoverFrom?: string; // For named-agent handoff
-    supervisorNotes?: string;
-    isStuck?: boolean;
+    
+    // Time tracking
     createdAt: string;
     updatedAt: string;
+    startedAt?: string;
+    completedAt?: string;
+    
+    // Retry tracking
+    retryCount: number;
+    maxRetries: number;
+    lastError?: string;
+    
+    // Blocker tracking
+    isStuck: boolean;
+    stuckReason?: string;
+    stuckSince?: string;
+    
+    // Pipeline
+    handoverFrom?: string;
+    
+    // Validation
+    validationCriteria?: ValidationCriteria;
+    
+    // Relations (populated on fetch with ?include=...)
+    comments?: TaskComment[];
+    activity?: TaskActivity[];
+    evidence?: TaskEvidence[];
 }
+
+// ============================================================================
+// OTHER TYPES
+// ============================================================================
 
 export interface Project {
     id: string;
@@ -65,6 +182,7 @@ export interface ScheduleJob {
     agentId: string;
 }
 
+// Legacy global activity (kept for backward compat)
 export interface ActivityEvent {
     id: string;
     type: 'task_created' | 'task_updated' | 'task_moved' | 'comment_added' | 'status_changed';

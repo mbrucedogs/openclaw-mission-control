@@ -39,7 +39,7 @@ Mission Control merges four distinct data sources to build the team roster:
 
 ### 1. Global Identity (`openclaw.json`)
 Located at `~/.openclaw/openclaw.json`.
-- **Primary Source for Technical IDs**: This maps "friendly" IDs to technical ones (e.g., `Max` -> `main`). 
+- **Primary Source for Technical IDs**: This maps "friendly" IDs to technical ones (e.g., `Dana-Dev` -> `dana-dev`). 
 - **Session Correlation**: The app uses these IDs to poll for live agent activity.
 
 ### 2. Team Roster (`agents/TEAM-REGISTRY.md`)
@@ -49,13 +49,23 @@ The core list of agents.
 
 ### 3. Orchestration Flow (`TEAM_GOVERNANCE.md`)
 Defines the hierarchy.
-- **Pipeline Parsing**: The app parses strings like `Matt -> Max -> Alice -> Done` to determine the display order on the **Team** screen.
+- **Pipeline Parsing**: The app parses strings like `User -> Leo-Lead -> Dana-Dev -> Done` to determine the display order on the **Team** screen.
 - **Layer Assignment**: Automatically categorizes agents into **Governance**, **Pipeline**, and **Automation** layers based on roles and the pipeline flow.
 
 ### 4. Agent Profiles (`SOUL.md` & `AGENTS.md`)
 Every agent folder found in the registry must contain these:
 - **`SOUL.md`**: Mission statement extraction from the "Core Identity" section.
 - **`AGENTS.md`**: Skill extraction from the "Skills" or "Roles" section.
+
+---
+
+## 📚 Examples
+
+We provide a complete set of boilerplate templates to help you get started:
+- [Example TEAM-REGISTRY.md](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/TEAM-REGISTRY.md)
+- [Example TEAM_GOVERNANCE.md](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/TEAM_GOVERNANCE.md)
+- [Example openclaw.json](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/openclaw.json.example)
+- [Example Agent Folder (SOUL/AGENTS)](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/agents/dana-dev/)
 
 ---
 

@@ -1,51 +1,69 @@
 import { NextResponse } from 'next/server';
-import { getTasks } from '@/lib/domain/tasks';
-import { db } from '@/lib/db';
-import { TaskStatus } from '@/lib/types';
+import { getTasks, getTaskById, createTask, updateTask, deleteTask, TaskFilters } from '@/lib/domain/tasks';
+import { TaskStatus, Priority } from '@/lib/types';
 import { randomUUID } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+// GET /api/tasks
+export async function GET(request: Request) {
     try {
-        const tasks = getTasks();
+        const url = new URL(request.url);
+        
+        // Parse filters
+        const filters: TaskFilters = {};
+        const status = url.searchParams.get('status') as TaskStatus | null;
+        const owner = url.searchParams.get('owner');
+        const project = url.searchParams.get('project');
+        const isStuck = url.searchParams.get('isStuck');
+        
+        if (status) filters.status = status;
+        if (owner) filters.owner = owner;
+        if (project) filters.project = project;
+        if (isStuck !== null) filters.isStuck = isStuck === 'true';
+        
+        // Parse includes
+        const includeParam = url.searchParams.get('include');
+        const include = includeParam ? includeParam.split(',') as ('comments' | 'activity' | 'evidence')[] : undefined;
+        
+        const tasks = getTasks(Object.keys(filters).length > 0 ? filters : undefined, include);
         return NextResponse.json(tasks);
     } catch (error) {
-        console.error('API Error:', error);
+        console.error('GET /api/tasks error:', error);
         return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 });
     }
 }
 
+// POST /api/tasks
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const now = new Date().toISOString();
-        const id = 'task-' + randomUUID().split('-')[0];
+        
+        if (!body.title) {
+            return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+        }
 
-        db.prepare(`
-            INSERT INTO tasks (id, title, description, status, priority, owner, requestedBy, project, executionMode, evidence, retryCount, isStuck, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'local', ?, 0, 0, ?, ?)
-        `).run(
-            id,
-            body.title,
-            body.description || '',
-            (body.status as TaskStatus) || 'Backlog',
-            body.priority || 'normal',
-            body.owner || 'matt',
-            body.requestedBy || 'matt',
-            body.project || null,
-            body.evidence || null,
-            now,
-            now,
-        );
+        const task = createTask({
+            title: body.title,
+            description: body.description,
+            status: body.status as TaskStatus,
+            priority: body.priority as Priority,
+            owner: body.owner,
+            requestedBy: body.requestedBy,
+            reviewer: body.reviewer,
+            project: body.project,
+            executionMode: body.executionMode,
+            validationCriteria: body.validationCriteria,
+        });
 
-        // Log activity
-        db.prepare(`INSERT OR IGNORE INTO activity (id, type, message, actor, timestamp) VALUES (?, 'task_created', ?, ?, ?)`)
-            .run(`act-${id}`, `Task "${body.title}" created in ${body.status || 'Backlog'}`, body.owner || 'matt', now);
-
-        return NextResponse.json({ id }, { status: 201 });
+        return NextResponse.json(task, { status: 201 });
     } catch (error) {
         console.error('POST /api/tasks error:', error);
         return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });
     }
+}
+
+// PATCH /api/tasks (bulk update - not implemented)
+export async function PATCH(req: Request) {
+    return NextResponse.json({ error: 'Bulk updates not supported. Use /api/tasks/[id]' }, { status: 405 });
 }

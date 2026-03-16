@@ -1,0 +1,19 @@
+{
+  "agents": [
+    {
+      "id": "leo-lead",
+      "name": "Leo",
+      "agentDir": "agents/leo-lead"
+    },
+    {
+      "id": "dana-dev",
+      "name": "Dana",
+      "agentDir": "agents/dana-dev"
+    },
+    {
+      "id": "sam-scout",
+      "name": "Sam",
+      "agentDir": "agents/sam-scout"
+    }
+  ]
+}
