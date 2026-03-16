@@ -21,12 +21,17 @@ export async function GET(req: NextRequest) {
                 const q = query.toLowerCase();
                 files = files.filter(f => f.title.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
             }
+
+            // Sort newest first
+            files.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
             return NextResponse.json({ files, roots: WORKSPACE_ROOTS });
         }
 
         case 'search': {
             if (!query) return NextResponse.json({ error: 'query required' }, { status: 400 });
             const results = WORKSPACE_ROOTS.flatMap(r => searchWorkspaceFiles(r, query));
+            results.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
             return NextResponse.json({ files: results, roots: WORKSPACE_ROOTS });
         }
 
