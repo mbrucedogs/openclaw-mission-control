@@ -1,85 +1,142 @@
-# Mission Control - Autonomous Organization Dashboard
+# Alex Mission Control
 
-Mission Control is a living dashboard for your OpenClaw autonomous organization. It provides a real-time "Command Center" view of your agents, their statuses, tasks, and the overall orchestration pipeline.
+A task management and agent orchestration system for OpenClaw autonomous organizations.
 
-> [!IMPORTANT]
-> This application is **dynamically driven** by your OpenClaw workspace. It pulls identities, roles, and hierarchy directly from your Markdown configuration and technical JSON files.
+## Features
 
----
+- **Task Management** - Kanban board with status tracking
+- **Agent Orchestration** - Automated pipeline execution with the Primary AI
+- **Workflow Templates** - Reusable work definitions for agents
+- **Dynamic Pipelines** - Hybrid model: predefined + on-the-fly assembly
+- **Activity Tracking** - Full audit trail of all changes
+- **Evidence Management** - Structured proof of completion
 
-## 🛠 Prerequisites
+## Quick Start
 
-To run this application, you need:
+```bash
+npm install
+npm run dev
+```
 
-- **Node.js 18+**
-- **OpenClaw Workspace**: A local directory containing your agent configuration.
-- **OpenClaw Config**: The global `openclaw.json` file (usually at `~/.openclaw/openclaw.json`).
+Access at `http://localhost:4000`
 
-## 🚀 Quick Start
+## Documentation
 
-1.  **Clone and Install**:
-    ```bash
-    npm install
-    ```
+- **[QUICKSTART.md](./docs/QUICKSTART.md)** - Get up and running in 5 minutes
+- **[ORCHESTRATION.md](./docs/ORCHESTRATION.md)** - Full orchestration system documentation
+- **[AGENT_PIPELINE_SETUP.md](./docs/AGENT_PIPELINE_SETUP.md)** - Agent configuration guide
 
-2.  **Environment Setup**:
-    Ensure your workspace path is correctly set in `src/lib/openclaw/discovery.ts` (currently defaults to `/Volumes/Data/openclaw/workspace`).
+## Core Concepts
 
-3.  **Launch Dashboard**:
-    ```bash
-    npm run dev
-    ```
-    Access at `http://localhost:3000`.
+### Workflows
 
----
+Reusable work templates for agents:
+- `wf-research` - Research and analysis
+- `wf-build` - Code implementation
+- `wf-document` - Documentation creation
+- `wf-review` - Final approval
 
-## 🏗 The "Holistic Discovery" System
+### Pipelines
 
-Mission Control merges four distinct data sources to build the team roster:
+Ordered sequences of workflows:
+- `pl-standard` - Research → Build → Test → Review
+- `pl-research` - Research → Document → Review
+- `pl-quick-fix` - Quick Fix → Review
 
-### 1. Global Identity (`openclaw.json`)
-Located at `~/.openclaw/openclaw.json`.
-- **Primary Source for Technical IDs**: This maps "friendly" IDs to technical ones (e.g., `Dana-Dev` -> `dana-dev`). 
-- **Session Correlation**: The app uses these IDs to poll for live agent activity.
+### The Hybrid Model
 
-### 2. Team Roster (`agents/TEAM-REGISTRY.md`)
-The core list of agents.
-- **Table Detection**: Looks for a Markdown table with `Name`, `Role`, and `Folder`.
-- **Folder Mapping**: Tells the app where to find the "Soul" of each agent.
+1. **Predefined Pipelines** - Common patterns stored in database
+2. **Dynamic Assembly** - Primary AI builds custom pipelines when no match exists
+3. **Learning System** - Successful dynamic pipelines become predefined
 
-### 3. Orchestration Flow (`TEAM_GOVERNANCE.md`)
-Defines the hierarchy.
-- **Pipeline Parsing**: The app parses strings like `User -> Leo-Lead -> Dana-Dev -> Done` to determine the display order on the **Team** screen.
-- **Layer Assignment**: Automatically categorizes agents into **Governance**, **Pipeline**, and **Automation** layers based on roles and the pipeline flow.
+## How It Works
 
-### 4. Agent Profiles (`SOUL.md` & `AGENTS.md`)
-Every agent folder found in the registry must contain these:
-- **`SOUL.md`**: Mission statement extraction from the "Core Identity" section.
-- **`AGENTS.md`**: Skill extraction from the "Skills" or "Roles" section.
+1. **Task Created** → Primary AI analyzes content
+2. **Pipeline Matched** → Predefined or dynamically assembled
+3. **Agent Spawned** → First workflow step executes
+4. **Primary AI Monitors** → Reviews deliverables, asks questions
+5. **Handoff** → Routes to next agent when satisfied
+6. **Complete** → Final review and approval
 
----
+## Architecture
 
-## 📚 Examples
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Task      │────▶│  Primary AI  │────▶│  Pipeline   │
+│  Created    │     │  (Orchestrator)│    │  Matched    │
+└─────────────┘     └──────────────┘     └─────────────┘
+                              │
+                              ▼
+                    ┌──────────────────┐
+                    │  Agent Spawning  │
+                    │  (Step-by-step)  │
+                    └──────────────────┘
+```
 
-We provide a complete set of boilerplate templates to help you get started:
-- [Example TEAM-REGISTRY.md](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/TEAM-REGISTRY.md)
-- [Example TEAM_GOVERNANCE.md](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/TEAM_GOVERNANCE.md)
-- [Example openclaw.json](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/openclaw.json.example)
-- [Example Agent Folder (SOUL/AGENTS)](file:///Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/examples/openclaw-workspace/agents/dana-dev/)
+## Database
 
----
+SQLite with tables:
+- `tasks` - Task data with validation criteria
+- `workflow_templates` - Reusable work definitions
+- `pipelines` - Workflow sequences
+- `task_pipelines` - Pipeline assignments
+- `task_comments` - Structured comments
+- `task_activity` - Audit log
+- `task_evidence` - Proof of completion
 
-## 📂 Project Structure
+## API
 
-- `src/lib/openclaw/discovery.ts`: The bridge that parses the workspace and merges the data.
-- `src/lib/domain/agents.ts`: Syncs discovered agents into the local SQLite database for status tracking.
-- `src/app/office/OfficeClient.tsx`: The premium 2D floor plan rendering.
-- `src/app/team/page.tsx`: The organizational hierarchy and role cards.
+```
+GET    /api/tasks              # List tasks
+POST   /api/tasks              # Create task (auto-matches pipeline)
+GET    /api/workflows          # List workflows
+POST   /api/workflows          # Create workflow
+GET    /api/pipelines          # List pipelines
+POST   /api/pipelines          # Create pipeline
+```
 
-## 🔄 Adding an Agent
+## Configuration
 
-To add an agent so they show up in Mission Control:
-1.  Add them to your **Global Config** (`openclaw.json`) if they need session tracking.
-2.  Add a row to your `TEAM-REGISTRY.md`.
-3.  Create their folder with `SOUL.md` and `AGENTS.md`.
-4.  Optionally add them to the arrow-flow in `TEAM_GOVERNANCE.md`.
+### Required Agents
+
+Configure in OpenClaw:
+
+```json
+{
+  "agents": [
+    { "id": "alice", "name": "Alice", "role": "researcher" },
+    { "id": "bob", "name": "Bob", "role": "builder" },
+    { "id": "charlie", "name": "Charlie", "role": "tester" },
+    { "id": "aegis", "name": "Aegis", "role": "reviewer" },
+    { "id": "tron", "name": "Tron", "role": "automation" },
+    { "id": "max", "name": "Max", "role": "orchestrator" }
+  ]
+}
+```
+
+### Environment
+
+```bash
+# Database
+DATABASE_URL=./mission-control.db
+
+# OpenClaw
+OPENCLAW_WORKSPACE=/path/to/workspace
+```
+
+## Development
+
+```bash
+# Run dev server
+npm run dev
+
+# Build for production
+npm run build
+
+# Run tests
+npm test
+```
+
+## License
+
+MIT

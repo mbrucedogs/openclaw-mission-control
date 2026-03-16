@@ -104,16 +104,103 @@ the Primary AI looks for keywords:
 | "Build new dashboard" | pl-standard | Research → Build → Test → Review |
 | "Document the API" | pl-docs | Document → Review |
 
-## MAX's Role (Primary AI)
+## Primary AI's Role
 
-As the orchestrator, MAX:
+As the orchestrator, the Primary AI manages the entire pipeline execution:
+
+### Core Responsibilities
 
 1. **Analyzes incoming tasks** - Determines what work is needed
 2. **Selects or builds pipeline** - Uses predefined or assembles dynamic
-3. **Assigns first agent** - Spawns appropriate agent for step 1
-4. **Manages handoffs** - When agent completes, routes to next agent
-5. **Enforces timeouts** - Kills workflows exceeding timeoutSeconds
-6. **Saves successful patterns** - Dynamic pipelines can become predefined
+3. **Spawns agents for each step** - Creates subagent sessions for workflow execution
+4. **Monitors progress** - Waits for agent completion, reviews deliverables
+5. **Communicates with agents** - Asks clarifying questions, requests changes
+6. **Resolves blockers** - Helps unblock stuck agents or reassigns work
+7. **Manages handoffs** - Routes completed work to next agent in pipeline
+8. **Enforces timeouts** - Kills workflows exceeding timeoutSeconds
+9. **Saves successful patterns** - Dynamic pipelines can become predefined
+
+### Communication Loop
+
+The Primary AI maintains active communication throughout the pipeline:
+
+```
+Primary AI → Spawns Agent A (Step 1)
+    ↓
+Agent A → Works → Posts findings as comments
+    ↓
+Primary AI ← Reviews deliverables
+    ↓
+Primary AI → Asks questions (if needed) → Agent A responds
+    ↓
+Primary AI → Satisfied? → Spawns Agent B (Step 2)
+    ↓
+Repeat for each step...
+```
+
+### Agent Interaction Pattern
+
+**For each workflow step:**
+
+1. **Spawn** - Create subagent with task context
+2. **Monitor** - Wait for completion or timeout
+3. **Review** - Check comments, activity, evidence
+4. **Communicate** - Ask questions if deliverables unclear
+5. **Iterate** - Loop until work meets criteria
+6. **Hand off** - Pass to next agent with full context
+
+**The Primary AI is the conductor** - agents are the musicians. The Primary AI keeps the orchestra playing in harmony, resolving issues as they arise.
+
+### Example: Research Pipeline Execution
+
+**Task:** "Research YouTube video on AI patterns and document findings"
+
+**Pipeline:** Research → Document → Review
+
+**Step 1: Research (Alice)**
+```
+Primary AI → Spawns Alice
+    "Research this video, extract key patterns"
+    ↓
+Alice → Watches video → Posts findings
+    "Found 3 patterns: Chain-of-Thought, ReAct, Reflexion"
+    ↓
+Primary AI ← Reviews
+    "What tools were mentioned?"
+    ↓
+Alice → Responds
+    "Tools: LangChain, AutoGPT, BabyAGI"
+    ↓
+Primary AI → Satisfied → Spawns Document workflow
+```
+
+**Step 2: Document (Alice)**
+```
+Primary AI → Spawns Alice  
+    "Create summary document from research"
+    ↓
+Alice → Writes document → Saves to /docs
+    ↓
+Primary AI ← Reviews document
+    "Add code examples for ReAct pattern"
+    ↓
+Alice → Updates document
+    ↓
+Primary AI → Satisfied → Spawns Review workflow
+```
+
+**Step 3: Review (Aegis)**
+```
+Primary AI → Spawns Aegis
+    "Review document for accuracy"
+    ↓
+Aegis → Reviews → Approves
+    "Document complete, 2 minor typos fixed"
+    ↓
+Primary AI → Marks task complete
+```
+
+**Key Point:** The Primary AI stayed involved at every step, asked questions, requested changes, and only proceeded when satisfied.
 
 ### Timeout Enforcement
 

@@ -220,41 +220,66 @@ function assembleDynamicPipeline(text: string): PipelineMatchResult {
     const workflowIds: string[] = [];
     const reasons: string[] = [];
     
+    // Check if this is primarily a research task
+    const isResearchTask = text.includes('research') || text.includes('investigate') || 
+                          text.includes('analyze') || text.includes('study') ||
+                          text.includes('extract') || text.includes('summarize');
+    
+    // Check if this is primarily a documentation task  
+    const isDocTask = text.includes('document') || text.includes('readme') || 
+                     text.includes('docs') || text.includes('write') ||
+                     text.includes('create summary') || text.includes('document findings');
+    
     // Determine which workflows are needed
-    if (text.includes('research') || text.includes('investigate') || text.includes('analyze')) {
+    if (isResearchTask) {
         workflowIds.push('wf-research');
         reasons.push('research detected');
     }
     
-    if (text.includes('build') || text.includes('implement') || text.includes('create') || text.includes('code')) {
+    // Only add build if explicitly building/coding (not just researching implementation)
+    // Must have explicit build keywords AND not be research-only
+    const hasExplicitBuild = text.includes('build ') || text.includes('create code') || 
+                            text.includes('write code') || text.includes('develop feature') ||
+                            text.includes('implement feature') || text.includes('build component');
+    
+    if (hasExplicitBuild && !isResearchTask) {
         workflowIds.push('wf-build');
         reasons.push('build detected');
     }
     
-    if (text.includes('fix') || text.includes('bug') || text.includes('quick')) {
-        // Quick fix - use quick-fix workflow instead of full build
+    // Quick fix - only if explicitly fixing something
+    if ((text.includes('fix') || text.includes('bug')) && text.includes('quick')) {
         if (!workflowIds.includes('wf-build')) {
             workflowIds.push('wf-quick-fix');
             reasons.push('quick fix detected');
         }
     }
     
-    if (text.includes('document') || text.includes('readme') || text.includes('docs')) {
+    // Documentation - add if creating docs (separate from research)
+    if (isDocTask && workflowIds.includes('wf-research')) {
+        // Research tasks that need documentation get document workflow
+        workflowIds.push('wf-document');
+        reasons.push('documentation required');
+    } else if (isDocTask && !isResearchTask) {
+        // Pure documentation tasks
         workflowIds.push('wf-document');
         reasons.push('documentation detected');
     }
     
-    if (text.includes('test') || text.includes('qa') || text.includes('verify')) {
+    // Test - only for actual testing/QA work
+    if ((text.includes('test') || text.includes('qa')) && 
+        (text.includes('run tests') || text.includes('verify') || text.includes('validate'))) {
         workflowIds.push('wf-test');
         reasons.push('testing detected');
     }
     
+    // Automation - only for actual automation work
     if (text.includes('automate') || text.includes('script') || text.includes('cron')) {
         workflowIds.push('wf-automate');
         reasons.push('automation detected');
     }
     
-    // Always add review at the end (unless it's a pure research task going to aegis)
+    // Always add review at the end
     if (!workflowIds.includes('wf-review')) {
         workflowIds.push('wf-review');
         reasons.push('review required');
