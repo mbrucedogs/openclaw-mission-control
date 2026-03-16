@@ -143,14 +143,22 @@ function enrichAgentMetadata(agent: DiscoveredAgent, dir: string) {
         if (fs.existsSync(altDir)) dir = altDir;
     }
 
+    // Store relative folder path for reference
+    agent.folder = path.relative(WORKSPACE_ROOT, dir);
+
     if (fs.existsSync(soulPath)) {
         const content = fs.readFileSync(soulPath, 'utf-8');
+        agent.soulContent = content; // Store full content for Role Card
+
         // Extract Mission: Look for "Core Identity" section or first paragraph
         const missionMatch = content.match(/## Core Identity[\s\S]*?- \*\*Mission:\*\* (.*)/i) || 
                            content.match(/You are \*\*.*?\*\*, (.*)/i);
         if (missionMatch) {
             agent.mission = missionMatch[1].trim();
         }
+    } else if (fs.existsSync(agentsMdPath)) {
+        const content = fs.readFileSync(agentsMdPath, 'utf-8');
+        agent.soulContent = content; // Fallback to AGENTS.md content
     }
 
     if (fs.existsSync(agentsMdPath)) {

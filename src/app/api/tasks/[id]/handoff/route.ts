@@ -1,23 +1,17 @@
 import { NextResponse } from 'next/server';
-import { getTaskById, handoverTask, completeTask } from '@/lib/domain/tasks';
+import { getTaskById, handoverTask, completeTask, updateTask } from '@/lib/domain/tasks';
+import { getNextAgent, getPreviousAgent, isPipelineComplete, getHandoffStatus } from '@/lib/pipeline';
 import { TaskStatus } from '@/lib/types';
-
-// Pipeline handoff order
-const NEXT_AGENT: Record<string, { owner: string; status: TaskStatus }> = {
-    alice:   { owner: 'max',   status: 'Review' },
-    bob:     { owner: 'max',   status: 'Review' },
-    charlie: { owner: 'max',   status: 'Review' },
-    aegis:   { owner: 'max',   status: 'Review' },
-};
 
 /**
  * POST /api/tasks/:id/handoff
  * Body: { toAgent?: string, notes: string, fail?: boolean, evidence?: { type, url, description }[] }
  *
- * Advances a task to the next stage in the pipeline.
- * - If `toAgent` is specified, sends directly to that agent.
- * - Otherwise follows the canonical pipeline order (specialists -> Max).
- * - Max must specify `toAgent` or manually complete the task.
+ * Dynamic pipeline handoff based on task's stored pipeline.
+ * - Uses stored pipeline from validationCriteria._pipeline
+ * - Supports explicit override (toAgent)
+ * - Supports fail/back scenarios
+ * - Auto-completes if at end of pipeline
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -32,25 +26,54 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const fromAgent = task.owner;
         const notes = body.notes ?? '';
 
-        // Determine next agent
-        let nextOwner: string;
+        // Get pipeline from task metadata (stored in validationCriteria)
+        const pipeline: string[] = (task.validationCriteria as any)?._pipeline || ['alice', 'bob', 'charlie', 'aegis'];
+        const currentStep = (task.validationCriteria as any)?._currentStep || pipeline.indexOf(fromAgent);
+
+        let nextOwner: string | null;
         let nextStatus: TaskStatus;
+        let newStep = currentStep;
 
         if (body.toAgent) {
-            // Explicit override (e.g., Charlie sending back to Bob on fail)
+            // Explicit override
             nextOwner = body.toAgent;
-            nextStatus = body.status ?? NEXT_AGENT[body.toAgent]?.status ?? 'In Progress';
-        } else if (body.fail && fromAgent === 'charlie') {
-            // QA fail: go back to Bob
-            nextOwner = 'bob';
-            nextStatus = 'In Progress';
-        } else {
-            const next = NEXT_AGENT[fromAgent];
-            if (!next) {
-                return NextResponse.json({ error: `No next agent defined for ${fromAgent}` }, { status: 400 });
+            nextStatus = body.status || 'In Progress';
+            newStep = pipeline.indexOf(body.toAgent);
+        } else if (body.fail) {
+            // Fail: go back to previous agent in pipeline
+            nextOwner = getPreviousAgent(fromAgent, pipeline);
+            if (!nextOwner) {
+                // Can't go back further, mark as stuck
+                await updateTask(id, { 
+                    isStuck: true, 
+                    stuckReason: notes || 'Failed QA, no previous agent' 
+                }, fromAgent);
+                return NextResponse.json({ 
+                    ok: true, 
+                    action: 'marked_stuck',
+                    from: fromAgent,
+                    reason: notes || 'Failed QA'
+                });
             }
-            nextOwner = next.owner;
-            nextStatus = next.status;
+            nextStatus = 'In Progress';
+            newStep = pipeline.indexOf(nextOwner);
+        } else {
+            // Normal forward progression
+            nextOwner = getNextAgent(fromAgent, pipeline);
+            
+            if (!nextOwner || isPipelineComplete(fromAgent, pipeline)) {
+                // End of pipeline - complete the task
+                const completed = completeTask(id, fromAgent);
+                return NextResponse.json({ 
+                    ok: true, 
+                    action: 'completed',
+                    from: fromAgent,
+                    task: completed
+                });
+            }
+            
+            nextStatus = getHandoffStatus(nextOwner);
+            newStep = pipeline.indexOf(nextOwner);
         }
 
         // Handle evidence if provided
@@ -79,22 +102,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             return NextResponse.json({ error: 'Failed to handover task' }, { status: 500 });
         }
 
-        // Update status separately if different from handover result
-        if (nextStatus !== updatedTask.status) {
-            const { updateTask } = await import('@/lib/domain/tasks');
-            updateTask(id, { status: nextStatus }, fromAgent);
-        }
-
-        // If completing
-        if (nextStatus === 'Complete') {
-            completeTask(id, fromAgent);
-        }
+        // Update status and pipeline step
+        const finalTask = await updateTask(id, { 
+            status: nextStatus,
+            validationCriteria: {
+                ...task.validationCriteria,
+                _currentStep: newStep,
+            }
+        }, fromAgent);
 
         return NextResponse.json({ 
             ok: true, 
             from: fromAgent, 
             to: nextOwner, 
-            status: nextStatus 
+            status: nextStatus,
+            step: `${newStep + 1}/${pipeline.length}`,
+            pipeline: pipeline
         });
     } catch (error) {
         console.error('Handoff error:', error);

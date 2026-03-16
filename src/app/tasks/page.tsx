@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    Plus, Search, RefreshCcw, X,
-    Activity, Zap, Pencil, Trash2
+    Plus, Search, RefreshCcw, X, MessageSquare, FileText, Activity,
+    AlertCircle, CheckCircle, Clock, Zap, Pencil, Trash2, ChevronRight,
+    Paperclip, PlayCircle, CheckCircle2, RotateCcw, ArrowRightLeft
 } from 'lucide-react';
-import { Task, TaskStatus, Priority, Agent, Project } from '@/lib/types';
+import { Task, TaskStatus, Priority, Agent, Project, TaskComment, TaskActivity, TaskEvidence, CommentType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 // ─── Column definitions ──────────────────────────────────────────────────────
@@ -18,17 +19,31 @@ const COLUMNS: { label: string; status: TaskStatus; dot: string }[] = [
     { label: 'Done',        status: 'Complete',      dot: 'bg-emerald-500' },
 ];
 
-// Tasks that map to "In Progress" column (covers legacy Implementation status too)
+// Tasks that map to columns
 function getColumnTasks(tasks: Task[], status: TaskStatus): Task[] {
     if (status === 'In Progress') {
-        return tasks.filter(t => t.status === 'In Progress' || t.status === 'Implementation');
+        // All active work: Research, Implementation, etc.
+        return tasks.filter(t => 
+            t.status === 'In Progress' || 
+            t.status === 'Implementation' ||
+            t.status === 'Research' ||
+            t.status === 'Ready for Implementation'
+        );
+    }
+    if (status === 'Review') {
+        return tasks.filter(t => 
+            t.status === 'Review' || 
+            t.status === 'Ready for QA' || 
+            t.status === 'Ready for Review' || 
+            t.status === 'QA' ||
+            t.status === 'Changes Requested'
+        );
     }
     return tasks.filter(t => t.status === status);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// Canonical agent colors — matches the team page
 const OWNER_COLORS: Record<string, string> = {
     matt:    'bg-indigo-600',
     max:     'bg-purple-600',
@@ -39,7 +54,6 @@ const OWNER_COLORS: Record<string, string> = {
     tron:    'bg-cyan-600',
 };
 
-// Priority badge config
 const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = {
     urgent: { label: 'URGENT', className: 'text-red-400 bg-red-500/10 border-red-500/20' },
     high:   { label: 'HIGH',   className: 'text-orange-400 bg-orange-500/10 border-orange-500/20' },
@@ -47,14 +61,22 @@ const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = 
     low:    { label: 'LOW',    className: 'text-slate-600 bg-slate-600/10 border-slate-600/20' },
 };
 
-// Canonical workflow pipeline: which column each agent primarily works in
-const AGENT_WORKFLOW: Record<string, TaskStatus> = {
-    alice:   'In Progress',   // Research phase
-    bob:     'In Progress',   // Implementation phase
-    charlie: 'Review',        // QA phase
-    aegis:   'Review',        // Final review/approval
-    tron:    'Recurring',     // Automation
-    max:     'Backlog',       // Orchestrator assigns from Backlog
+const COMMENT_TYPE_ICONS: Record<CommentType, React.ReactNode> = {
+    note: <MessageSquare className="w-3 h-3" />,
+    blocker: <AlertCircle className="w-3 h-3" />,
+    handover: <ArrowRightLeft className="w-3 h-3" />,
+    qa_finding: <CheckCircle className="w-3 h-3" />,
+    evidence_ref: <FileText className="w-3 h-3" />,
+    system: <Activity className="w-3 h-3" />,
+};
+
+const COMMENT_TYPE_COLORS: Record<CommentType, string> = {
+    note: 'text-slate-400 bg-slate-500/10',
+    blocker: 'text-red-400 bg-red-500/10',
+    handover: 'text-blue-400 bg-blue-500/10',
+    qa_finding: 'text-emerald-400 bg-emerald-500/10',
+    evidence_ref: 'text-amber-400 bg-amber-500/10',
+    system: 'text-slate-500 bg-slate-500/5',
 };
 
 function ownerColor(owner: string) {
@@ -75,160 +97,95 @@ function timeAgo(iso: string) {
     return `${Math.floor(h / 24)}d ago`;
 }
 
-// ─── New Task Modal ───────────────────────────────────────────────────────────
-
-function TaskFormModal({ task, onClose, onSaved, agents, projects }: {
-    task?: Task;
-    onClose: () => void;
-    onSaved: () => void;
-    agents: Agent[];
-    projects: Project[];
-}) {
-    const [title, setTitle] = useState(task?.title || '');
-    const [description, setDescription] = useState(task?.description || '');
-    const [owner, setOwner] = useState(task?.owner || 'matt');
-    const [projectId, setProjectId] = useState<string>(task?.project || projects[0]?.id || '');
-    const [status, setStatus] = useState<TaskStatus>(task?.status || 'Backlog');
-    const [priority, setPriority] = useState<Priority>((task?.priority as Priority) || 'normal');
-    const [loading, setLoading] = useState(false);
-
-    // When owner changes, suggest the right column based on workflow
-    const handleOwnerChange = (newOwner: string) => {
-        setOwner(newOwner);
-        if (AGENT_WORKFLOW[newOwner] && !task) {
-            setStatus(AGENT_WORKFLOW[newOwner]);
-        }
-    };
-
-    const submit = async () => {
-        if (!title.trim()) return;
-        setLoading(true);
-        const url = task ? `/api/tasks/${task.id}` : '/api/tasks';
-        const method = task ? 'PATCH' : 'POST';
-        await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description, owner, project: projectId || null, status, priority }),
-        });
-        setLoading(false);
-        onSaved();
-        onClose();
-    };
-
-    // All assignable people: Matt + all agents
-    const assignees = [{ id: 'matt', name: 'Matt', role: 'Supervisor' }, ...agents];
-
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-lg p-8 space-y-6 shadow-2xl">
-                <div className="flex items-center justify-between">
-                    <h2 className="text-base font-black text-white tracking-tight">{task ? 'Edit Task' : 'New Task'}</h2>
-                    <button onClick={onClose}><X className="w-4 h-4 text-slate-500 hover:text-white" /></button>
-                </div>
-
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Title</label>
-                        <input
-                            autoFocus
-                            value={title}
-                            onChange={e => setTitle(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && submit()}
-                            placeholder="What needs to be done?"
-                            className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Description</label>
-                        <textarea
-                            value={description}
-                            onChange={e => setDescription(e.target.value)}
-                            placeholder="Optional details..."
-                            rows={3}
-                            className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600 resize-none"
-                        />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Assign to</label>
-                            <select
-                                value={owner}
-                                onChange={e => handleOwnerChange(e.target.value)}
-                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
-                            >
-                                {assignees.map(a => (
-                                    <option key={a.id} value={a.id}>
-                                        {a.name} — {a.role}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Priority</label>
-                            <select
-                                value={priority}
-                                onChange={e => setPriority(e.target.value as Priority)}
-                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
-                            >
-                                <option value="urgent">🔴 Urgent</option>
-                                <option value="high">🟠 High</option>
-                                <option value="normal">⚪ Normal</option>
-                                <option value="low">🔵 Low</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Column</label>
-                            <select
-                                value={status}
-                                onChange={e => setStatus(e.target.value as TaskStatus)}
-                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
-                            >
-                                {COLUMNS.map(c => <option key={c.status} value={c.status}>{c.label}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Project</label>
-                            <select
-                                value={projectId}
-                                onChange={e => setProjectId(e.target.value)}
-                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
-                            >
-                                <option value="">— None —</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Workflow hint */}
-                    <div className="p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg">
-                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">Workflow Pipeline</p>
-                        <p className="text-[11px] text-slate-500">Max → Alice (Research) → Bob (Build) → Charlie (QA) → Aegis (Review) → Done</p>
-                    </div>
-                </div>
-
-                <div className="flex justify-end gap-3">
-                    <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-white">Cancel</button>
-                    <button
-                        onClick={submit}
-                        disabled={!title.trim() || loading}
-                        className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-lg disabled:opacity-40 transition-colors"
-                    >
-                        {loading ? 'Saving...' : (task ? 'Save Changes' : 'Create Task')}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
+function formatDate(iso: string) {
+    return new Date(iso).toLocaleString();
 }
 
-// ─── Task Detail Modal ────────────────────────────────────────────────────────
+// ─── Activity Type Labels ────────────────────────────────────────────────────
 
-function TaskDetailModal({ task, onClose, onDeleted, onEdit }: { task: Task; onClose: () => void; onDeleted: () => void; onEdit: () => void; }) {
+function getActivityIcon(type: string) {
+    switch (type) {
+        case 'created': return <Plus className="w-3 h-3" />;
+        case 'started': return <PlayCircle className="w-3 h-3" />;
+        case 'completed': return <CheckCircle2 className="w-3 h-3" />;
+        case 'blocked': return <AlertCircle className="w-3 h-3" />;
+        case 'unblocked': return <CheckCircle className="w-3 h-3" />;
+        case 'handover': return <ArrowRightLeft className="w-3 h-3" />;
+        case 'retry_attempt': return <RotateCcw className="w-3 h-3" />;
+        case 'status_changed': return <Activity className="w-3 h-3" />;
+        default: return <Activity className="w-3 h-3" />;
+    }
+}
+
+function getActivityColor(type: string) {
+    switch (type) {
+        case 'created': return 'text-emerald-400 bg-emerald-500/10';
+        case 'started': return 'text-blue-400 bg-blue-500/10';
+        case 'completed': return 'text-emerald-400 bg-emerald-500/10';
+        case 'blocked': return 'text-red-400 bg-red-500/10';
+        case 'unblocked': return 'text-green-400 bg-green-500/10';
+        case 'handover': return 'text-purple-400 bg-purple-500/10';
+        case 'retry_attempt': return 'text-amber-400 bg-amber-500/10';
+        default: return 'text-slate-400 bg-slate-500/10';
+    }
+}
+
+// ─── Enhanced Task Detail Modal ────────────────────────────────────────────────
+
+type DetailTab = 'overview' | 'comments' | 'activity' | 'evidence';
+
+function TaskDetailModal({ task, onClose, onDeleted, onEdit }: { 
+    task: Task; 
+    onClose: () => void; 
+    onDeleted: () => void; 
+    onEdit: () => void; 
+}) {
+    const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+    const [comments, setComments] = useState<TaskComment[]>([]);
+    const [activity, setActivity] = useState<TaskActivity[]>([]);
+    const [evidence, setEvidence] = useState<TaskEvidence[]>([]);
+    const [newComment, setNewComment] = useState('');
+    const [commentType, setCommentType] = useState<CommentType>('note');
+    const [loading, setLoading] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const loadDetails = useCallback(async () => {
+        try {
+            const [cRes, aRes, eRes] = await Promise.all([
+                fetch(`/api/tasks/${task.id}/comments`),
+                fetch(`/api/tasks/${task.id}/activity`),
+                fetch(`/api/tasks/${task.id}/evidence`),
+            ]);
+            if (cRes.ok) setComments(await cRes.json());
+            if (aRes.ok) setActivity(await aRes.json());
+            if (eRes.ok) setEvidence(await eRes.json());
+        } catch (err) {
+            console.error('Failed to load task details:', err);
+        }
+    }, [task.id]);
+
+    useEffect(() => { loadDetails(); }, [loadDetails]);
+
+    const handleAddComment = async () => {
+        if (!newComment.trim()) return;
+        setLoading(true);
+        try {
+            await fetch(`/api/tasks/${task.id}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    content: newComment, 
+                    commentType,
+                    author: 'matt',
+                    authorType: 'user'
+                }),
+            });
+            setNewComment('');
+            await loadDetails();
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleDelete = async () => {
         if (!confirm('Are you sure you want to delete this task?')) return;
@@ -239,106 +196,350 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: { task: Task; onC
         onClose();
     };
 
+    const tabButton = (tab: DetailTab, label: string, icon: React.ReactNode, count?: number) => (
+        <button
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+                'flex items-center gap-2 px-4 py-2.5 text-xs font-bold uppercase tracking-widest rounded-lg transition-colors',
+                activeTab === tab 
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
+            )}
+        >
+            {icon}
+            {label}
+            {count !== undefined && count > 0 && (
+                <span className="ml-1 text-[9px] font-black text-slate-400 bg-slate-700/50 px-1.5 py-0.5 rounded">{count}</span>
+            )}
+        </button>
+    );
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
             <div 
-                className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-2xl p-8 space-y-6 shadow-2xl overflow-y-auto max-h-[90vh]"
+                className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl overflow-hidden"
                 onClick={e => e.stopPropagation()}
             >
-                <div className="flex items-start justify-between">
-                    <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 mb-2">
-                             <div className={cn(
-                                'w-2 h-2 rounded-full',
-                                task.isStuck ? 'bg-red-500 animate-pulse' : (
-                                    task.status === 'Recurring' ? 'bg-green-500' :
-                                    task.status === 'In Progress' || task.status === 'Implementation' ? 'bg-blue-500' :
-                                    task.status === 'Review' ? 'bg-amber-500' :
-                                    task.status === 'Complete' ? 'bg-emerald-500' :
-                                    'bg-slate-500'
-                                )
-                            )} />
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{task.status}</span>
+                {/* Header */}
+                <div className="flex-shrink-0 p-6 border-b border-[#222]">
+                    <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                                <div className={cn(
+                                    'w-2 h-2 rounded-full',
+                                    task.isStuck ? 'bg-red-500 animate-pulse' : (
+                                        task.status === 'Recurring' ? 'bg-green-500' :
+                                        task.status === 'In Progress' ? 'bg-blue-500' :
+                                        task.status === 'Review' ? 'bg-amber-500' :
+                                        task.status === 'Complete' ? 'bg-emerald-500' :
+                                        'bg-slate-500'
+                                    )
+                                )} />
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{task.status}</span>
+                                {task.isStuck && (
+                                    <span className="text-[9px] font-black text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded">BLOCKED</span>
+                                )}
+                            </div>
+                            <h2 className="text-xl font-black text-white tracking-tight leading-snug">{task.title}</h2>
                         </div>
-                        <h2 className="text-xl font-black text-white tracking-tight leading-snug">{task.title}</h2>
+                        <div className="flex items-center gap-1">
+                            <button onClick={onEdit} className="p-2 text-slate-500 hover:text-white transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={handleDelete} disabled={isDeleting} className="p-2 text-slate-500 hover:text-red-400 transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={onClose} className="p-2 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-1 self-start -mt-2 -mr-2">
-                        <button onClick={onEdit} className="p-2 text-slate-500 hover:text-white transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
-                        <button onClick={handleDelete} disabled={isDeleting} className="p-2 text-slate-500 hover:text-red-400 transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
-                        <button onClick={onClose} className="p-2 text-slate-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
-                    </div>
-                </div>
 
-                <div className="grid grid-cols-3 gap-4 pb-6 border-b border-[#222] mt-6">
-                    <div>
-                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Owner</span>
+                    {/* Metadata bar */}
+                    <div className="flex items-center gap-6 mt-4">
                         <div className="flex items-center gap-2">
-                             <div className={cn('w-5 h-5 rounded flex items-center justify-center text-[10px] font-black text-white', ownerColor(task.owner))}>
+                            <div className={cn('w-6 h-6 rounded flex items-center justify-center text-[10px] font-black text-white', ownerColor(task.owner))}>
                                 {ownerInitial(task.owner)}
                             </div>
-                            <span className="text-sm text-slate-300 font-medium">{task.owner}</span>
+                            <span className="text-sm text-slate-300">{task.owner}</span>
                         </div>
-                    </div>
-                    <div>
-                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Priority</span>
                         <span className={cn(
-                            'text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border inline-block',
-                            PRIORITY_CONFIG[task.priority as Priority]?.className || 'text-slate-500 border-slate-500'
+                            'text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border',
+                            PRIORITY_CONFIG[task.priority as Priority]?.className
                         )}>
-                            {PRIORITY_CONFIG[task.priority as Priority]?.label || task.priority}
+                            {PRIORITY_CONFIG[task.priority as Priority]?.label}
                         </span>
-                    </div>
-                    <div>
-                        <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Project</span>
-                        <span className="text-sm text-slate-300 font-medium">{task.project || '—'}</span>
+                        {task.project && (
+                            <span className="text-xs text-slate-400 bg-slate-800/50 px-2 py-1 rounded">{task.project}</span>
+                        )}
+                        <span className="text-xs text-slate-500 ml-auto">Updated {timeAgo(task.updatedAt)}</span>
                     </div>
                 </div>
 
-                <div className="space-y-6">
-                    {task.description && (
-                        <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Description</span>
-                            <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-5 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
-                                {task.description}
-                            </div>
-                        </div>
-                    )}
-                    
-                    {task.supervisorNotes && (
-                        <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Supervisor Notes</span>
-                            <div className="bg-blue-500/5 border border-blue-500/10 rounded-lg p-5 text-sm text-blue-400 italic font-medium whitespace-pre-wrap leading-relaxed">
-                                {task.supervisorNotes}
+                {/* Tabs */}
+                <div className="flex-shrink-0 px-6 pt-4 pb-0 border-b border-[#222]">
+                    <div className="flex gap-2">
+                        {tabButton('overview', 'Overview', <Activity className="w-3.5 h-3.5" />)}
+                        {tabButton('comments', 'Comments', <MessageSquare className="w-3.5 h-3.5" />, comments.length)}
+                        {tabButton('activity', 'Activity', <Clock className="w-3.5 h-3.5" />, activity.length)}
+                        {tabButton('evidence', 'Evidence', <Paperclip className="w-3.5 h-3.5" />, evidence.length)}
+                    </div>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {activeTab === 'overview' && (
+                        <div className="space-y-6">
+                            {/* Description */}
+                            {task.description && (
+                                <div>
+                                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Description</h3>
+                                    <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4 text-sm text-slate-300 whitespace-pre-wrap">
+                                        {task.description}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Blocker info */}
+                            {task.isStuck && (
+                                <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <AlertCircle className="w-4 h-4 text-red-400" />
+                                        <h3 className="text-[11px] font-black text-red-400 uppercase tracking-widest">Blocked</h3>
+                                    </div>
+                                    <p className="text-sm text-red-300/80">{task.stuckReason || 'No reason provided'}</p>
+                                    {task.stuckSince && (
+                                        <p className="text-xs text-red-400/60 mt-1">Since {formatDate(task.stuckSince)}</p>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Validation criteria */}
+                            {task.validationCriteria && (
+                                <div>
+                                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Validation Criteria</h3>
+                                    <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4">
+                                        <p className="text-sm text-slate-300 font-medium mb-3"><strong>Done means:</strong> {task.validationCriteria.doneMeans}</p>
+                                        {task.validationCriteria.checklist?.length > 0 && (
+                                            <ul className="space-y-1">
+                                                {task.validationCriteria.checklist.map((item, i) => (
+                                                    <li key={i} className="flex items-start gap-2 text-sm text-slate-400">
+                                                        <span className="text-slate-600 mt-0.5">•</span>
+                                                        {item}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recent activity preview */}
+                            {activity.length > 0 && (
+                                <div>
+                                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Recent Activity</h3>
+                                    <div className="space-y-2">
+                                        {activity.slice(0, 3).map(act => (
+                                            <div key={act.id} className="flex items-center gap-3 p-3 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg">
+                                                <div className={cn('w-7 h-7 rounded flex items-center justify-center', getActivityColor(act.activityType))}>
+                                                    {getActivityIcon(act.activityType)}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-xs text-slate-300">
+                                                        <span className="font-bold">{act.actor}</span> {act.activityType.replace(/_/g, ' ')}
+                                                    </p>
+                                                    {act.details?.blockerReason && (
+                                                        <p className="text-[10px] text-slate-500 mt-0.5">{act.details.blockerReason}</p>
+                                                    )}
+                                                </div>
+                                                <span className="text-[10px] text-slate-600">{timeAgo(act.createdAt)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-4 gap-4 pt-4 border-t border-[#222]">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Created</p>
+                                    <p className="text-xs text-slate-400">{formatDate(task.createdAt)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Retry Count</p>
+                                    <p className="text-xs text-slate-400">{task.retryCount} / {task.maxRetries}</p>
+                                </div>
+                                {task.startedAt && (
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Started</p>
+                                        <p className="text-xs text-slate-400">{formatDate(task.startedAt)}</p>
+                                    </div>
+                                )}
+                                {task.completedAt && (
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Completed</p>
+                                        <p className="text-xs text-slate-400">{formatDate(task.completedAt)}</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
 
-                    {task.evidence && (
-                        <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Evidence</span>
+                    {activeTab === 'comments' && (
+                        <div className="space-y-4">
+                            {/* Add comment */}
                             <div className="bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg p-4">
-                                <a 
-                                    href={task.evidence.startsWith('http') ? task.evidence : '#'} 
-                                    target="_blank" 
-                                    rel="noreferrer"
-                                    className="text-sm font-bold text-blue-400 hover:text-blue-300 break-all"
-                                >
-                                    {task.evidence}
-                                </a>
+                                <div className="flex gap-2 mb-3">
+                                    {(['note', 'blocker', 'qa_finding'] as CommentType[]).map(type => (
+                                        <button
+                                            key={type}
+                                            onClick={() => setCommentType(type)}
+                                            className={cn(
+                                                'flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded transition-colors',
+                                                commentType === type 
+                                                    ? COMMENT_TYPE_COLORS[type] + ' border border-current opacity-100'
+                                                    : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                                            )}
+                                        >
+                                            {COMMENT_TYPE_ICONS[type]}
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                                <textarea
+                                    value={newComment}
+                                    onChange={e => setNewComment(e.target.value)}
+                                    placeholder="Add a comment..."
+                                    rows={3}
+                                    className="w-full bg-[#111] border border-[#222] rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600 resize-none"
+                                />
+                                <div className="flex justify-end mt-2">
+                                    <button
+                                        onClick={handleAddComment}
+                                        disabled={!newComment.trim() || loading}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-lg disabled:opacity-40"
+                                    >
+                                        {loading ? 'Posting...' : 'Post Comment'}
+                                    </button>
+                                </div>
                             </div>
+
+                            {/* Comments list */}
+                            {comments.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <MessageSquare className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-500">No comments yet</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {comments.map(comment => (
+                                        <div key={comment.id} className="flex gap-3 p-4 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg">
+                                            <div className={cn('w-8 h-8 rounded flex items-center justify-center flex-shrink-0', ownerColor(comment.author))}>
+                                                <span className="text-[10px] font-black text-white">{ownerInitial(comment.author)}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs font-bold text-slate-300">{comment.author}</span>
+                                                    <span className={cn('text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded', COMMENT_TYPE_COLORS[comment.commentType])}>
+                                                        {comment.commentType}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-600">{timeAgo(comment.createdAt)}</span>
+                                                </div>
+                                                <p className="text-sm text-slate-400 whitespace-pre-wrap">{comment.content}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
-                    
-                    <div className="grid grid-cols-2 gap-4 pt-6 mt-6 border-t border-[#222]">
-                        <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Created By</span>
-                            <span className="text-xs text-slate-400">{task.requestedBy}</span>
+
+                    {activeTab === 'activity' && (
+                        <div className="space-y-2">
+                            {activity.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <Clock className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-500">No activity yet</p>
+                                </div>
+                            ) : (
+                                <div className="relative">
+                                    {/* Timeline line */}
+                                    <div className="absolute left-4 top-0 bottom-0 w-px bg-[#1a1a1e]" />
+                                    
+                                    {activity.map((act, i) => (
+                                        <div key={act.id} className="flex gap-4 py-3 relative">
+                                            {/* Timeline dot */}
+                                            <div className={cn(
+                                                'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 relative z-10',
+                                                getActivityColor(act.activityType)
+                                            )}>
+                                                {getActivityIcon(act.activityType)}
+                                            </div>
+                                            
+                                            <div className="flex-1 pt-0.5">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs font-bold text-slate-300">{act.actor}</span>
+                                                    <span className="text-xs text-slate-500">{act.activityType.replace(/_/g, ' ')}</span>
+                                                    <span className="text-[10px] text-slate-600">{timeAgo(act.createdAt)}</span>
+                                                </div>
+                                                
+                                                {/* Activity details */}
+                                                {act.details && (
+                                                    <div className="text-xs text-slate-500 space-y-0.5">
+                                                        {act.details.oldStatus && act.details.newStatus && (
+                                                            <p>{act.details.oldStatus} → {act.details.newStatus}</p>
+                                                        )}
+                                                        {act.details.fromOwner && act.details.toOwner && (
+                                                            <p>Handover: {act.details.fromOwner} → {act.details.toOwner}</p>
+                                                        )}
+                                                        {act.details.blockerReason && (
+                                                            <p className="text-red-400/80">{act.details.blockerReason}</p>
+                                                        )}
+                                                        {act.details.errorMessage && (
+                                                            <p className="text-amber-400/80">{act.details.errorMessage}</p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Last Updated</span>
-                            <span className="text-xs text-slate-400">{new Date(task.updatedAt).toLocaleString()} ({timeAgo(task.updatedAt)})</span>
+                    )}
+
+                    {activeTab === 'evidence' && (
+                        <div className="space-y-4">
+                            {evidence.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <Paperclip className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                                    <p className="text-sm text-slate-500">No evidence yet</p>
+                                </div>
+                            ) : (
+                                <div className="grid gap-3">
+                                    {evidence.map(ev => (
+                                        <div key={ev.id} className="flex items-start gap-3 p-4 bg-[#0a0a0a] border border-[#1a1a1e] rounded-lg hover:border-slate-700 transition-colors">
+                                            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                                {ev.evidenceType === 'file' ? <FileText className="w-5 h-5 text-blue-400" /> :
+                                                 ev.evidenceType === 'url' ? <Activity className="w-5 h-5 text-blue-400" /> :
+                                                 ev.evidenceType === 'screenshot' ? <Activity className="w-5 h-5 text-blue-400" /> :
+                                                 <FileText className="w-5 h-5 text-blue-400" />}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-bold text-slate-300 uppercase tracking-widest mb-0.5">{ev.evidenceType}</p>
+                                                <a 
+                                                    href={ev.url} 
+                                                    target="_blank" 
+                                                    rel="noreferrer"
+                                                    className="text-sm text-blue-400 hover:text-blue-300 break-all"
+                                                >
+                                                    {ev.url}
+                                                </a>
+                                                {ev.description && (
+                                                    <p className="text-xs text-slate-500 mt-1">{ev.description}</p>
+                                                )}
+                                                <p className="text-[10px] text-slate-600 mt-2">Added by {ev.addedBy} • {timeAgo(ev.addedAt)}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -361,68 +562,68 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
         onMoved();
     };
 
-    const nextCol = COLUMNS.find((_, i) => COLUMNS[i - 1]?.status === task.status || (task.status === 'Implementation' && COLUMNS[i]?.status === 'Review'));
+    const nextCol = COLUMNS.find((_, i) => COLUMNS[i - 1]?.status === task.status);
 
     return (
         <div 
             onClick={onClick}
             className={cn(
-            'bg-[#0d0d0f] border border-[#1d1d20] rounded-xl p-5 hover:border-slate-700 transition-all cursor-pointer group',
-            task.isStuck ? 'border-red-500/30 bg-red-500/5' : '',
-            task.priority === 'urgent' ? 'border-red-500/20' : '',
-        )}>
-                {/* Priority badge */}
-                <div className="flex items-center gap-2 mb-3">
-                    {task.priority && task.priority !== 'normal' && (
-                        <span className={cn(
-                            'text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border',
-                            PRIORITY_CONFIG[task.priority as Priority]?.className
-                        )}>
-                            {PRIORITY_CONFIG[task.priority as Priority]?.label}
-                        </span>
-                    )}
-                    {task.retryCount != null && task.retryCount > 0 && (
-                        <span className="text-[9px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">R:{task.retryCount}</span>
-                    )}
-                </div>
-                {/* Title */}
-                <div className="flex items-start gap-2 mb-3">
-                    <div className={cn(
-                        'w-2 h-2 rounded-full flex-shrink-0 mt-1',
-                        task.isStuck ? 'bg-red-500 animate-pulse' : (
-                            task.status === 'Recurring' ? 'bg-green-500' :
-                            task.status === 'In Progress' || task.status === 'Implementation' ? 'bg-blue-500' :
-                            task.status === 'Review' ? 'bg-amber-500' :
-                            task.status === 'Complete' ? 'bg-emerald-500' :
-                            'bg-slate-500'
-                        )
-                    )} />
-                    <h3 className="text-[13px] font-black text-slate-100 leading-snug line-clamp-2">{task.title}</h3>
-                </div>
+                'bg-[#0d0d0f] border border-[#1d1d20] rounded-xl p-5 hover:border-slate-700 transition-all cursor-pointer group',
+                task.isStuck ? 'border-red-500/30 bg-red-500/5' : '',
+                task.priority === 'urgent' ? 'border-red-500/20' : '',
+            )}
+        >
+            {/* Priority & badges */}
+            <div className="flex items-center gap-2 mb-3">
+                {task.priority && task.priority !== 'normal' && (
+                    <span className={cn(
+                        'text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border',
+                        PRIORITY_CONFIG[task.priority as Priority]?.className
+                    )}>
+                        {PRIORITY_CONFIG[task.priority as Priority]?.label}
+                    </span>
+                )}
+                {task.retryCount != null && task.retryCount > 0 && (
+                    <span className="text-[9px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
+                        R:{task.retryCount}
+                    </span>
+                )}
+                {(task.comments?.length || 0) > 0 && (
+                    <span className="flex items-center gap-1 text-[9px] text-slate-500">
+                        <MessageSquare className="w-3 h-3" />
+                        {task.comments?.length}
+                    </span>
+                )}
+                {(task.evidence?.length || 0) > 0 && (
+                    <span className="flex items-center gap-1 text-[9px] text-slate-500">
+                        <Paperclip className="w-3 h-3" />
+                        {task.evidence?.length}
+                    </span>
+                )}
+            </div>
 
-            {/* Supervisor notes & Evidence */}
-            {(task.supervisorNotes || task.evidence) && (
-                <div className="mb-3 px-3 py-2 bg-blue-500/5 border border-blue-500/10 rounded-lg">
-                    {task.supervisorNotes && (
-                        <p className="text-[10px] italic text-blue-400 font-medium pb-1.5 border-b border-blue-500/10">
-                            "{task.supervisorNotes}"
-                        </p>
-                    )}
-                    {task.evidence && (
-                        <div className={cn("flex items-center gap-2", task.supervisorNotes ? "mt-1.5" : "")}>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Evidence</span>
-                            <a 
-                                href={task.evidence.startsWith('http') ? task.evidence : '#'} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="text-[10px] font-bold text-blue-400 hover:text-blue-300 truncate max-w-[170px]"
-                                onClick={e => e.stopPropagation()}
-                                title={task.evidence}
-                            >
-                                {task.evidence.replace(/^https?:\/\//, '')}
-                            </a>
-                        </div>
-                    )}
+            {/* Title */}
+            <div className="flex items-start gap-2 mb-3">
+                <div className={cn(
+                    'w-2 h-2 rounded-full flex-shrink-0 mt-1',
+                    task.isStuck ? 'bg-red-500 animate-pulse' : (
+                        task.status === 'Recurring' ? 'bg-green-500' :
+                        task.status === 'In Progress' ? 'bg-blue-500' :
+                        task.status === 'Review' ? 'bg-amber-500' :
+                        task.status === 'Complete' ? 'bg-emerald-500' :
+                        'bg-slate-500'
+                    )
+                )} />
+                <h3 className="text-[13px] font-black text-slate-100 leading-snug line-clamp-2">{task.title}</h3>
+            </div>
+
+            {/* Blocker indicator */}
+            {task.isStuck && (
+                <div className="mb-3 px-3 py-2 bg-red-500/5 border border-red-500/10 rounded">
+                    <p className="text-[10px] text-red-400/80 line-clamp-1">
+                        <AlertCircle className="w-3 h-3 inline mr-1" />
+                        {task.stuckReason || 'Blocked'}
+                    </p>
                 </div>
             )}
 
@@ -448,7 +649,6 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
                 <span className="text-[9px] font-bold text-slate-600">{timeAgo(task.updatedAt)}</span>
             </div>
 
-
             {/* Move button */}
             {nextCol && (
                 <button
@@ -463,15 +663,184 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
     );
 }
 
+// ─── New Task Modal (simplified) ─────────────────────────────────────────────
+
+function TaskFormModal({ task, onClose, onSaved, agents, projects }: {
+    task?: Task;
+    onClose: () => void;
+    onSaved: () => void;
+    agents: Agent[];
+    projects: Project[];
+}) {
+    const [title, setTitle] = useState(task?.title || '');
+    const [description, setDescription] = useState(task?.description || '');
+    const [owner, setOwner] = useState(task?.owner || 'matt');
+    const [projectId, setProjectId] = useState<string>(task?.project || '');
+    const [status, setStatus] = useState<TaskStatus>(task?.status || 'Backlog');
+    const [priority, setPriority] = useState<Priority>((task?.priority as Priority) || 'normal');
+    const [doneMeans, setDoneMeans] = useState(task?.validationCriteria?.doneMeans || '');
+    const [checklist, setChecklist] = useState(task?.validationCriteria?.checklist?.join('\n') || '');
+    const [loading, setLoading] = useState(false);
+
+    const submit = async () => {
+        if (!title.trim()) return;
+        setLoading(true);
+        
+        const validationCriteria = doneMeans || checklist ? {
+            doneMeans: doneMeans || 'Task completed',
+            checklist: checklist.split('\n').filter(s => s.trim()),
+        } : undefined;
+
+        const url = task ? `/api/tasks/${task.id}` : '/api/tasks';
+        const method = task ? 'PATCH' : 'POST';
+        
+        await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                title, 
+                description, 
+                owner, 
+                project: projectId || null, 
+                status, 
+                priority,
+                validationCriteria,
+            }),
+        });
+        
+        setLoading(false);
+        onSaved();
+        onClose();
+    };
+
+    const assignees = [{ id: 'matt', name: 'Matt', role: 'Supervisor' }, ...agents];
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-lg p-8 space-y-6 shadow-2xl">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-base font-black text-white tracking-tight">{task ? 'Edit Task' : 'New Task'}</h2>
+                    <button onClick={onClose}><X className="w-4 h-4 text-slate-500 hover:text-white" /></button>
+                </div>
+
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Title</label>
+                        <input
+                            autoFocus
+                            value={title}
+                            onChange={e => setTitle(e.target.value)}
+                            placeholder="What needs to be done?"
+                            className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Description</label>
+                        <textarea
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Optional details..."
+                            rows={3}
+                            className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600 resize-none"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Assign to</label>
+                            <select
+                                value={owner}
+                                onChange={e => setOwner(e.target.value)}
+                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
+                            >
+                                {assignees.map(a => (
+                                    <option key={a.id} value={a.id}>{a.name} — {a.role}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Priority</label>
+                            <select
+                                value={priority}
+                                onChange={e => setPriority(e.target.value as Priority)}
+                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
+                            >
+                                <option value="urgent">🔴 Urgent</option>
+                                <option value="high">🟠 High</option>
+                                <option value="normal">⚪ Normal</option>
+                                <option value="low">🔵 Low</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Status</label>
+                            <select
+                                value={status}
+                                onChange={e => setStatus(e.target.value as TaskStatus)}
+                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
+                            >
+                                {COLUMNS.map(c => <option key={c.status} value={c.status}>{c.label}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Project</label>
+                            <select
+                                value={projectId}
+                                onChange={e => setProjectId(e.target.value)}
+                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
+                            >
+                                <option value="">— None —</option>
+                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Validation Criteria */}
+                    <div className="p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg space-y-3">
+                        <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Validation Criteria</p>
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Done means:</label>
+                            <input
+                                value={doneMeans}
+                                onChange={e => setDoneMeans(e.target.value)}
+                                placeholder="What does 'done' look like?"
+                                className="w-full bg-[#111] border border-[#222] rounded px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-500 block mb-1">Checklist (one per line):</label>
+                            <textarea
+                                value={checklist}
+                                onChange={e => setChecklist(e.target.value)}
+                                placeholder="- [ ] Step 1\n- [ ] Step 2"
+                                rows={3}
+                                className="w-full bg-[#111] border border-[#222] rounded px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-slate-600 resize-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                    <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-white">Cancel</button>
+                    <button
+                        onClick={submit}
+                        disabled={!title.trim() || loading}
+                        className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black rounded-lg disabled:opacity-40"
+                    >
+                        {loading ? 'Saving...' : (task ? 'Save Changes' : 'Create Task')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Activity Item ────────────────────────────────────────────────────────────
 
 function ActivityItem({ act }: { act: any }) {
     return (
         <div className="flex items-start gap-3 py-3 border-b border-[#141416] last:border-0">
-            <div className={cn(
-                'w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black text-white flex-shrink-0 mt-0.5',
-                ownerColor(act.actor?.toLowerCase())
-            )}>
+            <div className={cn('w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black text-white flex-shrink-0 mt-0.5', ownerColor(act.actor?.toLowerCase()))}>
                 {ownerInitial(act.actor)}
             </div>
             <div className="flex-1 min-w-0">
@@ -501,7 +870,7 @@ export default function TasksPage() {
 
     const load = useCallback(async () => {
         const [t, a, ag, pr] = await Promise.all([
-            fetch('/api/tasks').then(r => r.json()),
+            fetch('/api/tasks?include=comments,evidence').then(r => r.json()),
             fetch('/api/activity').then(r => r.json()),
             fetch('/api/agents').then(r => r.json()),
             fetch('/api/projects').then(r => r.json()),
@@ -514,22 +883,11 @@ export default function TasksPage() {
 
     useEffect(() => { load(); }, [load]);
 
-    // Auto-refresh tasks & activity every 3s so the board feels "live" with the agents
+    // Auto-refresh
     useEffect(() => {
-        const iv = setInterval(async () => {
-            try {
-                const [t, a] = await Promise.all([
-                    fetch('/api/tasks').then(r => r.json()),
-                    fetch('/api/activity').then(r => r.json())
-                ]);
-                setTasks(Array.isArray(t) ? t : []);
-                setActivity(Array.isArray(a) ? a : []);
-            } catch (err) {
-                console.error('Auto-refresh failed', err);
-            }
-        }, 3000);
+        const iv = setInterval(load, 3000);
         return () => clearInterval(iv);
-    }, []);
+    }, [load]);
 
     const filtered = tasks.filter(t => {
         const matchOwner = ownerFilter === 'all' || t.owner === ownerFilter;
@@ -540,29 +898,20 @@ export default function TasksPage() {
 
     const stats = {
         total: tasks.length,
-        inProgress: tasks.filter(t => t.status === 'In Progress' || t.status === 'Implementation').length,
+        inProgress: tasks.filter(t => t.status === 'In Progress').length,
         done: tasks.filter(t => t.status === 'Complete').length,
         completion: tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'Complete').length / tasks.length) * 100) : 0,
     };
 
-    // Filter tabs: all active agents (from DB) + Matt, in workflow order
     const WORKFLOW_ORDER = ['matt', 'max', 'alice', 'bob', 'charlie', 'aegis', 'tron'];
-    const knownAgentIds = new Set(agents.map(a => a.id));
-    // Show tabs for agents who have tasks OR are in the canonical roster
-    const activeOwners = WORKFLOW_ORDER.filter(id =>
-        id === 'matt' || knownAgentIds.has(id)
-    );
-    // Map id → display name from agents table
+    const activeOwners = WORKFLOW_ORDER.filter(id => id === 'matt' || agents.some(a => a.id === id));
     const agentName = (id: string) => agents.find(a => a.id === id)?.name ?? (id === 'matt' ? 'Matt' : id);
 
     return (
         <div className="flex h-full overflow-hidden">
-            {/* ── Left: Kanban area ── */}
+            {/* Left: Kanban */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-                {/* Top bar */}
                 <div className="flex-shrink-0 px-10 pt-8 pb-0">
-                    {/* Stats */}
                     <div className="flex items-center gap-10 mb-6">
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-black text-blue-500">{stats.inProgress}</span>
@@ -578,17 +927,15 @@ export default function TasksPage() {
                         </div>
                     </div>
 
-                    {/* Toolbar */}
                     <div className="flex items-center gap-4 mb-6">
                         <button
                             onClick={() => setShowNewTask(true)}
-                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-lg transition-colors shadow-lg shadow-blue-500/10"
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-lg"
                         >
                             <Plus className="w-3.5 h-3.5" />
                             New task
                         </button>
 
-                        {/* Owner filter tabs — canonical workflow order */}
                         <div className="flex items-center gap-1">
                             <button
                                 onClick={() => setOwnerFilter('all')}
@@ -600,10 +947,7 @@ export default function TasksPage() {
                                 <button
                                     key={id}
                                     onClick={() => setOwnerFilter(id)}
-                                    className={cn(
-                                        'flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-lg transition-colors',
-                                        ownerFilter === id ? 'text-white bg-[#1a1a1e]' : 'text-slate-500 hover:text-white'
-                                    )}
+                                    className={cn('flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-bold rounded-lg transition-colors', ownerFilter === id ? 'text-white bg-[#1a1a1e]' : 'text-slate-500 hover:text-white')}
                                 >
                                     <div className={cn('w-1.5 h-1.5 rounded-full', ownerColor(id))} />
                                     {agentName(id)}
@@ -611,17 +955,14 @@ export default function TasksPage() {
                             ))}
                         </div>
 
-                        {/* Project filter dropdown */}
                         {projects.length > 0 && (
                             <select
                                 value={projectFilter}
                                 onChange={e => setProjectFilter(e.target.value)}
-                                className="ml-2 bg-[#0d0d0f] border border-[#1d1d20] rounded-lg px-3 py-1.5 text-xs text-slate-400 focus:outline-none focus:border-slate-600"
+                                className="ml-2 bg-[#0d0d0f] border border-[#1d1d20] rounded-lg px-3 py-1.5 text-xs text-slate-400"
                             >
                                 <option value="all">All projects</option>
-                                {projects.map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
+                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
                         )}
                         <div className="relative ml-auto">
@@ -630,35 +971,29 @@ export default function TasksPage() {
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 placeholder="Search tasks..."
-                                className="bg-[#0d0d0f] border border-[#1d1d20] rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-300 w-44 focus:outline-none focus:border-slate-600 placeholder:text-slate-600"
+                                className="bg-[#0d0d0f] border border-[#1d1d20] rounded-lg pl-9 pr-4 py-1.5 text-xs text-slate-300 w-44"
                             />
                         </div>
                     </div>
                 </div>
 
-                {/* ── Kanban columns (horizontal scroll) ── */}
+                {/* Kanban columns */}
                 <div className="flex-1 overflow-x-auto overflow-y-hidden px-10 pb-8">
                     <div className="flex gap-5 h-full" style={{ minWidth: `${COLUMNS.length * 300}px` }}>
                         {COLUMNS.map(col => {
                             const colTasks = getColumnTasks(filtered, col.status);
                             return (
                                 <div key={col.status} className="flex flex-col w-72 flex-shrink-0">
-                                    {/* Column header */}
                                     <div className="flex items-center justify-between mb-3 px-1">
                                         <div className="flex items-center gap-2">
                                             <div className={cn('w-1.5 h-1.5 rounded-full', col.dot)} />
                                             <span className="text-[11px] font-black uppercase tracking-widest text-[#555]">{col.label}</span>
                                             <span className="text-[10px] font-bold text-[#333]">{colTasks.length}</span>
                                         </div>
-                                        <button
-                                            onClick={() => setShowNewTask(true)}
-                                            className="text-[#2a2a2a] hover:text-slate-500 transition-colors"
-                                        >
+                                        <button onClick={() => setShowNewTask(true)} className="text-[#2a2a2a] hover:text-slate-500">
                                             <Plus className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
-
-                                    {/* Cards */}
                                     <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                                         {colTasks.length === 0 ? (
                                             <div className="flex items-center justify-center h-24 border border-dashed border-[#1a1a1a] rounded-xl">
@@ -677,24 +1012,22 @@ export default function TasksPage() {
                 </div>
             </div>
 
-            {/* ── Right: Fixed Live Activity panel ── */}
+            {/* Right: Activity panel */}
             <div className="flex-shrink-0 w-72 border-l border-[#141416] flex flex-col bg-[#080809]">
                 <div className="px-6 pt-8 pb-4 border-b border-[#141416] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Zap className="w-3.5 h-3.5 text-amber-500" />
                         <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-300">Live Activity</h2>
                     </div>
-                    <button onClick={load} className="text-slate-600 hover:text-slate-400 transition-colors">
+                    <button onClick={load} className="text-slate-600 hover:text-slate-400">
                         <RefreshCcw className="w-3.5 h-3.5" />
                     </button>
                 </div>
-
                 <div className="flex-1 overflow-y-auto px-6 py-2">
                     {activity.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-32 text-center">
                             <Activity className="w-6 h-6 text-slate-700 mb-2" />
                             <p className="text-[11px] font-bold text-slate-600">No activity yet</p>
-                            <p className="text-[10px] text-slate-700 mt-1">Agent actions will appear here</p>
                         </div>
                     ) : (
                         activity.map(act => <ActivityItem key={act.id} act={act} />)
@@ -702,21 +1035,17 @@ export default function TasksPage() {
                 </div>
             </div>
 
-            {/* New / Edit Task Modal */}
+            {/* Modals */}
             {(showNewTask || editingTask) && (
                 <TaskFormModal
                     task={editingTask || undefined}
-                    onClose={() => {
-                        setShowNewTask(false);
-                        setEditingTask(null);
-                    }}
+                    onClose={() => { setShowNewTask(false); setEditingTask(null); }}
                     onSaved={load}
                     agents={agents}
                     projects={projects}
                 />
             )}
             
-            {/* Task Detail Modal */}
             {selectedTask && !editingTask && (
                 <TaskDetailModal
                     task={selectedTask}

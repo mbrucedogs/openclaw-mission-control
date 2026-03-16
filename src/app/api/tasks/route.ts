@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getTasks, getTaskById, createTask, updateTask, deleteTask, TaskFilters } from '@/lib/domain/tasks';
+import { analyzeTask, getInitialOwner, generateDynamicValidationCriteria } from '@/lib/pipeline';
 import { TaskStatus, Priority } from '@/lib/types';
 import { randomUUID } from 'crypto';
 
@@ -43,20 +44,43 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Title is required' }, { status: 400 });
         }
 
+        // MAX: Analyze task and determine dynamic pipeline
+        const analysis = analyzeTask(body.title, body.description);
+        
+        // Use provided values or MAX's analysis
+        const owner = body.owner || analysis.initialOwner;
+        const priority = (body.priority as Priority) || analysis.priority;
+        const validationCriteria = body.validationCriteria || analysis.validationCriteria;
+        
+        // Store pipeline in task metadata for handoff logic
+        const pipeline = analysis.pipeline;
+        
         const task = createTask({
             title: body.title,
             description: body.description,
-            status: body.status as TaskStatus,
-            priority: body.priority as Priority,
-            owner: body.owner,
-            requestedBy: body.requestedBy,
+            status: (body.status as TaskStatus) || 'In Progress',
+            priority,
+            owner,
+            requestedBy: body.requestedBy || 'matt',
             reviewer: body.reviewer,
             project: body.project,
-            executionMode: body.executionMode,
-            validationCriteria: body.validationCriteria,
+            executionMode: body.executionMode || 'local',
+            validationCriteria: {
+                ...validationCriteria,
+                // Store pipeline in validation criteria for handoff logic
+                _pipeline: pipeline,
+                _currentStep: 0,
+            },
         });
 
-        return NextResponse.json(task, { status: 201 });
+        return NextResponse.json({
+            ...task,
+            _meta: {
+                pipeline: analysis.pipeline,
+                estimatedAgents: analysis.estimatedAgents,
+                canSkipQA: analysis.canSkipQA,
+            }
+        }, { status: 201 });
     } catch (error) {
         console.error('POST /api/tasks error:', error);
         return NextResponse.json({ error: 'Failed to create task' }, { status: 500 });

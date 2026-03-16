@@ -171,6 +171,8 @@ export interface Agent {
     responsibilities: string[];
     layer?: 'governance' | 'pipeline' | 'automation';
     order?: number;
+    folder?: string;
+    soulContent?: string;
 }
 
 export interface ScheduleJob {
