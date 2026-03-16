@@ -1,0 +1,176 @@
+
+
+import { db } from '@/lib/db';
+import { getTasks } from '@/lib/domain/tasks';
+import { getProjects } from '@/lib/domain/projects';
+import { IngestButton } from '@/components/IngestButton';
+import {
+  Zap,
+  Target,
+  Activity,
+  CheckSquare,
+  Calendar,
+  FolderKanban,
+  Cpu,
+  ArrowRight,
+  ShieldCheck,
+  AlertTriangle,
+  History,
+  Terminal,
+  Brain,
+  Link as LinkIcon,
+  Users
+} from 'lucide-react';
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
+
+import { Task, Project } from '@/lib/types';
+
+export default function DashboardPage() {
+  const tasks = getTasks();
+  const projects = getProjects();
+  const stats = {
+    totalTasks: tasks.length,
+    activeDomains: projects.length,
+    stuckTasks: tasks.filter(t => t.isStuck).length
+  };
+
+  return (
+    <div className="max-w-[1400px] p-12 space-y-12">
+      {/* Command Center Header */}
+      <div className="relative p-12 border border-[#1a1a1a] rounded-[3rem] bg-[#101010] overflow-hidden shadow-2xl">
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />
+        <div className="absolute top-10 right-10">
+          <IngestButton />
+        </div>
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+          <div className="space-y-6">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-600/20 p-2 rounded-xl border border-blue-500/20">
+                <Zap className="w-5 h-5 text-blue-400 animate-pulse" />
+              </div>
+              <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-500">Autonomous Orchestration Layer Active</span>
+            </div>
+
+            <h1 className="text-6xl font-black text-white tracking-tight">
+              Mission <span className="text-blue-500">Control</span>
+            </h1>
+            <p className="text-xl text-slate-400 font-medium max-w-2xl leading-relaxed">
+              Canonical system online. Managing <span className="text-white font-black">{stats.totalTasks}</span> durable tasks across <span className="text-white font-black">{stats.activeDomains}</span> active domains.
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-6 flex flex-col items-center">
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Supervisor</span>
+              <span className="text-xl font-black text-white">MAX</span>
+            </div>
+            <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-6 flex flex-col items-center">
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Status</span>
+              <span className="text-xl font-black text-emerald-500">NOMINAL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Orchestration Pulse Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <StatCard label="Pipeline Tasks" value={stats.totalTasks} icon={Target} color="text-blue-500" sub="Durable" />
+        <StatCard label="Stuck Recovery" value={stats.stuckTasks} icon={AlertTriangle} color="text-red-500" sub="Alerts active" />
+        <StatCard label="Uptime" value="100%" icon={Activity} color="text-emerald-500" sub="Real-time" />
+        <StatCard label="Agent Roster" value="6" icon={Users} color="text-indigo-500" sub="Canonical" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        {/* Left: Pipeline Insight */}
+        <div className="lg:col-span-2 space-y-8">
+          <SectionHeader title="Active Pipeline" icon={History} link="/tasks" />
+          <div className="grid grid-cols-1 gap-4">
+            {tasks.slice(0, 5).map((task) => (
+              <Link key={task.id} href="/tasks" className="group p-6 bg-[#101010] border border-[#1a1a1a] rounded-2xl hover:border-slate-700 transition-all flex items-center justify-between shadow-lg">
+                <div className="flex items-center space-x-6">
+                  <div className={cn(
+                    "w-3 h-3 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.3)]",
+                    task.status === 'Complete' ? "bg-emerald-500" : task.isStuck ? "bg-red-500 shadow-red-500/40 animate-pulse" : "bg-blue-500 shadow-blue-500/40"
+                  )} />
+                  <div>
+                    <h3 className="font-black text-white text-base group-hover:text-blue-400 transition-colors uppercase tracking-tight">{task.title}</h3>
+                    <div className="flex items-center space-x-3 mt-1.5">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{task.owner}</span>
+                      <span className="w-1 h-1 rounded-full bg-slate-800" />
+                      <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{task.status}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-6">
+                  {task.evidence && <LinkIcon className="w-4 h-4 text-emerald-500/50" />}
+                  <ArrowRight className="w-5 h-5 text-slate-800 group-hover:text-white transition-all group-hover:translate-x-1" />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Right: Domain Pulse */}
+        <div className="space-y-8">
+          <SectionHeader title="Domain Progress" icon={Cpu} link="/projects" />
+          <div className="space-y-8 p-8 bg-[#101010] border border-[#1a1a1a] rounded-3xl shadow-xl">
+            {projects.slice(0, 4).map((project) => (
+              <div key={project.id} className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <span className="text-xs font-black text-white uppercase tracking-widest">{project.name}</span>
+                  <span className="text-[10px] font-black text-slate-500">{Math.round(project.progress)}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-[#09090b] rounded-full overflow-hidden border border-[#1a1a1a]">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+                    style={{ width: `${project.progress}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+            <Link href="/projects" className="block text-center py-4 bg-[#09090b] border border-[#1a1a1a] rounded-2xl text-[11px] font-black text-slate-500 uppercase tracking-widest hover:text-white hover:border-slate-700 transition-all mt-4">
+              Access All Domains
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, color, sub }: any) {
+  return (
+    <div className="p-8 bg-[#101010] border border-[#1a1a1a] rounded-3xl shadow-xl hover:border-slate-700 transition-all group overflow-hidden relative">
+      <div className="absolute -bottom-4 -right-4 opacity-[0.02] group-hover:opacity-10 transition-opacity">
+        <Icon className="w-24 h-24" />
+      </div>
+      <div className={cn("p-3 rounded-2xl w-fit mb-6 bg-[#09090b] border border-[#1a1a1a]", color)}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="text-4xl font-black text-white tracking-tighter">{value}</div>
+      <div className="flex items-center space-x-2 mt-2">
+        <div className="w-1 h-1 rounded-full bg-slate-700" />
+        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</div>
+      </div>
+      <div className="text-[9px] font-bold text-slate-700 uppercase tracking-widest mt-4 group-hover:text-slate-400">{sub}</div>
+    </div>
+  );
+}
+
+function SectionHeader({ title, icon: Icon, link }: any) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-3">
+        <Icon className="w-5 h-5 text-slate-400" />
+        <h2 className="text-base font-black text-white uppercase tracking-[0.2em]">{title}</h2>
+      </div>
+      {link && (
+        <Link href={link} className="text-[10px] font-black text-blue-500 uppercase tracking-widest hover:text-blue-400 transition-colors border-b border-blue-500/20 pb-1">
+          View Detail
+        </Link>
+      )}
+    </div>
+  );
+}
