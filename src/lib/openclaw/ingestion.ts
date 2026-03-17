@@ -34,6 +34,8 @@ function ingestMemories() {
         .sort()
         .reverse(); // newest first
 
+    const currentMemoryIds: string[] = [];
+
     for (const file of files) {
         const filePath = path.join(memoryDir, file);
         try {
@@ -56,9 +58,16 @@ function ingestMemories() {
             }
 
             insertMemory.run(id, content, timestamp, category);
+            currentMemoryIds.push(id);
         } catch {
             // skip unreadable files silently
         }
+    }
+
+    // Cleanup stale memories
+    if (currentMemoryIds.length > 0) {
+        const placeholders = currentMemoryIds.map(() => '?').join(',');
+        db.prepare(`DELETE FROM memories WHERE id NOT IN (${placeholders})`).run(...currentMemoryIds);
     }
 }
 
@@ -86,15 +95,22 @@ function getAllMarkdownFiles(dirPath: string, fileList: string[] = []): string[]
 
 function ingestDocuments() {
     const insertDoc = db.prepare('INSERT OR REPLACE INTO local_documents (id, title, path, category, updatedAt) VALUES (?, ?, ?, ?, ?)');
+    const currentDocIds: string[] = [];
 
     for (const dir of WORKSPACE_ROOTS) {
         if (!fs.existsSync(dir)) continue;
-        const category = dir.split('/').pop() || 'Unknown';
         const files = listWorkspaceFiles(dir);
 
         for (const doc of files) {
             insertDoc.run(doc.id, doc.title, doc.path, doc.category, doc.updatedAt);
+            currentDocIds.push(doc.id);
         }
+    }
+
+    // Cleanup stale documents
+    if (currentDocIds.length > 0) {
+        const placeholders = currentDocIds.map(() => '?').join(',');
+        db.prepare(`DELETE FROM local_documents WHERE id NOT IN (${placeholders})`).run(...currentDocIds);
     }
 }
 
@@ -102,7 +118,8 @@ function ingestDocuments() {
 
 function ingestScheduleJobs() {
     const launchdDir = path.join(WORKSPACE_ROOT, 'launchd');
-    const insertJob = db.prepare('INSERT OR IGNORE INTO schedule_jobs (id, name, cron, nextRunAt, agentId) VALUES (?, ?, ?, ?, ?)');
+    const insertJob = db.prepare('INSERT OR REPLACE INTO schedule_jobs (id, name, cron, nextRunAt, agentId) VALUES (?, ?, ?, ?, ?)');
+    const currentJobIds: string[] = [];
 
     // 1. Ingest launchd services (system-level OpenClaw services)
     if (fs.existsSync(launchdDir)) {
@@ -111,6 +128,7 @@ function ingestScheduleJobs() {
             const id = file.replace(/\.(plist|json)$/, '');
             const name = id.replace(/^com\.[^.]+\./, '').replace(/\./g, ' ');
             insertJob.run(id, name, null, null, 'tron');
+            currentJobIds.push(id);
         }
     }
 
@@ -139,6 +157,7 @@ function ingestScheduleJobs() {
                     const nextRun = job.state?.nextRunAtMs ? new Date(job.state.nextRunAtMs).toISOString() : null;
                     const agentId = job.agentId || 'tron';
                     insertJob.run(job.id, job.name, cronExpr, nextRun, agentId);
+                    currentJobIds.push(job.id);
                 }
             }
         } catch(e) {
@@ -158,7 +177,14 @@ function ingestScheduleJobs() {
         ];
         for (const job of defaults) {
             insertJob.run(job.id, job.name, job.cron, null, 'tron');
+            currentJobIds.push(job.id);
         }
+    }
+
+    // Cleanup stale jobs
+    if (currentJobIds.length > 0) {
+        const placeholders = currentJobIds.map(() => '?').join(',');
+        db.prepare(`DELETE FROM schedule_jobs WHERE id NOT IN (${placeholders})`).run(...currentJobIds);
     }
 }
 

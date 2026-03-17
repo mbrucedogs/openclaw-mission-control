@@ -146,3 +146,18 @@ export interface Task {
     activity?: TaskActivity[];
     evidence?: TaskEvidence[];
 }
+export interface Agent {
+    id: string;
+    name: string;
+    role: string;
+    mission?: string;
+    status?: string;
+}
+
+export interface Project {
+    id: string;
+    name: string;
+    description?: string;
+    status: string;
+    progress: number;
+}

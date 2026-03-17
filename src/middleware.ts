@@ -2,24 +2,40 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-    const authToken = request.cookies.get('auth-token');
     const { pathname } = request.nextUrl;
 
-    // 1. Allow access to login page and public assets
-    if (pathname === '/login' || pathname.startsWith('/_next') || pathname.startsWith('/api') || pathname.includes('.')) {
+    // 1. Public Routes & Assets
+    if (
+        pathname === '/login' || 
+        pathname === '/api/auth/login' || 
+        pathname.startsWith('/_next') || 
+        pathname.includes('.')
+    ) {
         return NextResponse.next();
     }
 
-    // 2. Redirect to login if no auth token
-    if (!authToken) {
-        const loginUrl = new URL('/login', request.url);
-        return NextResponse.redirect(loginUrl);
+    // 2. Authentication Checks
+    const authToken = request.cookies.get('auth-token');
+    const apiKeyHeader = request.headers.get('x-api-key');
+    const systemApiKey = process.env.API_KEY;
+
+    // Allow if valid cookie or valid API key
+    const isSessionAuth = !!authToken;
+    const isApiKeyAuth = systemApiKey && apiKeyHeader === systemApiKey;
+
+    if (isSessionAuth || isApiKeyAuth) {
+        return NextResponse.next();
     }
 
-    // 3. Allow access to everything else if authenticated
-    return NextResponse.next();
+    // 3. Fallback: Redirect UI to login, Return 401 for API
+    if (pathname.startsWith('/api')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-    matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

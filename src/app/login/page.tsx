@@ -6,6 +6,7 @@ import { Shield, Zap, Lock, Fingerprint, Activity, ChevronRight, Brain } from 'l
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [status, setStatus] = useState('Standby');
@@ -17,22 +18,32 @@ export default function LoginPage() {
         setIsAuthenticating(true);
         setStatus('Initializing Auth Protocol...');
 
-        // Simulate a high-tech "handshake"
-        setTimeout(() => {
-            if (password.toLowerCase() === 'admin' || password.toLowerCase() === 'matt') {
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+
+            if (res.ok) {
                 setStatus('Handshake Verified. Access Granted.');
-                // In a real app, this would be an API call setting a secure cookie
-                document.cookie = 'auth-token=authorized; path=/; max-age=86400';
+                // Cookie is set by the API route
                 setTimeout(() => {
                     router.push('/');
                 }, 800);
             } else {
+                const data = await res.json();
                 setShake(true);
-                setStatus('Unauthorized Access Detected.');
+                setStatus(data.error || 'Unauthorized Access Detected.');
                 setIsAuthenticating(false);
                 setTimeout(() => setShake(false), 500);
             }
-        }, 1500);
+        } catch (err) {
+            setShake(true);
+            setStatus('Connection Error.');
+            setIsAuthenticating(false);
+            setTimeout(() => setShake(false), 500);
+        }
     };
 
     return (
@@ -46,25 +57,39 @@ export default function LoginPage() {
                 shake ? "translate-x-2 border-red-500/50" : ""
             )}>
                 {/* Logo Area */}
-                <div className="flex flex-col items-center mb-12">
-                    <div className="w-20 h-20 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(37,99,235,0.1)] group">
-                        <Shield className="w-10 h-10 text-blue-500 group-hover:scale-110 transition-transform" />
+                <div className="flex flex-col items-center mb-10">
+                    <div className="w-16 h-16 bg-blue-600/10 border border-blue-500/20 rounded-2xl flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(37,99,235,0.1)] group">
+                        <Shield className="w-8 h-8 text-blue-500 group-hover:scale-110 transition-transform" />
                     </div>
-                    <h1 className="text-3xl font-black text-white tracking-tight uppercase">Mission <span className="text-blue-500">Control</span></h1>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-2">Durable Orchestration Layer</p>
+                    <h1 className="text-2xl font-black text-white tracking-tight uppercase">Mission <span className="text-blue-500">Control</span></h1>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-[0.4em] mt-2">Durable Orchestration Layer</p>
                 </div>
 
-                <form onSubmit={handleLogin} className="space-y-6">
+                <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Authorized Identity</label>
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4">Authorized Identity</label>
+                        <div className="relative group">
+                            <Fingerprint className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full bg-[#09090b] border border-[#1a1a1a] rounded-2xl py-3.5 pl-14 pr-6 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder:text-slate-700"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-4">Security Key</label>
                         <div className="relative group">
                             <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-500 transition-colors" />
                             <input
                                 type="password"
-                                placeholder="Enter system key"
+                                placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-[#09090b] border border-[#1a1a1a] rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder:text-slate-700"
+                                className="w-full bg-[#09090b] border border-[#1a1a1a] rounded-2xl py-3.5 pl-14 pr-6 text-sm text-white focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all placeholder:text-slate-700"
                             />
                         </div>
                     </div>
@@ -72,7 +97,7 @@ export default function LoginPage() {
                     <button
                         disabled={isAuthenticating}
                         className={cn(
-                            "w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/10 active:scale-95 flex items-center justify-center space-x-3",
+                            "w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/10 active:scale-95 flex items-center justify-center space-x-3 mt-4",
                             isAuthenticating ? "opacity-50 cursor-not-allowed" : ""
                         )}
                     >
@@ -80,27 +105,27 @@ export default function LoginPage() {
                             <Activity className="w-5 h-5 animate-spin" />
                         ) : (
                             <>
-                                <Fingerprint className="w-5 h-5 border-blue-400" />
-                                <span className="text-xs uppercase tracking-widest">Verify Identity</span>
+                                <ChevronRight className="w-5 h-5" />
+                                <span className="text-xs uppercase tracking-widest">Verify Access</span>
                             </>
                         )}
                     </button>
                 </form>
 
                 {/* Status Bar */}
-                <div className="mt-12 pt-8 border-t border-[#1a1a1a] flex flex-col items-center">
+                <div className="mt-10 pt-6 border-t border-[#1a1a1a] flex flex-col items-center">
                     <div className="flex items-center space-x-2 mb-2">
                         <div className={cn(
                             "w-1.5 h-1.5 rounded-full animate-pulse",
                             isAuthenticating ? "bg-blue-500" : shake ? "bg-red-500" : "bg-emerald-500"
                         )} />
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{status}</span>
+                        <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{status}</span>
                     </div>
                 </div>
 
                 {/* Global Message */}
                 <div className="absolute -bottom-20 left-0 right-0 text-center">
-                    <p className="text-[11px] font-bold text-slate-600 italic">"Supervisor MAX is monitoring all access attempts"</p>
+                    <p className="text-[10px] font-bold text-slate-600 italic">"Supervisor MAX is monitoring all access attempts"</p>
                 </div>
             </div>
 

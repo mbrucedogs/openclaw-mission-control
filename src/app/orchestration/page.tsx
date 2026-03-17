@@ -37,6 +37,12 @@ interface PipelineStep {
     onFailure: 'stop' | 'continue' | 'skip';
 }
 
+interface User {
+    username: string;
+    role: string;
+    createdAt: string;
+}
+
 const AGENT_COLORS: Record<string, string> = {
     researcher: 'bg-pink-500',
     builder: 'bg-orange-500',
@@ -56,9 +62,10 @@ const AGENT_ICONS: Record<string, string> = {
 };
 
 export default function OrchestrationPage() {
-    const [activeTab, setActiveTab] = useState<'workflows' | 'pipelines'>('workflows');
+    const [activeTab, setActiveTab] = useState<'workflows' | 'pipelines' | 'users'>('workflows');
     const [workflows, setWorkflows] = useState<Workflow[]>([]);
     const [pipelines, setPipelines] = useState<Pipeline[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -68,12 +75,14 @@ export default function OrchestrationPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [wfRes, plRes] = await Promise.all([
+            const [wfRes, plRes, uRes] = await Promise.all([
                 fetch('/api/workflows'),
                 fetch('/api/pipelines'),
+                fetch('/api/users'),
             ]);
             if (wfRes.ok) setWorkflows(await wfRes.json());
             if (plRes.ok) setPipelines(await plRes.json());
+            if (uRes.ok) setUsers(await uRes.json());
         } catch (err) {
             console.error('Failed to load orchestration data:', err);
         }
@@ -124,6 +133,22 @@ export default function OrchestrationPage() {
                             {pipelines.length}
                         </span>
                     </button>
+
+                    <button
+                        onClick={() => setActiveTab('users')}
+                        className={cn(
+                            'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors',
+                            activeTab === 'users' 
+                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
+                                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                        )}
+                    >
+                        <User className="w-4 h-4" />
+                        <span className="text-xs font-bold">Users</span>
+                        <span className="ml-auto text-[10px] text-slate-600 bg-slate-800 px-2 py-0.5 rounded">
+                            {users.length}
+                        </span>
+                    </button>
                 </nav>
             </div>
 
@@ -135,8 +160,10 @@ export default function OrchestrationPage() {
                     </div>
                 ) : activeTab === 'workflows' ? (
                     <WorkflowsTab workflows={workflows} onRefresh={loadData} />
-                ) : (
+                ) : activeTab === 'pipelines' ? (
                     <PipelinesTab pipelines={pipelines} workflows={workflows} onRefresh={loadData} />
+                ) : (
+                    <UsersTab users={users} onRefresh={loadData} />
                 )}
             </div>
         </div>
@@ -900,13 +927,13 @@ function PipelineCard({
                                         </div>
                                         <div className="flex items-center gap-1">
                                             {step.onFailure === 'stop' && (
-                                                <AlertCircle className="w-3.5 h-3.5 text-red-400" title="Stop on failure" />
+                                                <AlertCircle className="w-3.5 h-3.5 text-red-400" />
                                             )}
                                             {step.onFailure === 'continue' && (
-                                                <Play className="w-3.5 h-3.5 text-emerald-400" title="Continue on failure" />
+                                                <Play className="w-3.5 h-3.5 text-emerald-400" />
                                             )}
                                             {step.onFailure === 'skip' && (
-                                                <ArrowRight className="w-3.5 h-3.5 text-amber-400" title="Skip on failure" />
+                                                <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
                                             )}
                                         </div>
                                     </div>
@@ -940,6 +967,183 @@ function PipelineCard({
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ============================================================================
+// USERS TAB
+// ============================================================================
+
+function UsersTab({ users, onRefresh }: { users: User[]; onRefresh: () => void }) {
+    const [isCreating, setIsCreating] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        username: '',
+        password: '',
+        role: 'user'
+    });
+
+    const handleDelete = async (username: string) => {
+        if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+        
+        try {
+            const res = await fetch('/api/users', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username }),
+            });
+            
+            if (res.ok) {
+                onRefresh();
+            } else {
+                alert('Failed to delete user');
+            }
+        } catch (err) {
+            console.error('Delete error:', err);
+            alert('Error deleting user');
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            const res = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            
+            if (res.ok) {
+                setIsCreating(false);
+                setFormData({ username: '', password: '', role: 'user' });
+                onRefresh();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to create user');
+            }
+        } catch (err) {
+            console.error('Create error:', err);
+            alert('Error creating user');
+        }
+        setIsSaving(false);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h2 className="text-lg font-black text-white">User Management</h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Manage authorized users who can access Mission Control.
+                    </p>
+                </div>
+                {!isCreating && (
+                    <button 
+                        onClick={() => setIsCreating(true)}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-4 py-2 rounded-lg transition-colors"
+                    >
+                        <Plus className="w-3.5 h-3.5" />
+                        New User
+                    </button>
+                )}
+            </div>
+
+            {isCreating && (
+                <form onSubmit={handleSubmit} className="bg-[#111] border border-[#222] rounded-xl p-6 mb-6">
+                    <h3 className="text-sm font-bold text-white mb-4">Create New User</h3>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Username</label>
+                            <input
+                                type="text"
+                                value={formData.username}
+                                onChange={e => setFormData({ ...formData, username: e.target.value })}
+                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Password</label>
+                            <input
+                                type="password"
+                                value={formData.password}
+                                onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                                required
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block">Role</label>
+                            <select
+                                value={formData.role}
+                                onChange={e => setFormData({ ...formData, role: e.target.value })}
+                                className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2 text-sm text-white"
+                            >
+                                <option value="user">User</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button
+                            type="submit"
+                            disabled={isSaving}
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black px-4 py-2 rounded-lg"
+                        >
+                            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                            {isSaving ? 'Creating...' : 'Create User'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsCreating(false)}
+                            className="flex items-center gap-2 text-slate-400 hover:text-white text-xs font-black px-4 py-2"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {users.map(user => (
+                    <div key={user.username} className="bg-[#111] border border-[#222] rounded-xl p-5 hover:border-slate-700 transition-all">
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                <User className="w-5 h-5 text-blue-400" />
+                            </div>
+                            <span className={cn(
+                                "text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-widest",
+                                user.role === 'admin' ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+                            )}>
+                                {user.role}
+                            </span>
+                        </div>
+                        <h4 className="text-sm font-bold text-white mb-1">{user.username}</h4>
+                        <p className="text-[10px] text-slate-500 mb-4">Joined {new Date(user.createdAt).toLocaleDateString()}</p>
+                        
+                        <div className="flex pt-2 border-t border-[#222]">
+                            <button 
+                                onClick={() => handleDelete(user.username)}
+                                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 py-2 rounded-lg hover:bg-slate-800 transition-colors"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete User
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {users.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 px-4 border border-dashed border-slate-800 rounded-2xl bg-[#0a0a0a]">
+                    <User className="w-12 h-12 text-slate-800 mb-4" />
+                    <h3 className="text-sm font-bold text-slate-400">No persistent users found</h3>
+                    <p className="text-xs text-slate-600 mt-1">The system administrator is managed via environment variables.</p>
                 </div>
             )}
         </div>

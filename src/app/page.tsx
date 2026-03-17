@@ -3,7 +3,6 @@
 import { db } from '@/lib/db';
 import { getTasks } from '@/lib/domain/tasks';
 import { getProjects } from '@/lib/domain/projects';
-import { IngestButton } from '@/components/IngestButton';
 import {
   Zap,
   Target,
@@ -40,9 +39,6 @@ export default function DashboardPage() {
       {/* Command Center Header */}
       <div className="relative p-12 border border-[#1a1a1a] rounded-[3rem] bg-[#101010] overflow-hidden shadow-2xl">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />
-        <div className="absolute top-10 right-10">
-          <IngestButton />
-        </div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
           <div className="space-y-6">
@@ -76,10 +72,10 @@ export default function DashboardPage() {
 
       {/* Orchestration Pulse Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <StatCard label="Pipeline Tasks" value={stats.totalTasks} icon={Target} color="text-blue-500" sub="Durable" />
-        <StatCard label="Stuck Recovery" value={stats.stuckTasks} icon={AlertTriangle} color="text-red-500" sub="Alerts active" />
-        <StatCard label="Uptime" value="100%" icon={Activity} color="text-emerald-500" sub="Real-time" />
-        <StatCard label="Agent Roster" value="6" icon={Users} color="text-indigo-500" sub="Canonical" />
+        <StatCard label="Pipeline Tasks" value={stats.totalTasks} icon={Target} color="text-blue-500" sub="Durable" href="/tasks" />
+        <StatCard label="Stuck Recovery" value={stats.stuckTasks} icon={AlertTriangle} color="text-red-500" sub="Alerts active" href="/tasks" />
+        <StatCard label="Uptime" value="100%" icon={Activity} color="text-emerald-500" sub="Real-time" href="/office" />
+        <StatCard label="Agent Roster" value="6" icon={Users} color="text-indigo-500" sub="Canonical" href="/team" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
@@ -117,18 +113,18 @@ export default function DashboardPage() {
           <SectionHeader title="Domain Progress" icon={Cpu} link="/projects" />
           <div className="space-y-8 p-8 bg-[#101010] border border-[#1a1a1a] rounded-3xl shadow-xl">
             {projects.slice(0, 4).map((project) => (
-              <div key={project.id} className="space-y-3">
+              <Link key={project.id} href="/projects" className="block space-y-3 group/project transition-all hover:opacity-80">
                 <div className="flex justify-between items-end">
-                  <span className="text-xs font-black text-white uppercase tracking-widest">{project.name}</span>
+                  <span className="text-xs font-black text-white uppercase tracking-widest group-hover/project:text-blue-400">{project.name}</span>
                   <span className="text-[10px] font-black text-slate-500">{Math.round(project.progress)}%</span>
                 </div>
                 <div className="h-1.5 w-full bg-[#09090b] rounded-full overflow-hidden border border-[#1a1a1a]">
                   <div
-                    className="h-full bg-blue-600 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+                    className="h-full bg-blue-600 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(37,99,235,0.4)] group-hover/project:bg-blue-500"
                     style={{ width: `${project.progress}%` }}
                   />
                 </div>
-              </div>
+              </Link>
             ))}
             <Link href="/projects" className="block text-center py-4 bg-[#09090b] border border-[#1a1a1a] rounded-2xl text-[11px] font-black text-slate-500 uppercase tracking-widest hover:text-white hover:border-slate-700 transition-all mt-4">
               Access All Domains
@@ -140,10 +136,10 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, icon: Icon, color, sub }: any) {
-  return (
-    <div className="p-8 bg-[#101010] border border-[#1a1a1a] rounded-3xl shadow-xl hover:border-slate-700 transition-all group overflow-hidden relative">
-      <div className="absolute -bottom-4 -right-4 opacity-[0.02] group-hover:opacity-10 transition-opacity">
+function StatCard({ label, value, icon: Icon, color, sub, href }: any) {
+  const content = (
+    <>
+      <div className="absolute -bottom-4 -right-4 opacity-[0.02] group-hover:opacity-10 transition-opacity text-white">
         <Icon className="w-24 h-24" />
       </div>
       <div className={cn("p-3 rounded-2xl w-fit mb-6 bg-[#09090b] border border-[#1a1a1a]", color)}>
@@ -155,6 +151,20 @@ function StatCard({ label, value, icon: Icon, color, sub }: any) {
         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{label}</div>
       </div>
       <div className="text-[9px] font-bold text-slate-700 uppercase tracking-widest mt-4 group-hover:text-slate-400">{sub}</div>
+    </>
+  );
+
+  return (
+    <div className="relative group">
+      {href ? (
+        <Link href={href} className="block p-8 bg-[#101010] border border-[#1a1a1a] rounded-3xl shadow-xl hover:border-slate-700 transition-all overflow-hidden">
+          {content}
+        </Link>
+      ) : (
+        <div className="p-8 bg-[#101010] border border-[#1a1a1a] rounded-3xl shadow-xl hover:border-slate-700 transition-all overflow-hidden">
+          {content}
+        </div>
+      )}
     </div>
   );
 }

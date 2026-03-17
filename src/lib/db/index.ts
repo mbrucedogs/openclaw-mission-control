@@ -68,6 +68,31 @@ if (typeof window === 'undefined') {
         
         console.log('Migration complete');
       }
+
+      // Check if users table exists, if not, create it
+      const checkUsersTable = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+      ).get();
+      if (!checkUsersTable) {
+        console.log('Creating users table...');
+        db.exec(`
+          CREATE TABLE users (
+            username TEXT PRIMARY KEY,
+            password TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'user',
+            createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+          )
+        `);
+      }
+
+      // Seed admin user if none exist
+      const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as any).count;
+      if (userCount === 0) {
+        const adminUser = process.env.AUTH_USER || 'admin';
+        const adminPass = process.env.AUTH_PASS || 'admin';
+        console.log(`Seeding initial admin user: ${adminUser}`);
+        db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(adminUser, adminPass, 'admin');
+      }
     }
   } catch (err) {
     console.error('Database init error:', err);

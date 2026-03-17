@@ -194,6 +194,13 @@ CREATE TABLE local_documents (
     updatedAt TEXT NOT NULL
 );
 
+CREATE TABLE users (
+    username TEXT PRIMARY KEY,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE schedule_jobs (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
