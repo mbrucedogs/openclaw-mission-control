@@ -95,6 +95,14 @@ GET    /api/pipelines          # List pipelines
 POST   /api/pipelines          # Create pipeline
 ```
 
+### Authentication
+
+All API requests require an `X-API-Key` header with the value defined in your `.env` file.
+
+```bash
+curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/tasks
+```
+
 ## Configuration
 
 ### Required Agents
@@ -122,6 +130,11 @@ DATABASE_URL=./mission-control.db
 
 # OpenClaw
 OPENCLAW_WORKSPACE=/path/to/workspace
+
+# Authentication
+AUTH_USER=admin
+AUTH_PASS=your_secure_password_here
+API_KEY=your_secure_api_key
 ```
 
 ## Development
