@@ -116,13 +116,21 @@ cp -r examples/openclaw-workspace/ ~/your-workspace/
 
 ### In Your Workspace (loaded at runtime)
 Located at `~/.openclaw/workspace/` (or your configured workspace):
-- `AGENT_PIPELINE_SETUP.md` - Your team setup (customize with your agent names)
-- `TEAM_GOVERNANCE.md` - Your governance rules
-- `TEAM-REGISTRY.md` - Your agent registry
+
+**Root level:**
+- `TEAM_GOVERNANCE.md` - Governance rules and validation
+- `AGENT_PIPELINE_SETUP.md` - Your team setup
 - `ORCHESTRATION.md` - Quick reference (if copied from docs)
 - `SOUL.md` - Your identity (if applicable)
 - `USER.md` - User preferences
 - `AGENTS.md` - Your role definition
+
+**agents/ folder:**
+- `agents/TEAM-REGISTRY.md` - Agent registry
+- `agents/leo-lead/` - Agent folders with SOUL.md and AGENTS.md
+- `agents/sam-scout/`
+- `agents/dana-dev/`
+- `agents/jordan-review/`
 
 ---
 

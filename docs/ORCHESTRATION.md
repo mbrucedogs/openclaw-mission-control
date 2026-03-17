@@ -21,10 +21,12 @@ The alex-mission-control orchestration system uses a **hybrid pipeline model** t
 | **Orchestrator (You)** | Spawns agents, validates work, manages handoffs | Execute skills, write code, add comments for agents |
 | **Agent** | Does the actual work, posts findings, attaches evidence | Decide pipeline, validate other agents' work |
 
-### The Pipeline Flow
+### The Pipeline Flow (Example)
+
+**This is an example using the fake agent names from `examples/openclaw-workspace/`. Your workspace will have similar files with your own agent names.**
 
 ```
-User → You → Researcher → You → Builder → You → Tester → You → Reviewer → You → Done
+User → You (Leo) → Sam (Researcher) → You → Dana (Builder) → You → Dana (Tester) → You → Jordan (Reviewer) → You → Done
 ```
 
 ### CRITICAL: Validation Checklist
@@ -75,40 +77,42 @@ Before approving ANY handoff, you MUST verify:
 | **You Added Comments For Agent** | Agent didn't post findings, so you added comment for them | Make agent post their own findings. Reject if they don't. |
 | **Task Marked Complete Without Validation** | Task went to Complete with no evidence, no comments, no activity | Validate ALL checklist items before marking Complete. |
 
-### Spawn Commands
+### Spawn Commands (Example)
 
-#### Researcher
+**These examples use the fake agent names from `examples/openclaw-workspace/`. Your workspace will have similar commands with your own agent names in your `agents/TEAM-REGISTRY.md`.**
+
+#### Sam (Researcher)
 ```javascript
 sessions_spawn({
-  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Research\n\n**Your Mission:**\n[Research description]\n\n**Deliverables:**\n1. [Finding 1]\n2. [Finding 2]\n\n**Handoff:** When complete, post findings as comment, attach evidence via API, and I'll route to next phase.\n\n**Questions?** Ask me - monitoring this task.\n\nRead your SOUL.md at: {AGENT_PATH}/researcher/SOUL.md`,
-  label: "Researcher-[task-id]",
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Research\n\n**Your Mission:**\n[Research description]\n\n**Deliverables:**\n1. [Finding 1]\n2. [Finding 2]\n\n**Handoff:** When complete, post findings as comment, attach evidence via API, and I'll route to next phase.\n\n**Questions?** Ask Leo - monitoring this task.\n\nRead your SOUL.md at: agents/sam-scout/SOUL.md`,
+  label: "Sam-Research-[task-id]",
   agentId: "main"
 })
 ```
 
-#### Builder
+#### Dana (Builder)
 ```javascript
 sessions_spawn({
-  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Build\n\n**Your Mission:**\n[Implementation description]\n\n**Requirements:**\n- [ ] Req 1\n- [ ] Req 2\n\n**Handoff:** When complete, post summary, attach evidence via API, and I'll validate.\n\n**Questions?** Ask me.\n\nRead your SOUL.md at: {AGENT_PATH}/builder/SOUL.md`,
-  label: "Builder-[task-id]",
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Build\n\n**Your Mission:**\n[Implementation description]\n\n**Requirements:**\n- [ ] Req 1\n- [ ] Req 2\n\n**Handoff:** When complete, post summary, attach evidence via API, and I'll validate.\n\n**Questions?** Ask Leo.\n\nRead your SOUL.md at: agents/dana-dev/SOUL.md`,
+  label: "Dana-Build-[task-id]",
   agentId: "main"
 })
 ```
 
-#### Tester
+#### Dana (Tester)
 ```javascript
 sessions_spawn({
-  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Test\n\n**Your Mission:**\n[Testing description]\n\n**Requirements:**\n- [ ] Test 1\n- [ ] Test 2\n\n**Handoff:** Post test results, attach evidence, and I'll review.\n\nRead your SOUL.md at: {AGENT_PATH}/tester/SOUL.md`,
-  label: "Tester-[task-id]",
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Test\n\n**Your Mission:**\n[Testing description]\n\n**Requirements:**\n- [ ] Test 1\n- [ ] Test 2\n\n**Handoff:** Post test results, attach evidence, and I'll review.\n\nRead your SOUL.md at: agents/dana-dev/SOUL.md`,
+  label: "Dana-Test-[task-id]",
   agentId: "main"
 })
 ```
 
-#### Reviewer
+#### Jordan (Reviewer)
 ```javascript
 sessions_spawn({
-  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Review\n\n**Your Mission:**\nValidate all deliverables meet requirements.\n\n**Evidence to Review:**\n- [Evidence 1]\n- [Evidence 2]\n\n**Handoff:** Approve or reject with specific reasons.\n\nRead your SOUL.md at: {AGENT_PATH}/reviewer/SOUL.md`,
-  label: "Reviewer-[task-id]",
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Review\n\n**Your Mission:**\nValidate all deliverables meet requirements.\n\n**Evidence to Review:**\n- [Evidence 1]\n- [Evidence 2]\n\n**Handoff:** Approve or reject with specific reasons.\n\nRead your SOUL.md at: agents/jordan-review/SOUL.md`,
+  label: "Jordan-Review-[task-id]",
   agentId: "main"
 })
 ```
@@ -269,26 +273,51 @@ CREATE TABLE task_pipelines (
 
 ---
 
-## Part 3: Generic Example (For New Teams)
+## Part 3: Complete Working Example
 
-### Example Team Structure
+**See `examples/openclaw-workspace/` for a complete, working example you can copy and customize.**
+
+This example uses fake agent names (Leo, Sam, Dana, Jordan) to demonstrate the structure. When you set up your own workspace, you'll create similar files with your own agent names.
+
+### Example Team Structure (from examples/openclaw-workspace/)
 
 | Agent | Role | Responsibilities |
 |-------|------|------------------|
 | **Leo** | Orchestrator | Routes tasks, validates work, manages handoffs |
 | **Sam** | Researcher | Information gathering, analysis, investigation |
 | **Dana** | Builder | Code implementation, feature development |
-| **Alex** | Tester | QA, testing, validation |
 | **Jordan** | Reviewer | Final approval, quality gate |
-| **Taylor** | Automation | Cron jobs, scheduled tasks, monitoring |
 
 ### Example Workflow
 
 ```
-User → Leo → Sam (Research) → Leo → Dana (Build) → Leo → Alex (Test) → Leo → Jordan (Review) → Leo → Done
+User → Leo → Sam (Research) → Leo → Dana (Build) → Leo → Dana (Test) → Leo → Jordan (Review) → Leo → Done
 ```
 
-See `examples/openclaw-workspace/` for complete generic setup with Leo/Sam/Dana.
+### Example File Structure (from examples/openclaw-workspace/)
+
+```
+workspace/
+├── agents/
+│   ├── leo-lead/
+│   │   ├── SOUL.md          # Orchestrator personality
+│   │   └── AGENTS.md        # Role definition
+│   ├── sam-scout/
+│   │   ├── SOUL.md          # Researcher personality
+│   │   └── AGENTS.md
+│   ├── dana-dev/
+│   │   ├── SOUL.md          # Builder personality
+│   │   └── AGENTS.md
+│   ├── jordan-review/
+│   │   ├── SOUL.md          # Reviewer personality
+│   │   └── AGENTS.md
+│   └── TEAM-REGISTRY.md     # Agent registry (in agents/ folder)
+├── TEAM_GOVERNANCE.md       # Governance rules (in root)
+├── AGENT_PIPELINE_SETUP.md  # Setup guide (in root)
+└── openclaw.json            # Agent configuration
+```
+
+**Note:** In this example, TEAM-REGISTRY.md is in `agents/` folder, while TEAM_GOVERNANCE.md and AGENT_PIPELINE_SETUP.md are in the workspace root. This matches the actual structure you'll use in your own workspace.
 
 ---
 
