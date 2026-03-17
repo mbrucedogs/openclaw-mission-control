@@ -366,8 +366,102 @@ workspace/
 
 ---
 
+## Part 4: Automated Monitoring (Cost-Optimized)
+
+### ⚠️ WARNING: Use Local Models for Monitoring
+
+**NEVER use cloud models for simple monitoring tasks.** This burns tokens unnecessarily.
+
+### The Two-Tier Design
+
+| Tier | Agent | Model | Cost | Responsibility |
+|------|-------|-------|------|----------------|
+| **Monitor** | Tron | Local (ollama/qwen3.5:35b-a3b) | **FREE** | Detect problems only |
+| **Orchestrator** | Max | Cloud (when needed) | Per-use | Solve problems, route tasks |
+
+### How It Works
+
+```
+Tron (every 2 min, local model)
+  ↓
+Checks Mission Control API
+  ↓
+All agents working? → HEARTBEAT_OK (done, no cloud cost)
+Needs attention? → Wake Max
+  ↓
+Max (cloud model, only when needed)
+  ↓
+Routes/validates/orchestrates
+```
+
+### What Tron Checks
+
+1. **Query tasks:** Backlog, In Progress, Review
+2. **Check agent activity:** Last comment/activity < 20 min?
+3. **Detect stuck tasks:** > 30 min no activity?
+4. **Decision:** Wake Max only if work needed
+
+### Tron's Detection Rules
+
+| Condition | Action |
+|-----------|--------|
+| BACKLOG task with no owner | Wake Max: "Task TASK-XXX needs routing" |
+| IN_PROGRESS but agent inactive (> 20 min) | Wake Max: "Task TASK-XXX assigned to Alice appears stuck" |
+| REVIEW task waiting | Wake Max: "Task TASK-XXX needs validation" |
+| All agents working | `HEARTBEAT_OK` - no wake |
+
+### Why This Matters
+
+**Without this design:**
+- Max wakes every 5 minutes
+- Burns cloud tokens 24/7
+- ~288 wakes/day × token cost = $$$$
+
+**With this design:**
+- Tron monitors every 2 minutes (local = free)
+- Max only wakes when there's actual work
+- Maybe 10-20 wakes/day × token cost = $
+
+### Implementation
+
+**Cron Job:** `Tron Mission Control Monitor`
+- **Schedule:** Every 2 minutes
+- **Model:** `ollama/qwen3.5:35b-a3b` (local)
+- **Action:** Detect only, report to Max
+- **Delivery:** Announce to webchat when Max needs to wake
+
+**Critical Rules:**
+1. Tron NEVER spawns agents
+2. Tron NEVER does the work
+3. Tron ONLY detects and reports
+4. Max ONLY wakes when Tron finds work
+
+### Anti-Pattern: Cloud Monitoring
+
+❌ **DON'T DO THIS:**
+```json
+{
+  "name": "Max Orchestrator Monitor",
+  "schedule": "every 5 min",
+  "model": "gpt-4o",  // CLOUD - burns tokens!
+  "action": "Check tasks and orchestrate"
+}
+```
+
+✅ **DO THIS:**
+```json
+{
+  "name": "Tron Mission Control Monitor",
+  "schedule": "every 2 min",
+  "model": "ollama/qwen3.5:35b-a3b",  // LOCAL - free!
+  "action": "Detect problems, wake Max if needed"
+}
+```
+
+---
+
 **Last Updated:** 2026-03-16
-**Version:** 2.0
+**Version:** 2.1
 **Maintainer:** the Primary AI (Primary AI Orchestrator)
-**Changes:** Merged ORCHESTRATION.md + ORCHESTRATION_GUIDE.md, added validation checklist, common failures, evidence requirements
+**Changes:** Added Part 4 - Automated Monitoring with cost-optimized two-tier design, local model monitoring pattern
 **See Also:** [examples/openclaw/workspace/](../examples/openclaw/workspace/) - Complete working example with Leo/Sam/Dana/Jordan
