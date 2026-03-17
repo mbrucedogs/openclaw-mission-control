@@ -449,6 +449,84 @@ POST /api/tasks/{task-id}/steps/{step-id}
 
 ---
 
+## Step-Level Scope Isolation (CRITICAL)
+
+**The Problem:** If agents see the full task description, they may complete the ENTIRE task instead of just their step.
+
+**The Solution:** Each workflow step must have **isolated scope** — the agent ONLY sees what they need to deliver for their specific step.
+
+### The Contract Per Step
+
+| Field | Content |
+|-------|---------|
+| **Scope** | ONLY what this step does |
+| **Input** | What they receive from previous step (file path, data, etc.) |
+| **Deliverable** | Exact output expected |
+| **Validation** | How to verify it's done |
+
+**Agent NEVER sees:**
+- Full task description
+- Future steps
+- What other agents are doing
+
+### Bad vs Good Task Design
+
+**❌ BAD — Alice sees full task:**
+```
+Task: "Build a login system"
+├── Step 1: Research → Alice sees "Build a login system"
+│   └── Alice does: Research + starts coding (WRONG!)
+├── Step 2: Build → Bob sees "Build a login system"
+│   └── Bob does: Rebuilds everything Alice started (DUPLICATE!)
+```
+
+**✅ GOOD — Isolated scope per step:**
+```
+Task: "Build a login system" (Orchestrator knows full scope)
+├── Step 1: Research → Alice sees ONLY:
+│   "Find 3 auth libraries. Save comparison to
+│    {DOCUMENTS_ROOT}/research/auth-options.md"
+│   └── Deliverable: auth-options.md with 3 options compared
+│   └── Validation: File exists, has 3 options, has comparison matrix
+├── Step 2: Build → Bob sees ONLY:
+│   "Implement auth using Option A from
+│    {DOCUMENTS_ROOT}/research/auth-options.md"
+│   └── Deliverable: Working auth code in src/auth/
+│   └── Validation: Code exists, tests pass
+```
+
+### Step-Level Task Template
+
+```json
+{
+  "title": "Research auth options for login system",
+  "description": "Step 1 of 3. Research ONLY.\n\n**Your scope:** Find and compare 3 auth libraries.\n**Input:** None (green field).\n**Deliverable:** {DOCUMENTS_ROOT}/research/auth-options.md with comparison table.\n**Validation:** File exists, 3 options, comparison matrix, recommendation.\n\n**DO NOT:** Write code. DO NOT implement. Research only.\n**Next step:** Build (assigned to Bob, not you).",
+  "workflow": "wf-research"
+}
+```
+
+### Validation Between Steps
+
+With isolated deliverables, the Orchestrator validates:
+
+| Step | Expected Deliverable | Check |
+|------|---------------------|-------|
+| Research | `auth-options.md` | File exists? Has 3 options? |
+| Build | `src/auth/` directory | Code exists? Compiles? |
+| Test | Test results | All tests pass? |
+| Review | Approval comment | Aegis approved? |
+
+**If Alice gives code instead of research doc → REJECT → Back to Alice**
+
+### Key Principle
+
+**Orchestration** = Coordinating isolated steps with specific contracts  
+**Delegation** = Throwing the whole task over the wall
+
+Each workflow is a **contract** with specific inputs and deliverables. The agent works ONLY within that contract. The orchestrator validates the contract was fulfilled before the next step.
+
+---
+
 ## Updated Quick Checklist (Before Creating Task)
 
 - [ ] Task description is clear and specific
