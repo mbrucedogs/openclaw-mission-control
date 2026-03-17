@@ -366,7 +366,95 @@ workspace/
 
 ---
 
-## Part 4: Automated Monitoring (Cost-Optimized)
+## Part 4: Fresh Install & Dynamic Workflow Creation
+
+### The Problem: Fresh Install State
+
+On a fresh install of Mission Control:
+- Database tables exist but are **EMPTY**
+- No workflows created yet
+- No pipelines created yet
+- **I don't know what agents exist** (Alice? Bob? Sam? Dana?)
+
+### The Solution: Runtime Workflow Creation
+
+**I create workflows dynamically when the first task arrives**, because by then:
+1. The user has configured agents in `openclaw.json`
+2. Agent directories exist with SOUL.md files
+3. I can inspect the team and create appropriate workflows
+
+### The Process
+
+```
+First task arrives in Backlog
+  ↓
+Max wakes up (cloud model)
+  ↓
+Check: Do workflows exist?
+  ↓
+NO → Create workflows dynamically based on actual agents
+  ↓
+Create pipelines linking those workflows
+  ↓
+Now match task to newly created pipeline
+```
+
+### What I Create Dynamically
+
+**Step 1: Discover Agents**
+```javascript
+// Read TEAM-REGISTRY.md or scan agents/ directory
+// Find: alice, bob, charlie, aegis, etc.
+```
+
+**Step 2: Create Workflows** (POST /api/workflows)
+| Workflow | Agent Role | Purpose |
+|------------|------------|---------|
+| `wf-research` | Alice (or whoever does research) | Investigation, analysis |
+| `wf-build` | Bob (or whoever builds) | Implementation, coding |
+| `wf-quick-fix` | Bob | Quick bug fixes |
+| `wf-test` | Charlie (or whoever tests) | QA, validation |
+| `wf-review` | Aegis (or whoever reviews) | Final approval |
+| `wf-document` | Alice | Documentation writing |
+| `wf-automate` | Tron | Automation scripts |
+
+**Step 3: Create Pipelines** (POST /api/pipelines)
+| Pipeline | Steps | Use When |
+|------------|-------|----------|
+| `pl-standard` | Research → Build → Test → Review | Full feature development |
+| `pl-quick-fix` | Quick Fix → Review | Bug fixes |
+| `pl-research` | Research → Review | Investigation only |
+| `pl-docs` | Document → Review | Documentation tasks |
+| `pl-automate` | Automate → Review | Scripts, cron jobs |
+
+**Step 4: Match Task**
+Now use `matchPipelineToTask()` with actual existing pipelines.
+
+### Dynamic Assembly Fallback
+
+If for some reason I can't create workflows (no agents configured yet), the system has a fallback:
+
+```javascript
+// assembleDynamicPipeline() in src/lib/domain/workflows.ts
+// Builds workflow list from keywords without requiring DB records
+// Always adds 'wf-review' at the end
+```
+
+This works immediately on fresh install without any DB setup.
+
+### Why This Approach
+
+| Approach | Problem |
+|----------|---------|
+| **Pre-seed workflows** | ❌ I don't know agent names/roles at install time |
+| **Hardcode workflows** | ❌ Different teams have different agents |
+| **Dynamic creation** | ✅ Created based on actual configured agents |
+
+**Key Insight:** The user configures agents FIRST, then tasks arrive. By task time, I know the team.
+
+---
+
+## Part 5: Automated Monitoring (Cost-Optimized)
 
 ### ⚠️ WARNING: Use Local Models for Monitoring
 
@@ -461,7 +549,7 @@ Routes/validates/orchestrates
 ---
 
 **Last Updated:** 2026-03-16
-**Version:** 2.1
+**Version:** 2.2
 **Maintainer:** the Primary AI (Primary AI Orchestrator)
-**Changes:** Added Part 4 - Automated Monitoring with cost-optimized two-tier design, local model monitoring pattern
+**Changes:** Added Part 4 - Fresh Install workflow, Part 5 - Automated Monitoring. Clarified dynamic workflow creation based on runtime agent discovery.
 **See Also:** [examples/openclaw/workspace/](../examples/openclaw/workspace/) - Complete working example with Leo/Sam/Dana/Jordan
