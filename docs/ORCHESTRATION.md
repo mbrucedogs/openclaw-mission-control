@@ -424,13 +424,13 @@ Now match task to newly created pipeline
 **Step 2: Create Workflows** (POST /api/workflows)
 | Workflow | Agent Role | Purpose |
 |------------|------------|---------|
-| `wf-research` | Alice (or whoever does research) | Investigation, analysis |
-| `wf-build` | Bob (or whoever builds) | Implementation, coding |
-| `wf-quick-fix` | Bob | Quick bug fixes |
-| `wf-test` | Charlie (or whoever tests) | QA, validation |
-| `wf-review` | Aegis (or whoever reviews) | Final approval |
-| `wf-document` | Alice | Documentation writing |
-| `wf-automate` | Tron | Automation scripts |
+| `wf-research → Researcher (or whoever does research) | Investigation, analysis |
+| `wf-build → Builder (or whoever builds) | Implementation, coding |
+| `wf-quick-fix → Builder | Quick bug fixes |
+| `wf-test → Tester (or whoever tests) | QA, validation |
+| `wf-review → Reviewer (or whoever reviews) | Final approval |
+| `wf-document → Researcher | Documentation writing |
+| `wf-automate → Monitor | Automation scripts |
 
 **Step 3: Create Pipelines** (POST /api/pipelines)
 | Pipeline | Steps | Use When |
@@ -508,7 +508,7 @@ Routes/validates/orchestrates
 | Condition | Action |
 |-----------|--------|
 | BACKLOG task with no owner | Wake your Primary AI: "Task TASK-XXX needs routing" |
-| IN_PROGRESS but agent inactive (> 20 min) | Wake your Primary AI: "Task TASK-XXX assigned to Alice appears stuck" |
+| IN_PROGRESS but agent inactive (> 20 min) | Wake your Primary AI: "Task TASK-XXX assigned to Researcher appears stuck" |
 | REVIEW task waiting | Wake your Primary AI: "Task TASK-XXX needs validation" |
 | All agents working | `HEARTBEAT_OK` - no wake |
 

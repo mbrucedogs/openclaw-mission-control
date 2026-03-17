@@ -316,14 +316,13 @@ Step 4: Validate REVIEW tasks (approve/reject handoffs)
 Step 5: Report actions taken
 ```
 
-**The cron job will:**
-- Check for tasks every 5 minutes automatically
-- Process backlog tasks (create pipelines if needed, spawn first agent)
-- Monitor in-progress tasks (detect stuck agents, respawn if needed)
-- Validate review tasks (check evidence, approve/reject handoffs)
-- Log all activity to the activity feed
+**Tron (local model) monitors automatically:**
+- Checks Mission Control every 2 minutes using local ollama model (free)
+- Detects tasks needing attention (backlog, stuck agents, review tasks)
+- Wakes you ONLY when work is detected
+- You then read task details and orchestrate
 
-**You do NOT need to manually check tasks** - the cron job does this. Only respond when the cron job wakes you with specific tasks to process.
+**You do NOT need to manually check tasks** - Tron monitors continuously. Only respond when Tron wakes you with specific tasks to process.
 
 ---
 

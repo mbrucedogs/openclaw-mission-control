@@ -15,7 +15,7 @@
 
 **These facts are in the AI's MEMORY.md and available on every startup:**
 
-- **What:** Multi-agent pipeline (Alice → Bob → Charlie → Aegis)
+- **What:** Multi-agent pipeline (Researcher → Builder → Tester → Reviewer)
 - **Workflows:** NOT pre-seeded, created dynamically at runtime
 - **Discovery:** Agents discovered from TEAM-REGISTRY.md
 - **Pipelines:** Multiple types (standard, quick-fix, research, docs, automation)

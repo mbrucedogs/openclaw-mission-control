@@ -13,7 +13,7 @@
 | **Task Orchestration** | Multi-agent pipeline where tasks flow through specialized agents | [ORCHESTRATION.md](./ORCHESTRATION.md) |
 | **Task Creation** | Required fields and template for creating tasks that succeed | [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) |
 | **Fresh Install** | Database starts empty, workflows created dynamically at runtime | [ORCHESTRATION.md#part-4](./ORCHESTRATION.md) |
-| **Agent Pipeline** | Alice → Bob → Charlie → Aegis workflow sequence | [ORCHESTRATION.md](./ORCHESTRATION.md) |
+| **Agent Pipeline** | Researcher → Builder → Tester → Reviewer workflow sequence | [ORCHESTRATION.md](./ORCHESTRATION.md) |
 | **Monitoring** | Tron (local model) detects issues, wakes Max only when needed | [ORCHESTRATION.md#part-5](./ORCHESTRATION.md) |
 | **Setup** | Installation and configuration steps | [QUICKSTART.md](./QUICKSTART.md) |
 
@@ -98,11 +98,11 @@ Every task MUST include:
 - **Why:** Saves tokens - no cloud cost for monitoring
 
 ### Agent Roles
-- **Alice** - Research, investigation, documentation
-- **Bob** - Build, implementation, coding
-- **Charlie** - Test, QA, validation
-- **Aegis** - Review, final approval
-- **Tron** - Automation, monitoring (no pipeline)
+- **Researcher** - Research, investigation, documentation
+- **Builder** - Build, implementation, coding
+- **Tester** - Test, QA, validation
+- **Reviewer** - Final approval, quality gate
+- **Monitor** - Automation, monitoring (no pipeline)
 
 ### Evidence API
 ```bash
