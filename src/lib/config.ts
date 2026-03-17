@@ -28,7 +28,7 @@ export function getConfig(key: string): string {
   // 1. Check environment variable (Favor plain name first)
   let envValue = process.env[key];
   
-  // Fallback to MC_ prefixed if plain name is missing
+  // Fallback to prefixed name if plain name is missing
   if (envValue === undefined) {
     const envKey = `MC_${key}`;
     envValue = process.env[envKey];
