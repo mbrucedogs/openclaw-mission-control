@@ -169,6 +169,90 @@ PATCH /api/tasks/{id}
 
 ---
 
+## Task as Source of Truth
+
+**The task object contains everything needed for pipeline execution:**
+
+### What's in the Task
+```typescript
+interface Task {
+  id: string;
+  title: string;
+  description: string;           // Human-readable context
+  status: TaskStatus;            // Current state
+  validationCriteria: {          // Machine-readable requirements
+    doneMeans: string;           // Completion criteria
+    checklist: string[];         // Step-by-step requirements
+    codeRequirements?: string[];
+    verificationSteps?: string[];
+  };
+  assigned_agent: string;        // Who's working on it
+  // ... pipeline metadata
+}
+```
+
+### How to Use Task for Pipeline Steps
+
+**Each workflow step should reference the task:**
+
+1. **Read `validationCriteria.checklist`** - Know what needs to be done
+2. **Check current `status`** - Understand where we are
+3. **Update `status` on handoff** - Mark progress
+4. **Attach evidence** - Prove completion
+5. **Reference checklist in comments** - Document what was done
+
+### Failure Handling per Step
+
+**If a step fails, the task tells you what to do:**
+
+```typescript
+// Pipeline step configuration
+interface PipelineStep {
+  workflow_id: string;
+  on_failure: 'stop' | 'continue' | 'skip';
+}
+```
+
+**Failure Actions:**
+- **stop** - Halt pipeline, notify orchestrator
+- **continue** - Log error, proceed to next step
+- **skip** - Skip this step, continue pipeline
+
+**Orchestrator Responsibility:**
+1. Check step's `on_failure` setting
+2. If `stop` - Mark task blocked, notify user
+3. If `continue` - Log warning, proceed
+4. If `skip` - Skip and continue
+
+### Example: Task-Driven Pipeline
+
+```typescript
+// Task contains all pipeline info
+const task = {
+  id: "task-abc123",
+  validationCriteria: {
+    doneMeans: "Document created and saved",
+    checklist: [
+      "Download transcript",
+      "Generate summary", 
+      "Create document",
+      "Attach evidence"
+    ]
+  },
+  // Pipeline metadata
+  _pipeline: ["alice", "aegis"],
+  _currentStep: 0
+};
+
+// Alice reads checklist item 1-3
+// Aegis reads checklist item 4 (validation)
+// Each step knows what to do from the task
+```
+
+**Key Principle:** The task is the single source of truth. No external state needed.
+
+---
+
 ## Quick Reference
 
 ```bash
