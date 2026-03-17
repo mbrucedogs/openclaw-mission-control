@@ -793,7 +793,7 @@ sessions_spawn({
 ## 9. File Structure
 
 ```
-alex-mission-control/
+openclaw-mission-control/
 ├── README.md
 ├── PRD.md                      # This document
 ├── package.json

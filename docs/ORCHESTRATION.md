@@ -2,7 +2,7 @@
 
 ## Overview
 
-The alex-mission-control orchestration system uses a **hybrid pipeline model** that combines:
+The openclaw-mission-control orchestration system uses a **hybrid pipeline model** that combines:
 
 1. **Predefined Workflows** - Reusable work templates for agents
 2. **Predefined Pipelines** - Sequences of workflows for common patterns

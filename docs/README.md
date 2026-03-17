@@ -161,9 +161,77 @@ PATCH /api/tasks/{id}
 
 ---
 
+## 🔌 Endpoint Configuration
+
+### Default Endpoint
+
+**This Mission Control runs on port 4000:**
+- **Web UI:** `http://localhost:4000`
+- **API:** `http://localhost:4000/api`
+- **Activity Feed:** `http://localhost:4000/api/activity`
+
+### Configure Your Primary AI
+
+**Tell your Primary AI to use this endpoint:**
+
+```
+Mission Control API URL: http://localhost:4000
+API Key: [from your .env file]
+```
+
+**In your Primary AI's configuration, set:**
+- `MISSION_CONTROL_URL=http://localhost:4000`
+- `MC_API_KEY=your_api_key_here`
+
+---
+
+## 🔄 Migration from Other Mission Control
+
+### If You Have an Existing Mission Control (e.g., port 3000)
+
+**Option 1: Run Both (Recommended for Testing)**
+```bash
+# Old system on port 3000
+# New system on port 4000
+# Update your Primary AI config to point to :4000
+```
+
+**Option 2: Migrate Data**
+1. Export tasks from old system
+2. Import to new system via API
+3. Update Primary AI endpoint
+4. Stop old system
+
+**Option 3: Fresh Start**
+1. Archive old system data
+2. Start new system on port 4000
+3. Configure Primary AI with new endpoint
+4. Begin new task workflow
+
+### Primary AI Endpoint Switch
+
+**To switch your Primary AI to this Mission Control:**
+
+1. **Update environment:**
+   ```bash
+   export MISSION_CONTROL_URL=http://localhost:4000
+   export MC_API_KEY=your_new_api_key
+   ```
+
+2. **Verify connection:**
+   ```bash
+   curl -H "X-API-Key: $MC_API_KEY" $MISSION_CONTROL_URL/api/tasks
+   ```
+
+3. **Restart Primary AI** (if running as service)
+
+4. **Test:** Create a task and verify Primary AI receives it
+
+---
+
 ## 📁 File Locations
 
-### In This Project (`alex-mission-control/`)
+### In This Project (`openclaw-mission-control/`)
 - `docs/README.md` - This file (START HERE)
 - `docs/ORCHESTRATION.md` - Master orchestration guide
 - `docs/QUICKSTART.md` - Quick start guide

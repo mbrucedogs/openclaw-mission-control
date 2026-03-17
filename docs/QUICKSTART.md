@@ -6,7 +6,7 @@
 
 ```bash
 git clone <repo-url>
-cd alex-mission-control
+cd openclaw-mission-control
 npm install
 ```
 
