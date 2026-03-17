@@ -1,212 +1,270 @@
 # Task Creation Requirements
 
-**Required for every task created by the Orchestrator (Max)**
+**Required checklist for every task created by the Orchestrator**
 
 ---
 
-## Critical Fields
+## The Golden Rule
 
-Every task MUST include:
-
-| Field | Required | Purpose |
-|-------|----------|---------|
-| `title` | ✅ Yes | Clear, descriptive task name |
-| `description` | ✅ Yes | Detailed requirements |
-| `DOCUMENTS_ROOT` | ✅ Yes | Where files must be saved |
-| `requiredDeliverables` | ✅ Yes | Specific checklist of outputs |
-| `evidenceFormat` | ✅ Yes | How to attach evidence via API |
-| `toolRequirements` | ⚠️ Conditional | What tools must be available |
-| `fallback` | ⚠️ Conditional | What to do if primary method fails |
+**A task without proper requirements will fail.** Agents need clear instructions on:
+- What to deliver
+- Where to save it
+- How to prove it's done
+- What tools to use
+- What to do if things break
 
 ---
 
-## Task Description Template
+## Required Fields (Every Task)
 
-```markdown
-**Task:** [Clear action statement]
+### 1. Clear Task Description
+**What:** One sentence describing the action
 
-**Input:** [What the agent receives]
+**Good:** "Download YouTube transcript and extract key content"
+**Bad:** "Handle the video thing"
 
-**Required Output:**
-1. [Specific deliverable 1]
-2. [Specific deliverable 2]
-3. [Specific deliverable 3]
+---
 
-**Save Location:** {DOCUMENTS_ROOT}/[folder]/[filename]
+### 2. Input Specification
+**What:** What the agent receives to work with
 
-**Evidence to Attach:**
-- File path: file://{DOCUMENTS_ROOT}/[path]
-- Description: "[What was delivered]"
-- Type: [document/code/test/screenshot/link]
+**Examples:**
+- URL: `https://youtube.com/watch?v=...`
+- File path: `/path/to/input/file`
+- Data: "Research topic X"
+- Requirements: "Build feature Y"
 
-**Tool Requirements:**
-- Primary: [tool name] - [how to check if available]
-- Fallback: [alternative tool] - [when to use]
+---
 
-**Validation Checklist:**
-- [ ] Output file exists at specified location
-- [ ] File has content (not empty)
-- [ ] Evidence attached via API
-- [ ] Summary comment posted
+### 3. Required Deliverables (Checklist)
+**What:** Specific, verifiable outputs
 
-**Questions?** Ask Max - monitoring this task.
+**Format:** Numbered list with clear criteria
 
-Read your SOUL.md at: [path]
+**Example:**
+```
+Required Output:
+1. Raw transcript file in SRT format
+2. Clean text version (no timestamps)
+3. Summary of key topics (3-5 bullet points)
+4. List of timestamps for important moments
+```
+
+**Bad example:**
+```
+Required Output:
+- Do the thing
+- Make it good
 ```
 
 ---
 
-## Evidence Attachment Format
+### 4. Save Location (DOCUMENTS_ROOT)
+**What:** Exact path where files must be saved
 
-**Exact API call:**
+**Format:** `{DOCUMENTS_ROOT}/[folder]/[filename]`
+
+**Environment Variable:**
+```
+DOCUMENTS_ROOT=/Users/[user]/.openclaw/workspace/projects/Documents
+```
+
+**Why this matters:**
+- Agents save to wrong locations without it
+- Evidence attachments break
+- Files get lost
+- Can't validate completion
+
+---
+
+### 5. Evidence Attachment Format
+**What:** Exact API call to attach proof of work
+
+**Required API Call:**
 ```bash
 curl -X POST http://localhost:4000/api/tasks/{task-id}/evidence \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $API_KEY" \
   -d '{
-    "evidenceType": "document",
-    "url": "file:///Users/mattbruce/.openclaw/workspace/projects/Documents/[path]",
-    "description": "[What was created/delivered]",
+    "evidenceType": "[document|code|test|screenshot|link]",
+    "url": "file://{DOCUMENTS_ROOT}/[path/to/file]",
+    "description": "[What was delivered - be specific]",
     "addedBy": "[agent-name]"
   }'
 ```
 
 **Evidence Types:**
-- `document` - Markdown, text files, reports
-- `code` - Source code files
+- `document` - Markdown, text, reports
+- `code` - Source files
 - `test` - Test results, QA reports
-- `screenshot` - Images, visual evidence
+- `screenshot` - Images, visual proof
 - `link` - URLs, external resources
 
 ---
 
-## Environment Variables
+### 6. Tool Requirements
+**What:** What tools must be available
 
-**Must be set in agent environment:**
+**Checklist:**
+- [ ] Primary tool specified
+- [ ] How to check availability included
+- [ ] Fallback option identified
+- [ ] Installation instructions if needed
 
-| Variable | Value | Purpose |
-|----------|-------|---------|
-| `DOCUMENTS_ROOT` | `/Users/mattbruce/.openclaw/workspace/projects/Documents` | Where to save files |
-| `API_KEY` | From `.env` | Mission Control API auth |
-| `API_URL` | `http://localhost:4000` | Mission Control endpoint |
+**Example:**
+```
+Tool Requirements:
+- Primary: yt-dlp
+  Check: which yt-dlp
+  Install: brew install yt-dlp
+- Fallback: youtube-transcript-api (Python)
+  Check: pip3 list | grep youtube
+  Install: pip3 install youtube-transcript-api
+```
+
+---
+
+### 7. Fallback Plan
+**What:** What to do if primary method fails
+
+**Required:** At least one fallback for critical steps
+
+**Example:**
+```
+Fallback Plan:
+1. Primary: yt-dlp --write-auto-sub
+2. If fails: Try youtube-transcript-api Python library
+3. If fails: Use browser automation skill
+4. If all fail: Mark task blocked, post comment with error details
+```
+
+---
+
+### 8. Validation Checklist
+**What:** How to verify task is truly complete
+
+**Format:** Checkbox list
+
+**Example:**
+```
+Validation Checklist:
+- [ ] Output file exists at specified location
+- [ ] File has content (not empty, > 0 bytes)
+- [ ] File format is correct (.srt, .md, etc.)
+- [ ] Evidence attached via API
+- [ ] Summary comment posted to task
+- [ ] All required deliverables present
+```
 
 ---
 
 ## File Naming Conventions
 
-**Research documents:**
-- `YouTube-Video-{ID}-Analysis-YYYY-MM-DD.md`
-- `Research-{Topic}-Findings-YYYY-MM-DD.md`
+Use consistent patterns:
 
-**Code deliverables:**
-- `{Project}-{Feature}-Implementation.md`
-- `{Project}-{Feature}-Code.{ext}`
-
-**Summaries:**
-- `{Source}-Summary-YYYY-MM-DD.md`
-
-**Plans:**
-- `{PROJECT}-Plan-v{N}.md`
+| Type | Pattern | Example |
+|------|---------|---------|
+| Research | `{Source}-{ID}-Analysis-YYYY-MM-DD.md` | `YouTube-Video-abc123-Analysis-2026-03-16.md` |
+| Code | `{Project}-{Feature}-Implementation.{ext}` | `MissionControl-Auth-Implementation.ts` |
+| Summary | `{Source}-Summary-YYYY-MM-DD.md` | `YouTube-Video-abc123-Summary-2026-03-16.md` |
+| Plans | `{PROJECT}-Plan-v{N}.md` | `AUTH-Plan-v1.md` |
+| Transcripts | `{Title}-transcript.{ext}` | `Video-Title-transcript.txt` |
 
 ---
 
-## Tool Availability
+## Environment Variables
 
-**Always check tools exist before assigning:**
+**Must be available to agents:**
 
 ```bash
-# Check if tool exists
-which yt-dlp || echo "yt-dlp not found"
-which python3 || echo "python3 not found"
-pip3 list | grep -i youtube || echo "youtube-transcript-api not installed"
+# Required
+export DOCUMENTS_ROOT="/Users/[user]/.openclaw/workspace/projects/Documents"
+export API_KEY="[from .env file]"
+export API_URL="http://localhost:4000"
+
+# Optional but recommended
+export WORKSPACE_ROOT="/Users/[user]/.openclaw/workspace"
 ```
 
-**Common Tools:**
-- `yt-dlp` - YouTube downloads (installed)
-- `python3` - Script execution (installed at `/opt/homebrew/bin/python3`)
-- `pip3` - Package management (installed)
-- `curl` - API calls (installed)
-
-**If tool missing:**
-1. Try alternative tool
-2. If no alternative, mark task blocked
-3. Post comment explaining blocker
-4. Assign back to Max for resolution
-
 ---
 
-## Fallback Patterns
+## Task Template (Copy This)
 
-**YouTube transcript download:**
-1. Primary: `yt-dlp --write-auto-sub --sub-lang en --skip-download`
-2. Fallback: `youtube-transcript-api` Python library
-3. Last resort: Browser automation
+```markdown
+**Task:** [Clear one-sentence description]
 
-**Research:**
-1. Primary: Direct API/tool access
-2. Fallback: Browser automation skill
-3. Last resort: Manual research by user
-
----
-
-## Example Complete Task
-
-```javascript
-sessions_spawn({
-  task: `TASK: Download YouTube transcript and create summary
-
-**Video:** https://www.youtube.com/watch?v=vxpuLIA17q4
-
-**Pipeline:** Research → Document → Review - Step 1/3
-**Current Phase:** Research
+**Input:**
+- [What the agent receives]
 
 **Required Output:**
-1. Download transcript using yt-dlp (auto-generated subtitles)
-2. Save SRT file to: {DOCUMENTS_ROOT}/Research/
-3. Extract clean text version
-4. Identify key topics and timestamps
+1. [Specific deliverable 1 with criteria]
+2. [Specific deliverable 2 with criteria]
+3. [Specific deliverable 3 with criteria]
 
-**Save Location:** 
-- Raw: {DOCUMENTS_ROOT}/Research/Video-{ID}.en.srt
-- Clean: {DOCUMENTS_ROOT}/Research/Video-{ID}-transcript.txt
+**Save Location:**
+- Primary: {DOCUMENTS_ROOT}/[Folder]/[filename.ext]
+- Secondary: {DOCUMENTS_ROOT}/[Folder]/[filename-alt.ext]
 
 **Evidence to Attach:**
-- Type: document
-- Path: file://{DOCUMENTS_ROOT}/Research/Video-{ID}.en.srt
-- Description: "YouTube transcript downloaded with yt-dlp"
+- Type: [document|code|test|screenshot|link]
+- Path: file://{DOCUMENTS_ROOT}/[path]
+- Description: "[Specific description of what was delivered]"
 
 **Tool Requirements:**
-- Primary: yt-dlp (check: which yt-dlp)
-- Fallback: None - if yt-dlp fails, mark task blocked
+- Primary: [tool name]
+  - Check: [command to verify]
+  - Install: [how to install if missing]
+- Fallback: [alternative tool]
+  - When to use: [condition]
+
+**Fallback Plan:**
+1. Try [primary method]
+2. If fails: Try [fallback method]
+3. If fails: Mark task blocked, post comment with error
 
 **Validation Checklist:**
-- [ ] SRT file exists in Research folder
-- [ ] File has content (> 100 lines expected)
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+- [ ] [Criterion 3]
 - [ ] Evidence attached via API
-- [ ] Comment posted with summary
+- [ ] Summary comment posted
 
-**Questions?** Ask Max - monitoring this task.
+**Questions?** Ask [Orchestrator name] - monitoring this task.
 
-Read your SOUL.md at: ~/.openclaw/workspace/agents/alice-researcher/SOUL.md`,
-  label: "Alice-Research-task-[id]",
-  agentId: "main"
-})
+Read your SOUL.md at: [path to agent SOUL.md]
 ```
 
 ---
 
-## Common Failures
+## Common Failures (When Requirements Missing)
 
-| Failure | Why | Prevention |
-|---------|-----|------------|
-| File saved wrong location | DOCUMENTS_ROOT not specified | Always include exact path in task |
-| Evidence not attached | No API format provided | Include exact curl command |
-| Tool not found | Didn't check availability | Specify tool check in requirements |
-| Empty deliverable | No validation checklist | Include checklist in task |
-| Agent stuck | No fallback specified | Always provide fallback options |
+| Missing Requirement | What Happens | Prevention |
+|---------------------|--------------|------------|
+| No DOCUMENTS_ROOT | Agent saves to random location | Always specify exact path |
+| No evidence format | Agent doesn't attach proof | Include exact API call |
+| No tool requirements | Agent tries missing tools | List tools + check commands |
+| No fallback | Agent gets stuck | Always provide Plan B |
+| No validation checklist | Can't verify completion | Include checkbox list |
+| Vague deliverables | Agent delivers wrong thing | Be specific and measurable |
+
+---
+
+## Quick Checklist (Before Creating Task)
+
+- [ ] Task description is clear and specific
+- [ ] Input is fully specified
+- [ ] Deliverables are numbered and verifiable
+- [ ] Save location uses {DOCUMENTS_ROOT}
+- [ ] Evidence API call format included
+- [ ] Tools listed with availability checks
+- [ ] Fallback plan provided
+- [ ] Validation checklist included
+- [ ] File naming follows conventions
+- [ ] Agent knows who to ask for help
 
 ---
 
 **Document Location:** `alex-mission-control/docs/TASK_CREATION_REQUIREMENTS.md`
 **Last Updated:** 2026-03-16
-**Applies To:** All tasks created by Orchestrator (Max)
+**Applies To:** All tasks created by Orchestrator
+**See Also:** ORCHESTRATION.md (pipeline logic), README.md (getting started)
