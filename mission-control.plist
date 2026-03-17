@@ -5,7 +5,7 @@
     <key>Label</key>
     <string>com.openclaw.mission-control</string>
     <key>WorkingDirectory</key>
-    <string>/Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control</string>
+    <string>/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control</string>
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/bin/npm</string>
@@ -17,8 +17,8 @@
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control/logs/stdout.log</string>
+    <string>/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/logs/stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control/logs/stderr.log</string>
+    <string>/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/logs/stderr.log</string>
 </dict>
 </plist>

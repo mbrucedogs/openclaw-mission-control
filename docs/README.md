@@ -637,28 +637,7 @@ API Key: [from your .env file]
 
 ---
 
-## 🔄 Migration from Other Mission Control
-
-### If You Have an Existing Mission Control (e.g., port 3000)
-
-**Option 1: Run Both (Recommended for Testing)**
-```bash
-# Old system on port 3000
-# New system on port 4000
-# Update your Primary AI config to point to :4000
-```
-
-**Option 2: Migrate Data**
-1. Export tasks from old system
-2. Import to new system via API
-3. Update Primary AI endpoint
-4. Stop old system
-
-**Option 3: Fresh Start**
-1. Archive old system data
-2. Start new system on port 4000
-3. Configure Primary AI with new endpoint
-4. Begin new task workflow
+---
 
 ### Primary AI Endpoint Switch
 
