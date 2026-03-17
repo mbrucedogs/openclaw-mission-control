@@ -7,7 +7,7 @@ import { Task, TaskStatus, Agent } from '@/lib/types';
 import { WORKSPACE_ROOTS } from '@/lib/config';
 import { listWorkspaceFiles } from '@/lib/domain/documents';
 
-const WORKSPACE_ROOT = '/Volumes/Data/openclaw/workspace';
+const WORKSPACE_ROOT = process.env.OPENCLAW_WORKSPACE || '/Volumes/Data/openclaw/workspace';
 
 // ─── Main entrypoint ─────────────────────────────────────────────────────────
 
