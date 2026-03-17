@@ -29,7 +29,7 @@ Ensure your OpenClaw `openclaw.json` has these agents:
     { "id": "charlie", "name": "Charlie", "role": "tester" },
     { "id": "aegis", "name": "Aegis", "role": "reviewer" },
     { "id": "tron", "name": "Tron", "role": "automation" },
-    { "id": "max", "name": "Max", "role": "orchestrator" }
+    { "id": "primary-ai", "name": "Primary AI", "role": "orchestrator" }
   ]
 }
 ```
@@ -55,7 +55,8 @@ Access at: `http://localhost:4000`
 
 1. **Start webapp** - Runs independently
 2. **Agents auto-sync** - Webapp fetches from OpenClaw `/api/agents`
-3. **MAX takes over** - Can process existing tasks through pipelines
+3. **Identity Sync** - Webapp uses your configured `AUTH_USER` and `AUTH_PASS`
+4. **Primary AI Orchestration** - Can process existing tasks through pipelines
 4. **Backward compatible** - Tasks without pipelines work as before
 
 ### Migration Path
@@ -63,15 +64,16 @@ Access at: `http://localhost:4000`
 Existing tasks can be:
 - Left as-is (no pipeline)
 - Assigned pipeline retroactively
-- Processed by MAX going forward
+- Processed by the Primary AI going forward
 
 ## First Task Test
 
-Create a task and watch MAX assign pipeline:
+Create a task and watch the Primary AI assign pipeline:
 
 ```bash
 curl -X POST http://localhost:4000/api/tasks \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
   -d '{"title":"Research best practices for React"}'
 ```
 
@@ -99,10 +101,10 @@ Response shows:
 1. Read [ORCHESTRATION.md](./ORCHESTRATION.md) for full docs
 2. Customize workflows for your use case
 3. Create custom pipelines
-4. Train MAX on your patterns
+4. Train the Primary AI on your patterns
 
 ## Support
 
 - Issues: GitHub Issues
 - Docs: `/docs` folder
-- MAX: Ask your primary AI orchestrator
+- Primary AI: Ask your primary AI orchestrator
