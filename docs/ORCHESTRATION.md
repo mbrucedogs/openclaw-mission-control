@@ -475,7 +475,7 @@ Tron (every 2 min, local model)
 Checks Mission Control API
   ↓
 All agents working? → HEARTBEAT_OK (done, no cloud cost)
-Needs attention? → Wake Max
+Needs attention? → Wake your Primary AI
   ↓
 your Primary AI (cloud model, only when needed)
   ↓
@@ -493,9 +493,9 @@ Routes/validates/orchestrates
 
 | Condition | Action |
 |-----------|--------|
-| BACKLOG task with no owner | Wake Max: "Task TASK-XXX needs routing" |
-| IN_PROGRESS but agent inactive (> 20 min) | Wake Max: "Task TASK-XXX assigned to Alice appears stuck" |
-| REVIEW task waiting | Wake Max: "Task TASK-XXX needs validation" |
+| BACKLOG task with no owner | Wake your Primary AI: "Task TASK-XXX needs routing" |
+| IN_PROGRESS but agent inactive (> 20 min) | Wake your Primary AI: "Task TASK-XXX assigned to Alice appears stuck" |
+| REVIEW task waiting | Wake your Primary AI: "Task TASK-XXX needs validation" |
 | All agents working | `HEARTBEAT_OK` - no wake |
 
 ### Why This Matters
@@ -515,7 +515,7 @@ Routes/validates/orchestrates
 **Cron Job:** `Tron Mission Control Monitor`
 - **Schedule:** Every 2 minutes
 - **Model:** `ollama/qwen3.5:35b-a3b` (local)
-- **Action:** Detect only, report to Max
+- **Action:** Detect only, report to your Primary AI
 - **Delivery:** Announce to webchat when your Primary AI needs to wake
 
 **Critical Rules:**
