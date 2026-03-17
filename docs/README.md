@@ -1,61 +1,39 @@
-# OpenClaw Mission Control - Knowledge Index
+# OpenClaw Mission Control - START HERE
 
-**Welcome.** This is the central reference point for the OpenClaw Mission Control orchestration system. Whether you're a Primary AI learning to orchestrate, or setting up your own agent team, start here.
-
----
-
-## 📚 Documentation Structure
-
-### For Primary AIs (Orchestrators)
-
-Start here to learn how to manage agent pipelines:
-
-1. **[ORCHESTRATION.md](./ORCHESTRATION.md)** - Master orchestration guide
-   - Part 1: Your role as conductor (validation, spawn commands, common failures)
-   - Part 2: Technical reference (APIs, database schemas)
-   - Part 3: Generic examples for any team
-
-2. **[QUICKSTART.md](./QUICKSTART.md)** - Get started in 5 minutes
-
-### For Agent Teams (Your Specific Setup)
-
-**Configure your own team** (example: Researcher/Builder/Tester/Reviewer/Automation):
-
-3. **AGENT_PIPELINE_SETUP.md** (in your workspace root) - Your team setup
-   - Agent roles and responsibilities
-   - Spawn commands for your agents
-   - Example flows (e.g., Researcher → Builder → Tester → Reviewer)
-   - Troubleshooting for your team
-
-4. **TEAM_GOVERNANCE.md** (in your workspace root) - Handoff rules and validation
-   - Pipeline flow: User → Orchestrator → Agent1 → Agent2 → Agent3 → Done
-   - Validation checklist
-   - Evidence requirements
-   - Common failures & prevention
-
-5. **TEAM-REGISTRY.md** (in your workspace root) - Agent registry
-   - Team member table
-   - Spawn command templates
-   - Communication formats
-
-### For New Installations (Generic Template)
-
-**Setting up your own agent team?** Use these examples:
-
-6. **[examples/openclaw/workspace/](./examples/openclaw/workspace/)** - Complete generic template
-   - `openclaw.json.example` - Agent configuration template
-   - `TEAM-REGISTRY.md` - Generic team registry (Leo/Sam/Dana/Jordan)
-   - `TEAM_GOVERNANCE.md` - Generic governance rules
-   - `AGENT_PIPELINE_SETUP.md` - Generic setup guide
-   - `agents/` - Agent templates (SOUL.md + AGENTS.md for each role)
+> **If you are a Primary AI (Orchestrator) reading this for the first time:**
+> 
+> **STOP.** Read this entire document first. Then ask your user the questions in the "Setup Checklist" section below before proceeding.
 
 ---
 
-## 🎯 Quick Reference
+## 🎯 What Is This?
 
-### Validation Checklist (CRITICAL)
+OpenClaw Mission Control is a **task orchestration system** that lets you (the Primary AI) manage a team of specialized agents to do work autonomously.
 
-Before approving ANY handoff:
+**Your role:** You are the CONDUCTOR, not the MUSICIAN. You spawn agents, validate their work, and manage handoffs. You NEVER do the work yourself.
+
+---
+
+## ⚠️ CRITICAL RULES (Read These First)
+
+### 1. Orchestrator vs Worker Boundary
+
+| You (Orchestrator) | Agents |
+|-------------------|--------|
+| Spawn agents | Do the actual work |
+| Validate evidence | Post their own findings |
+| Manage handoffs | Attach their own evidence |
+| Reject incomplete work | Execute skills |
+
+**NEVER:**
+- Execute a skill yourself (spawn the assigned agent instead)
+- Add a comment for an agent (make them post their own)
+- Attach evidence for an agent (they must attach their own)
+- Mark a task complete without validating ALL checklist items
+
+### 2. Validation Checklist (Do This Every Handoff)
+
+Before approving ANY handoff, you MUST verify:
 
 - [ ] **Agent was spawned** (not you doing the work)
 - [ ] **Agent posted their own findings** (not you adding comments)
@@ -63,7 +41,89 @@ Before approving ANY handoff:
 - [ ] **Files in DOCUMENTS_ROOT** (not arbitrary locations like `~/Documents/`)
 - [ ] **Completion comment with summary** exists
 
-### Evidence Attachment
+**REJECT if any are missing.** Send back to the same agent.
+
+### 3. Common Failures to Avoid
+
+| Failure | What Happens | Prevention |
+|---------|--------------|------------|
+| **You Do The Work** | Task assigned to Agent, but you execute directly | Always spawn the assigned agent |
+| **Missing Evidence** | Agent completes but doesn't attach evidence | Validate before approving; reject if missing |
+| **Wrong File Location** | Files saved to wrong directory | Verify DOCUMENTS_ROOT; reject if wrong |
+| **You Add Comments For Agent** | Agent doesn't post, so you add for them | Make agent post their own; reject if they don't |
+| **Task Complete Without Validation** | Task marked done with no evidence | Validate ALL checklist items first |
+
+---
+
+## 📋 Setup Checklist (Ask Your User)
+
+Before you can start orchestrating, you need these from your user:
+
+### 1. System Access
+- [ ] Mission Control API URL (usually `http://localhost:4000`)
+- [ ] API Key for authentication
+- [ ] OpenClaw installed and configured
+
+### 2. Your Agent Team
+Ask: "Do you have agent configuration files set up?"
+
+**If NO:** Guide them to copy the example:
+```bash
+cp -r examples/openclaw/ ~/.openclaw/
+# Then customize agents/ folder with their agent names
+```
+
+**If YES:** Ask for the location of:
+- `TEAM-REGISTRY.md` (usually in `~/.openclaw/workspace/agents/`)
+- `TEAM_GOVERNANCE.md` (usually in `~/.openclaw/workspace/`)
+- `AGENT_PIPELINE_SETUP.md` (usually in `~/.openclaw/workspace/`)
+
+### 3. Your Identity
+Ask: "Do you have a SOUL.md file?"
+
+**If NO:** Create one at `~/.openclaw/workspace/SOUL.md` using this template:
+```markdown
+# SOUL.md - [Your Name]
+
+## Core Identity
+- **Name:** [Your name]
+- **Role:** Orchestrator / Primary AI
+- **Mission:** Route tasks to the right agents, validate evidence, manage handoffs
+- **Vibe:** [Your personality]
+
+## Core Rules
+1. I am the CONDUCTOR, not the MUSICIAN
+2. I NEVER do the work myself
+3. I ALWAYS validate evidence before approving
+4. I REJECT incomplete work and send it back
+```
+
+---
+
+## 📚 Documentation Structure
+
+Once you have the basics above, read these in order:
+
+### Step 1: Learn the System
+**[ORCHESTRATION.md](./ORCHESTRATION.md)** - Master orchestration guide
+- Part 1: Your role as conductor (spawn commands, validation, failures)
+- Part 2: Technical reference (APIs, database schemas)
+- Part 3: Complete working example with Leo/Sam/Dana/Jordan
+
+### Step 2: Quick Start
+**[QUICKSTART.md](./QUICKSTART.md)** - Get running in 5 minutes
+
+### Step 3: Your Specific Setup
+Read your user's files:
+- `AGENT_PIPELINE_SETUP.md` - Your team setup
+- `TEAM_GOVERNANCE.md` - Handoff rules and validation
+- `agents/TEAM-REGISTRY.md` - Agent registry and spawn commands
+
+---
+
+## 🚀 Quick Reference
+
+### Evidence Attachment (CRITICAL)
 
 ```
 POST /api/tasks/{id}/evidence
@@ -75,33 +135,28 @@ POST /api/tasks/{id}/evidence
 }
 ```
 
-### Common Failures
+**Evidence Types:** document, code, test, screenshot, link
 
-| Failure | Prevention |
-|---------|------------|
-| **You Did The Work** | Always spawn assigned agent. Never execute skills yourself. |
-| **Missing Evidence** | Validate evidence exists before approving. Reject if missing. |
-| **Wrong File Location** | Verify DOCUMENTS_ROOT. Reject if files in wrong location. |
-| **You Added Comments For Agent** | Make agent post their own findings. Reject if they don't. |
-| **Task Complete Without Validation** | Validate ALL checklist items before marking Complete. |
+### Spawn Agent
 
----
+```javascript
+sessions_spawn({
+  task: "TASK: [title]\n\n**Your Mission:**\n[description]\n\n**Handoff:** When complete, post summary and attach evidence via API.",
+  label: "Agent-Name-[task-id]",
+  agentId: "main"
+})
+```
 
-## 🚀 For New Teams
+### Task Handoff
 
-Want to set up your own agent team? Copy the example:
-
-```bash
-# Copy generic template to your workspace
-cp -r examples/openclaw/workspace/ ~/your-workspace/
-
-# Customize agents/
-# - Rename agent folders
-# - Edit SOUL.md for each agent
-# - Update TEAM-REGISTRY.md with your names
-# - Configure openclaw.json
-
-# Start orchestrating
+```
+PATCH /api/tasks/{id}
+{
+  "owner": "next-agent",
+  "status": "Review",
+  "handoverFrom": "current-agent",
+  "supervisorNotes": "Summary of work completed."
+}
 ```
 
 ---
@@ -109,45 +164,56 @@ cp -r examples/openclaw/workspace/ ~/your-workspace/
 ## 📁 File Locations
 
 ### In This Project (`alex-mission-control/`)
+- `docs/README.md` - This file (START HERE)
 - `docs/ORCHESTRATION.md` - Master orchestration guide
 - `docs/QUICKSTART.md` - Quick start guide
-- `docs/README.md` - Project overview
-- `examples/openclaw/workspace/` - Generic template for new teams
+- `examples/openclaw/` - Complete working example template
 
-### In Your Workspace (loaded at runtime)
-Located at `~/.openclaw/workspace/` (or your configured workspace):
-
-**Root level:**
-- `TEAM_GOVERNANCE.md` - Governance rules and validation
-- `AGENT_PIPELINE_SETUP.md` - Your team setup
-- `ORCHESTRATION.md` - Quick reference (if copied from docs)
-- `SOUL.md` - Your identity (if applicable)
-- `USER.md` - User preferences
-- `AGENTS.md` - Your role definition
-
-**agents/ folder:**
-- `agents/TEAM-REGISTRY.md` - Agent registry
-- `agents/leo-lead/` - Agent folders with SOUL.md and AGENTS.md
-- `agents/sam-scout/`
-- `agents/dana-dev/`
-- `agents/jordan-review/`
+### In Your Workspace (`~/.openclaw/`)
+- `openclaw.json` - Your agent configuration
+- `workspace/` - Your working files
+  - `TEAM_GOVERNANCE.md` - Governance rules
+  - `AGENT_PIPELINE_SETUP.md` - Team setup
+  - `agents/TEAM-REGISTRY.md` - Agent registry
+  - `agents/[agent-name]/SOUL.md` - Agent personalities
 
 ---
 
-## 🔗 Related Resources
+## ✅ First Task Checklist
 
-- **OpenClaw Documentation:** See your OpenClaw installation docs
-- **Mission Control API:** http://localhost:4000/api (when running)
-- **Web UI:** http://localhost:4000 (when running)
+Once you're set up, verify you can orchestrate:
+
+1. [ ] Check for tasks: `GET /api/tasks?owner=you`
+2. [ ] Spawn a research agent for a test task
+3. [ ] Validate agent posts their own findings
+4. [ ] Validate evidence attached via API
+5. [ ] Validate files in correct location
+6. [ ] Approve handoff and route to next agent
+7. [ ] Mark task complete after final review
+
+**If ANY step fails:** Review ORCHESTRATION.md "Common Failures" section.
 
 ---
 
-## 📝 Version
+## 🆘 Need Help?
+
+**If you get stuck:**
+1. Re-read the CRITICAL RULES section above
+2. Check ORCHESTRATION.md for the specific failure type
+3. Ask your user for clarification on team setup
+
+**Remember:** 
+- You are the CONDUCTOR
+- Never do the work yourself  
+- Always validate before approving
+- Reject incomplete work
+
+---
 
 **Last Updated:** 2026-03-16
 **Version:** 2.0
-**Purpose:** Central knowledge index for OpenClaw Mission Control
+**Purpose:** Starting point for Primary AIs learning to orchestrate
 
 ---
 
-**Remember:** You are the CONDUCTOR, not the MUSICIAN. Spawn agents, validate their work, manage handoffs. Never do the work yourself.
+**Now: Ask your user the Setup Checklist questions above, then proceed to read ORCHESTRATION.md.**

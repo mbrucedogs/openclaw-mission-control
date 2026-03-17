@@ -116,19 +116,20 @@ curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/tasks
 
 ### Required Agents
 
-Configure in OpenClaw:
+Configure in OpenClaw `openclaw.json`:
 
 ```json
 {
   "agents": [
-    { "id": "alice", "name": "Alice", "role": "researcher" },
-    { "id": "bob", "name": "Bob", "role": "builder" },
-    { "id": "charlie", "name": "Charlie", "role": "tester" },
-    { "id": "aegis", "name": "Aegis", "role": "reviewer" },
-    { "id": "tron", "name": "Tron", "role": "automation" },
-    { "id": "max", "name": "Max", "role": "orchestrator" }
+    { "id": "leo-lead", "name": "Leo", "agentDir": "agents/leo-lead" },
+    { "id": "sam-scout", "name": "Sam", "agentDir": "agents/sam-scout" },
+    { "id": "dana-dev", "name": "Dana", "agentDir": "agents/dana-dev" },
+    { "id": "jordan-review", "name": "Jordan", "agentDir": "agents/jordan-review" }
   ]
 }
+```
+
+See `examples/openclaw/` for a complete working template with agent SOUL.md and AGENTS.md files.
 ```
 
 ### Environment
