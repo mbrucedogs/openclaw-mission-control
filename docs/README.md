@@ -737,10 +737,13 @@ Once you're set up, verify you can orchestrate:
 |----------|---------|-----------|
 | **README.md** (this file) | Starting point, critical rules | First |
 | **AI_TRAINING_GUIDE.md** | How to train your AI on Mission Control | Setting up with new AI |
+| **DYNAMIC_WORKFLOW_RULES.md** | Rules for creating workflows/pipelines with API validation | When creating custom workflows |
 | **KNOWLEDGE_INDEX.md** | Quick reference, trigger phrases, critical facts | **Before any topic** |
 | **ORCHESTRATION.md** | Full system docs, pipeline logic | After Knowledge Index |
-| **TASK_CREATION_REQUIREMENTS.md** | Required fields for every task | Before creating tasks |
+| **PIPELINE_PROTOCOL.md** | 5-phase orchestration protocol | When handling task handoffs |
 | **QUICKSTART.md** | Installation and setup | Setting up new instance |
+| **TASK_CREATION_REQUIREMENTS.md** | Required fields for every task | Before creating tasks |
+| **TASK_WORKFLOW_STEPS.md** | Step tracking, evidence requirements, completion blockers | When working with pipelines |
 
 **How to use:** 
 1. New AI? Start with AI_TRAINING_GUIDE.md

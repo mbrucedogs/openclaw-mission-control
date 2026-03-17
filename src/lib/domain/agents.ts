@@ -2,6 +2,11 @@ import { Agent } from '../types';
 import { discoverAgents } from '../openclaw/discovery';
 import { db } from '../db';
 
+export function getAgentById(id: string): Agent | null {
+    const agents = getAgents();
+    return agents.find(a => a.id === id) || null;
+}
+
 export function getAgents(): Agent[] {
     // Discovery from OpenClaw Workspace files (New Source of Truth)
     const discovered = discoverAgents();

@@ -14,7 +14,8 @@ import {
   User,
   FileText,
   Clock3,
-  GitBranch
+  GitBranch,
+  Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,8 +25,12 @@ interface TaskWorkflowStep {
   stepNumber: number;
   workflowId: string;
   workflowName: string;
+  workflowDescription?: string;
+  workflowPrompt?: string;
+  validationChecklist?: string[];
   agentId: string;
   agentName?: string;
+  agentRole?: string;
   status: 'pending' | 'in-progress' | 'complete' | 'failed' | 'blocked';
   startedAt?: string;
   completedAt?: string;
@@ -232,10 +237,24 @@ export function TaskWorkflowSteps({ taskId, pipelineName, pipelineDescription }:
 
                   {/* Step Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    {/* Row 1: Workflow Name + Agent + Status + Pass/Fail */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-bold text-white truncate">
                         {step.workflowName}
                       </h4>
+                      <span className="text-xs text-slate-500">→</span>
+                      <span className="text-xs font-medium text-blue-400">{step.agentName || step.agentId}</span>
+                      {/* Status Badge - Shows if TO DO or DONE */}
+                      <span className={cn(
+                        'text-[10px] font-bold px-2 py-0.5 rounded uppercase border',
+                        step.status === 'pending' && 'bg-amber-900/50 text-amber-400 border-amber-700',
+                        step.status === 'in-progress' && 'bg-blue-900/50 text-blue-400 border-blue-700',
+                        step.status === 'complete' && 'bg-green-900/50 text-green-400 border-green-700',
+                        step.status === 'failed' && 'bg-red-900/50 text-red-400 border-red-700',
+                        step.status === 'blocked' && 'bg-slate-700 text-slate-400 border-slate-600'
+                      )}>
+                        {step.status === 'pending' ? 'TO DO' : step.status === 'in-progress' ? 'IN PROGRESS' : step.status}
+                      </span>
                       {step.passFail && (
                         <span className={cn(
                           'text-[10px] font-bold px-1.5 py-0.5 rounded',
@@ -245,18 +264,70 @@ export function TaskWorkflowSteps({ taskId, pipelineName, pipelineDescription }:
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <span className="flex items-center gap-1">
+                    
+                    {/* Row 2: Agent + Times + Evidence Count + Deliverables Count */}
+                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1.5 flex-wrap">
+                      {/* Agent Assignment - Who runs it */}
+                      <span className={cn(
+                        'flex items-center gap-1.5 px-2 py-0.5 rounded',
+                        step.status === 'in-progress' ? 'bg-blue-900/30 text-blue-300' : 'bg-slate-800 text-slate-400'
+                      )}>
                         <User className="w-3 h-3" />
-                        {step.agentName || step.agentId}
+                        <span className="font-bold text-white">{step.agentName || step.agentId}</span>
+                        {step.agentRole && (
+                          <span className="text-slate-500">({step.agentRole})</span>
+                        )}
+                        {step.status === 'in-progress' && (
+                          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+                        )}
                       </span>
+                      
+                      {/* Started Time */}
+                      {step.startedAt && (
+                        <span className="flex items-center gap-1 text-slate-500">
+                          <Clock className="w-3 h-3" />
+                          Started: {new Date(step.startedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                      )}
+                      
+                      {/* Duration */}
                       {step.durationMinutes && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 text-slate-500">
                           <Clock3 className="w-3 h-3" />
                           {step.durationMinutes}m
                         </span>
                       )}
+                      
+                      {/* Evidence Count */}
+                      {step.evidenceIds.length > 0 && (
+                        <span className="flex items-center gap-1 text-slate-500">
+                          <FileText className="w-3 h-3" />
+                          {step.evidenceIds.length} evidence
+                        </span>
+                      )}
+                      
+                      {/* Deliverables Count */}
+                      {step.deliverables.length > 0 && (
+                        <span className="flex items-center gap-1 text-slate-500">
+                          <Check className="w-3 h-3" />
+                          {step.deliverables.length} deliverables
+                        </span>
+                      )}
                     </div>
+                    
+                    {/* Row 3: Completion Notes (if complete) */}
+                    {step.status === 'complete' && step.completionNotes && (
+                      <div className="text-xs text-slate-500 mt-1 truncate">
+                        {step.completionNotes}
+                      </div>
+                    )}
+                    
+                    {/* Row 3: Blockers (if blocked) */}
+                    {step.status === 'blocked' && step.blockers && (
+                      <div className="text-xs text-red-400 mt-1 truncate">
+                        Blocked: {step.blockers}
+                      </div>
+                    )}
                   </div>
 
                   {/* Expand/Collapse */}
@@ -283,6 +354,35 @@ export function TaskWorkflowSteps({ taskId, pipelineName, pipelineDescription }:
                         {step.status}
                       </span>
                     </div>
+
+                    {/* Workflow Description - What this step does */}
+                    {step.workflowDescription && (
+                      <div>
+                        <h5 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">
+                          What This Step Does
+                        </h5>
+                        <p className="text-xs text-slate-300 bg-slate-900/50 p-2 rounded border border-slate-700">
+                          {step.workflowDescription}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Validation Checklist - What needs to be done */}
+                    {step.validationChecklist && step.validationChecklist.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
+                          Required Deliverables
+                        </h5>
+                        <ul className="space-y-1">
+                          {step.validationChecklist.map((item, i) => (
+                            <li key={i} className="text-xs text-slate-300 flex items-start gap-2">
+                              <span className="text-amber-500 mt-0.5">□</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                     {/* Evidence */}
                     {step.evidenceIds.length > 0 && (

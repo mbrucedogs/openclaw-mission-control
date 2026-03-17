@@ -224,17 +224,34 @@ Use consistent patterns:
 
 ---
 
-## Environment Variables
+## Environment Variables & Agent Credentials
 
-**Must be available to agents:**
+**CRITICAL: Agents cannot access .env files or credentials outside their task context.**
+
+Agents run in isolated sandboxes and cannot:
+- Read `.env` files
+- Access system environment variables
+- Read files outside their assigned workspace
+
+**You MUST provide credentials in the task instructions:**
 
 ```bash
-# Required
+# Include this in agent task instructions:
+API_KEY="actual_key_here"
+API_URL="http://localhost:4000"
+DOCUMENTS_ROOT="/Users/[user]/.openclaw/workspace/projects/Documents"
+```
+
+**When agent reports "cannot access API":**
+1. Provide the actual API key in your response
+2. Do NOT do the work yourself
+3. Let the agent retry with the credentials
+
+**Required environment variables (for orchestrator only):**
+```bash
 export DOCUMENTS_ROOT="/Users/[user]/.openclaw/workspace/projects/Documents"
 export API_KEY="[from .env file]"
 export API_URL="http://localhost:4000"
-
-# Optional but recommended
 export WORKSPACE_ROOT="/Users/[user]/.openclaw/workspace"
 ```
 
