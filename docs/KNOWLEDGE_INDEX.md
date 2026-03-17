@@ -122,6 +122,7 @@ POST /api/tasks/{id}/evidence
 ```
 docs/
 ├── README.md                          # Start here - critical rules
+├── AI_TRAINING_GUIDE.md               # How to train your AI
 ├── KNOWLEDGE_INDEX.md (this file)     # What to read when
 ├── ORCHESTRATION.md                   # Full system documentation
 ├── TASK_CREATION_REQUIREMENTS.md      # Task template and requirements
@@ -131,8 +132,9 @@ docs/
 
 **Read order:**
 1. README.md (first time)
-2. KNOWLEDGE_INDEX.md (find what you need)
-3. Specific docs based on topic
+2. AI_TRAINING_GUIDE.md (if training new AI)
+3. KNOWLEDGE_INDEX.md (find what you need)
+4. Specific docs based on topic
 
 ---
 

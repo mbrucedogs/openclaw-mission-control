@@ -705,12 +705,16 @@ Once you're set up, verify you can orchestrate:
 | Document | Purpose | Read When |
 |----------|---------|-----------|
 | **README.md** (this file) | Starting point, critical rules | First |
+| **AI_TRAINING_GUIDE.md** | How to train your AI on Mission Control | Setting up with new AI |
 | **KNOWLEDGE_INDEX.md** | Quick reference, trigger phrases, critical facts | **Before any topic** |
 | **ORCHESTRATION.md** | Full system docs, pipeline logic | After Knowledge Index |
 | **TASK_CREATION_REQUIREMENTS.md** | Required fields for every task | Before creating tasks |
 | **QUICKSTART.md** | Installation and setup | Setting up new instance |
 
-**How to use:** Start with KNOWLEDGE_INDEX.md to find what you need, then read the specific document.
+**How to use:** 
+1. New AI? Start with AI_TRAINING_GUIDE.md
+2. Need quick reference? KNOWLEDGE_INDEX.md
+3. Deep dive? Follow references from Knowledge Index
 | **QUICKSTART.md** | Installation and setup | Setting up new instance |
 
 ---
