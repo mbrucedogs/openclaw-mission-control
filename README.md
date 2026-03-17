@@ -93,10 +93,11 @@ SQLite with tables:
 - `task_activity` - Audit log
 - `task_evidence` - Proof of completion
 
-## API Endpoint
+## API Endpoints
 
 **Default:** `http://localhost:4000`
 
+### Tasks & Workflows
 ```
 GET    /api/tasks              # List tasks
 POST   /api/tasks              # Create task (auto-matches pipeline)
@@ -105,6 +106,14 @@ POST   /api/workflows          # Create workflow
 GET    /api/pipelines          # List pipelines
 POST   /api/pipelines          # Create pipeline
 ```
+
+### Agent Alerts
+```
+GET    /api/agent-alerts       # List pending alerts
+POST   /api/agent-alerts       # Create alert from monitoring agents
+```
+
+Monitoring agents (like Tron) POST alerts here when tasks need orchestrator attention. The orchestrator polls or receives webhook notifications to route tasks appropriately.
 
 ### Authentication
 

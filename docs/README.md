@@ -293,22 +293,30 @@ Ask: "Do you have a SOUL.md file?"
 
 ## 🔄 Your Daily Workflow (Orchestrator)
 
-### AUTOMATED: Tron Monitoring Required
+## 🔄 Your Daily Workflow (Orchestrator)
 
-**A cron job runs Tron to monitor Mission Control.** This is NOT optional.
+### AUTOMATED: Tron Monitoring System
 
-**The cron job is:** `Tron Mission Control Monitor`
-- **Schedule:** Every 2 minutes
-- **Model:** ollama/qwen3.5:35b-a3b (local, FREE)
-- **Action:** Detect tasks needing attention, wake you only when needed
+**A cron job runs Tron to monitor Mission Control every 2 minutes.** This is NOT optional.
 
-**Tron (local model) monitors automatically:**
-- Checks Mission Control every 2 minutes using local ollama model (free)
-- Detects tasks needing attention (backlog, stuck agents, review tasks)
-- Wakes you ONLY when work is detected
-- You then read task details and orchestrate
+**How it works:**
+1. **Tron (local model)** checks Mission Control using `ollama/qwen3.5:35b-a3b` (FREE)
+2. **Tron detects** tasks needing attention: Backlog items, stuck agents, review tasks
+3. **Tron POSTs alerts** to `/api/agent-alerts` when work is detected
+4. **You (Max)** poll alerts or receive webhook notifications
+5. **You orchestrate** - route tasks, spawn agents, validate work
 
-**You do NOT need to manually check tasks** - Tron monitors continuously. Only respond when Tron wakes you with specific tasks to process.
+**Alert Types:**
+- `task_needs_routing` - Backlog task with no assigned agent
+- `agent_stuck` - In-progress task with no activity > 20 min
+- `task_needs_review` - Task in Review waiting for validation
+
+**To check pending alerts:**
+```
+GET /api/agent-alerts?status=pending
+```
+
+**You do NOT need to manually check tasks** - Tron monitors continuously. Only respond when alerts indicate work is needed.
 
 ---
 

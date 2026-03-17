@@ -350,6 +350,29 @@ INSERT OR IGNORE INTO workflow_templates (id, name, description, agent_role, age
      '["automation", "script", "cron", "schedule"]');
 
 -- ============================================================================
+-- AGENT ALERTS
+-- Alerts from monitoring agents when work needs orchestrator attention
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS agent_alerts (
+    id TEXT PRIMARY KEY,
+    alert_type TEXT NOT NULL CHECK (alert_type IN ('task_needs_routing', 'agent_stuck', 'task_needs_review', 'custom')),
+    task_id TEXT,
+    assigned_agent TEXT,
+    reason TEXT NOT NULL,
+    details TEXT, -- JSON string
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'acknowledged', 'resolved')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    acknowledged_at TEXT,
+    resolved_at TEXT,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+-- Index for quick lookup of pending alerts
+CREATE INDEX IF NOT EXISTS idx_agent_alerts_status ON agent_alerts(status);
+CREATE INDEX IF NOT EXISTS idx_agent_alerts_task ON agent_alerts(task_id);
+
+-- ============================================================================
 -- INITIAL PIPELINES
 -- ============================================================================
 

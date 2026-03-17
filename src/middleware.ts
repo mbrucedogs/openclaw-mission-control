@@ -8,6 +8,7 @@ export function middleware(request: NextRequest) {
     if (
         pathname === '/login' || 
         pathname === '/api/auth/login' || 
+        pathname === '/api/agent-alerts' ||
         pathname.startsWith('/_next') || 
         pathname.includes('.')
     ) {
