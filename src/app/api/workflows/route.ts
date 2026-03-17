@@ -27,6 +27,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Name and agentRole required' }, { status: 400 });
         }
         
+        if (!agentId) {
+            return NextResponse.json({ error: 'agentId is required for all workflows. Every workflow must have an assigned agent.' }, { status: 400 });
+        }
+        
         const workflow = createWorkflow({
             name,
             description,

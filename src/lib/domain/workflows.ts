@@ -353,9 +353,12 @@ function assembleDynamicPipeline(text: string): PipelineMatchResult {
     }
     
     // Automation - expanded
-    const isAutomate = text.includes('automate') || text.includes('script') || 
-                       text.includes('cron') || text.includes('bot') ||
-                       text.includes('pipeline') || text.includes('workflow automation');
+    // CRITICAL: Don't add automation to research tasks
+    const isAutomate = !isResearchTask && (
+        text.includes('automate') || text.includes('cron') || text.includes('bot') ||
+        text.includes('pipeline') || text.includes('workflow automation') ||
+        (text.includes('script') && text.includes('automation'))
+    );
     if (isAutomate) {
         workflowIds.push('wf-automate');
         reasons.push('automation detected');

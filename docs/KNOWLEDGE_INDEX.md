@@ -11,10 +11,12 @@
 | Concept | One-Sentence Summary | Full Docs |
 |---------|---------------------|-----------|
 | **Task Orchestration** | Multi-agent pipeline where tasks flow through specialized agents | [ORCHESTRATION.md](./ORCHESTRATION.md) |
+| **Pipeline Protocol** | 5-phase mandatory workflow: Route → Monitor → Validate → Complete → Report | [PIPELINE_PROTOCOL.md](./PIPELINE_PROTOCOL.md) |
 | **Task Creation** | Required fields and template for creating tasks that succeed | [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) |
+| **Dynamic Workflows** | Rules for creating workflows/pipelines with API validation | [DYNAMIC_WORKFLOW_RULES.md](./DYNAMIC_WORKFLOW_RULES.md) |
 | **Fresh Install** | Database starts empty, workflows created dynamically at runtime | [ORCHESTRATION.md#part-4](./ORCHESTRATION.md) |
 | **Agent Pipeline** | Researcher → Builder → Tester → Reviewer workflow sequence | [ORCHESTRATION.md](./ORCHESTRATION.md) |
-| **Monitoring** | Tron (local model) detects issues, wakes Max only when needed | [ORCHESTRATION.md#part-5](./ORCHESTRATION.md) |
+| **Monitoring** | Tron (local model) detects issues, wakes Primary AI only when needed | [ORCHESTRATION.md#part-5](./ORCHESTRATION.md) |
 | **Setup** | Installation and configuration steps | [QUICKSTART.md](./QUICKSTART.md) |
 
 ---
@@ -32,7 +34,17 @@
 - "agent pipeline"
 - "workflow pipeline"
 
-**Loads:** ORCHESTRATION.md, TASK_CREATION_REQUIREMENTS.md
+**Loads:** ORCHESTRATION.md, PIPELINE_PROTOCOL.md, TASK_CREATION_REQUIREMENTS.md
+
+### Pipeline Protocol
+- "5 phase protocol"
+- "pipeline protocol"
+- "orchestration protocol"
+- "how to complete tasks"
+- "spawned vs done"
+- "task completion"
+
+**Loads:** PIPELINE_PROTOCOL.md
 
 ### Task Requirements
 - "how to create tasks"

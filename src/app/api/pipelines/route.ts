@@ -27,6 +27,22 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Name and steps array required' }, { status: 400 });
         }
         
+        // Validate that all steps reference existing workflows with agents
+        for (const step of steps) {
+            if (!step.workflow_id) {
+                return NextResponse.json({ error: 'Each step must have a workflow_id' }, { status: 400 });
+            }
+            
+            const workflow = await getWorkflowTemplateById(step.workflow_id);
+            if (!workflow) {
+                return NextResponse.json({ error: `Workflow ${step.workflow_id} does not exist` }, { status: 400 });
+            }
+            
+            if (!workflow.agentId) {
+                return NextResponse.json({ error: `Workflow ${step.workflow_id} has no agent assigned. All workflows must have an agent.` }, { status: 400 });
+            }
+        }
+        
         const { createPipeline } = await import('@/lib/domain/workflows');
         const pipeline = createPipeline(name, description, steps, false);
         

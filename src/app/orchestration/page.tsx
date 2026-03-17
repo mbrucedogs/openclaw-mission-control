@@ -32,9 +32,9 @@ interface Pipeline {
 }
 
 interface PipelineStep {
-    workflowId: string;
+    workflow_id: string;
     workflowName?: string;
-    onFailure: 'stop' | 'continue' | 'skip';
+    on_failure: 'stop' | 'continue' | 'skip';
 }
 
 
@@ -303,6 +303,21 @@ function WorkflowForm({ workflow, onSave, onCancel, isSaving }: {
         validationChecklist: workflow?.validationChecklist?.join('\n') || '',
         tags: workflow?.tags?.join(', ') || '',
     });
+
+    // Update formData when workflow prop changes (for edit mode)
+    useEffect(() => {
+        if (workflow) {
+            setFormData({
+                name: workflow.name || '',
+                description: workflow.description || '',
+                agentId: workflow.agentId || '',
+                timeoutSeconds: workflow.timeoutSeconds || 30,
+                systemPrompt: workflow.systemPrompt || '',
+                validationChecklist: workflow.validationChecklist?.join('\n') || '',
+                tags: workflow.tags?.join(', ') || '',
+            });
+        }
+    }, [workflow?.id]); // Only re-run when workflow ID changes
 
     useEffect(() => {
         fetch('/api/agents')
@@ -664,13 +679,13 @@ function PipelinesTab({ pipelines, workflows, onRefresh }: {
     );
 }
 
-function PipelineForm({ 
-    pipeline, 
+function PipelineForm({
+    pipeline,
     workflows,
-    onSave, 
-    onCancel, 
-    isSaving 
-}: { 
+    onSave,
+    onCancel,
+    isSaving
+}: {
     pipeline?: Pipeline | null;
     workflows: Workflow[];
     onSave: (data: any) => void;
@@ -684,11 +699,22 @@ function PipelineForm({
     });
     const [selectedWorkflow, setSelectedWorkflow] = useState('');
 
+    // Update formData when pipeline prop changes (for edit mode)
+    useEffect(() => {
+        if (pipeline) {
+            setFormData({
+                name: pipeline.name || '',
+                description: pipeline.description || '',
+                steps: pipeline.steps || [],
+            });
+        }
+    }, [pipeline?.id]); // Only re-run when pipeline ID changes
+
     const addStep = () => {
         if (!selectedWorkflow) return;
         setFormData({
             ...formData,
-            steps: [...formData.steps, { workflowId: selectedWorkflow, onFailure: 'stop' }],
+            steps: [...formData.steps, { workflow_id: selectedWorkflow, on_failure: 'stop' }],
         });
         setSelectedWorkflow('');
     };
@@ -744,17 +770,17 @@ function PipelineForm({
                     
                     <div className="space-y-2 mb-4">
                         {formData.steps.map((step, i) => {
-                            const wf = workflowMap.get(step.workflowId);
+                            const wf = workflowMap.get(step.workflow_id);
                             return (
                                 <div key={i} className="flex items-center gap-2 p-3 bg-[#0a0a0a] rounded-lg">
                                     <span className="text-xs text-slate-500 w-6">{i + 1}.</span>
                                     <div className="flex-1">
-                                        <span className="text-sm text-white">{wf?.name || step.workflowId}</span>
+                                        <span className="text-sm text-white">{wf?.name || step.workflow_id}</span>
                                         <span className="text-xs text-slate-500 ml-2">({wf?.agentRole})</span>
                                     </div>
                                     <select
-                                        value={step.onFailure}
-                                        onChange={e => updateStep(i, { onFailure: e.target.value })}
+                                        value={step.on_failure}
+                                        onChange={e => updateStep(i, { on_failure: e.target.value })}
                                         className="bg-[#111] border border-[#222] rounded px-2 py-1 text-xs text-white"
                                     >
                                         <option value="stop">Stop</option>
@@ -837,7 +863,7 @@ function PipelineCard({
 }) {
     const stepsWithData = pipeline.steps.map(step => ({
         ...step,
-        workflow: workflowMap.get(step.workflowId),
+        workflow: workflowMap.get(step.workflow_id),
     }));
 
     return (
@@ -883,7 +909,7 @@ function PipelineCard({
                             )}>
                                 <span>{step.workflow ? AGENT_ICONS[step.workflow.agentRole] : '?'}</span>
                                 <span className="truncate max-w-[80px]">
-                                    {step.workflow?.name || step.workflowId}
+                                    {step.workflow?.name || step.workflow_id}
                                 </span>
                             </div>
                             {i < stepsWithData.length - 1 && (

@@ -287,7 +287,36 @@ Ask: "Do you have a SOUL.md file?"
 2. I NEVER do the work myself
 3. I ALWAYS validate evidence before approving
 4. I REJECT incomplete work and send it back
+5. I ALWAYS use Task.validationCriteria for structured requirements
 ```
+
+---
+
+## 📋 Task Model Usage (CRITICAL)
+
+**Always use the Task model correctly:**
+
+### validationCriteria Field
+```typescript
+validationCriteria: {
+  doneMeans: string;        // Clear completion criteria
+  checklist: string[];      // Structured checklist
+  codeRequirements?: string[];
+  verificationSteps?: string[];
+}
+```
+
+**When creating tasks:**
+- ALWAYS include `validationCriteria` with `doneMeans` and `checklist`
+- NEVER rely only on markdown checklists in description
+- Structured data is for agents, description is for humans
+
+**When validating work:**
+- Check `task.validationCriteria.checklist` against actual deliverables
+- Verify each checklist item is complete
+- Evidence proves completion, not just checkbox ticks
+
+**See [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) for full details.**
 
 ---
 
@@ -317,6 +346,12 @@ GET /api/agent-alerts?status=pending
 ```
 
 **You do NOT need to manually check tasks** - Tron monitors continuously. Only respond when alerts indicate work is needed.
+
+**When you receive an alert:**
+1. Read the alert details
+2. Execute the **5-Phase Pipeline Orchestration Protocol** (see [ORCHESTRATION.md](./ORCHESTRATION.md))
+3. Mark alert as acknowledged/resolved
+4. Report completion to user
 
 ---
 

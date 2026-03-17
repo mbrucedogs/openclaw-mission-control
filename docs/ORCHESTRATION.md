@@ -35,6 +35,34 @@ User → You (Leo) → Sam (Researcher) → You → Dana (Builder) → You → D
 
 Before approving ANY handoff, you MUST verify:
 
+#### 0. Task Model Validation (NEW - CRITICAL)
+**Always check `task.validationCriteria` for structured requirements:**
+
+```typescript
+interface ValidationCriteria {
+  doneMeans: string;        // What completion looks like
+  checklist: string[];      // Structured checklist items
+  codeRequirements?: string[];
+  verificationSteps?: string[];
+}
+```
+
+**Validation Process:**
+- [ ] Read `task.validationCriteria.doneMeans` - understand completion criteria
+- [ ] Check `task.validationCriteria.checklist` - verify each item is complete
+- [ ] Agent should reference checklist in completion comment
+- [ ] Evidence must prove checklist items are done
+
+**Why this matters:**
+- `validationCriteria` = machine-readable requirements for agents
+- `description` = human-readable context
+- Both are required for proper task execution
+- Pipeline tracking uses structured checklist for handoff validation
+
+**When creating tasks:**
+- ALWAYS include `validationCriteria` with `doneMeans` and `checklist`
+- NEVER rely only on markdown checklists in description
+
 #### 1. Agent Accountability
 - [ ] Agent was spawned (not you doing the work)
 - [ ] Agent posted their own findings (not you adding comments)
@@ -79,6 +107,65 @@ Before approving ANY handoff, you MUST verify:
 | **You Added Comments For Agent** | Agent didn't post findings, so you added comment for them | Make agent post their own findings. Reject if they don't. |
 | **Task Marked Complete Without Validation** | Task went to Complete with no evidence, no comments, no activity | Validate ALL checklist items before marking Complete. |
 | **Task Missing Requirements** | Task created without DOCUMENTS_ROOT, evidence format, or tool requirements | **See TASK_CREATION_REQUIREMENTS.md** - required fields checklist |
+| **Orchestrator Abandoned Pipeline** | Orchestrator spawned agent then moved on without completing validation | **Follow the 5-Phase Protocol below. Never consider "spawned" as "done".** |
+
+---
+
+## 🔥 5-Phase Pipeline Orchestration Protocol (MANDATORY)
+
+**Every task must go through all 5 phases. No exceptions.**
+
+### Phase 1: Route
+**Orchestrator Actions:**
+1. Read task completely (title, description, checklist, evidence requirements)
+2. Determine correct agent from pipeline
+3. Spawn agent with complete context
+4. Update task status to "In Progress"
+5. **Stay focused** - Do not spawn other tasks until this one is DONE
+
+### Phase 2: Monitor
+**Orchestrator Actions:**
+1. Wait for agent to complete (check subagents list)
+2. Poll for activity/comments if needed
+3. **Do not get distracted** - One task at a time through completion
+
+### Phase 3: Validate
+**Orchestrator Actions:**
+1. Check evidence attached via `GET /api/tasks/{id}?include=evidence`
+2. Verify files exist in correct location (DOCUMENTS_ROOT)
+3. Confirm all checklist items are complete
+4. **Reject if anything missing** - Send back to same agent with specific feedback
+
+### Phase 4: Complete
+**Orchestrator Actions:**
+1. Mark task "Complete" via `PATCH /api/tasks/{id}` or handoff endpoint
+2. Attach final summary as evidence if appropriate
+3. **Only then** report completion to user
+
+### Phase 5: Report
+**Orchestrator Actions:**
+1. Tell user: "Task [ID] is COMPLETE"
+2. Include: what was done, where evidence is located, any next steps
+
+---
+
+### Critical Rules
+
+| Rule | Why It Matters |
+|------|----------------|
+| **"Spawned" ≠ "Done"** | Spawning an agent is Phase 1 of 5. The pipeline completes when YOU mark it complete. |
+| **One task at a time** | Don't spawn multiple agents and hope for the best. Complete each task fully. |
+| **Validate before reporting** | Never tell user "I spawned an agent" as if that's completion. |
+| **Reject incomplete work** | If evidence is missing, send it back. Don't complete on behalf of agents. |
+
+### When Tron Alerts You
+
+1. Check `/api/agent-alerts` for pending alerts
+2. For each alert, execute the full 5-Phase Protocol
+3. Mark alert as acknowledged via API
+4. Report completion to user
+
+**Remember:** Tron detects work. You complete the pipeline. That's the division of labor.
 
 **⚠️ CRITICAL:** Before creating ANY task, read [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) for the complete template and required fields.
 

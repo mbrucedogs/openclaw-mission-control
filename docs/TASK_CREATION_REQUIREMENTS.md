@@ -17,6 +17,58 @@
 
 ## Required Fields (Every Task)
 
+### 0. Validation Criteria (Structured Data)
+**What:** Machine-readable validation criteria using the Task model's `validationCriteria` field
+
+**Format:** JSON object with structured fields
+```json
+{
+  "validationCriteria": {
+    "doneMeans": "Clear statement of what completion looks like",
+    "checklist": [
+      "Specific step 1 with verifiable criteria",
+      "Specific step 2 with verifiable criteria",
+      "Specific step 3 with verifiable criteria"
+    ],
+    "codeRequirements": ["Optional: specific code requirements"],
+    "verificationSteps": ["Optional: how to verify each item"]
+  }
+}
+```
+
+**Why this matters:**
+- Agents can reference structured checklist programmatically
+- UI displays checklist in task detail view
+- Orchestrator can validate against structured criteria
+- Pipeline tracking uses this for handoff validation
+
+**Example:**
+```json
+{
+  "validationCriteria": {
+    "doneMeans": "YouTube transcript downloaded, summary created, and document saved to Mission Control",
+    "checklist": [
+      "Extract transcript using yt-dlp or fallback tool",
+      "Generate structured summary with 10-15 key takeaways",
+      "Create Mission Control document with proper metadata",
+      "Save markdown file to {DOCUMENTS_ROOT}/research/",
+      "Attach evidence via API with document ID and file path",
+      "Post completion comment summarizing work done"
+    ],
+    "verificationSteps": [
+      "Check file exists at specified path",
+      "Verify document created in Mission Control",
+      "Confirm evidence attached to task",
+      "Validate comment posted with summary"
+    ]
+  }
+}
+```
+
+**Note:** The `validationCriteria` field is stored as JSON in the database. The UI displays `doneMeans` and `checklist` in the task detail view. Agents should reference these fields when completing work.
+
+---
+
 ### 1. Clear Task Description
 **What:** One sentence describing the action
 
@@ -190,48 +242,33 @@ export WORKSPACE_ROOT="/Users/[user]/.openclaw/workspace"
 
 ## Task Template (Copy This)
 
-```markdown
-**Task:** [Clear one-sentence description]
+```json
+{
+  "title": "[Clear one-sentence description]",
+  "description": "**Task:** [Detailed description]\n\n**Input:**\n- [What the agent receives]\n\n**Required Output:**\n1. [Specific deliverable 1 with criteria]\n2. [Specific deliverable 2 with criteria]\n3. [Specific deliverable 3 with criteria]\n\n**Save Location:**\n- Primary: {DOCUMENTS_ROOT}/[Folder]/[filename.ext]\n- Secondary: {DOCUMENTS_ROOT}/[Folder]/[filename-alt.ext]\n\n**Evidence to Attach:**\n- Type: [document|code|test|screenshot|link]\n- Path: file://{DOCUMENTS_ROOT}/[path]\n- Description: "[Specific description of what was delivered]"\n\n**Tool Requirements:**\n- Primary: [tool name]\n  - Check: [command to verify]\n  - Install: [how to install if missing]\n- Fallback: [alternative tool]\n  - When to use: [condition]\n\n**Fallback Plan:**\n1. Try [primary method]\n2. If fails: Try [fallback method]\n3. If fails: Mark task blocked, post comment with error\n\n**Validation Checklist:**\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n- [ ] [Criterion 3]\n- [ ] Evidence attached via API\n- [ ] Summary comment posted\n\n**Questions?** Ask [Orchestrator name] - monitoring this task.\n\nRead your SOUL.md at: [path to agent SOUL.md]",
+  "validationCriteria": {
+    "doneMeans": "[Clear statement of what completion looks like]",
+    "checklist": [
+      "[Specific step 1 with verifiable criteria]",
+      "[Specific step 2 with verifiable criteria]",
+      "[Specific step 3 with verifiable criteria]"
+    ],
+    "codeRequirements": ["[Optional: code requirements]"],
+    "verificationSteps": ["[Optional: verification steps]"]
+  },
+  "status": "Backlog",
+  "priority": "normal",
+  "owner": "[agent-id]",
+  "requestedBy": "[orchestrator-name]"
+}
+```
 
-**Input:**
-- [What the agent receives]
-
-**Required Output:**
-1. [Specific deliverable 1 with criteria]
-2. [Specific deliverable 2 with criteria]
-3. [Specific deliverable 3 with criteria]
-
-**Save Location:**
-- Primary: {DOCUMENTS_ROOT}/[Folder]/[filename.ext]
-- Secondary: {DOCUMENTS_ROOT}/[Folder]/[filename-alt.ext]
-
-**Evidence to Attach:**
-- Type: [document|code|test|screenshot|link]
-- Path: file://{DOCUMENTS_ROOT}/[path]
-- Description: "[Specific description of what was delivered]"
-
-**Tool Requirements:**
-- Primary: [tool name]
-  - Check: [command to verify]
-  - Install: [how to install if missing]
-- Fallback: [alternative tool]
-  - When to use: [condition]
-
-**Fallback Plan:**
-1. Try [primary method]
-2. If fails: Try [fallback method]
-3. If fails: Mark task blocked, post comment with error
-
-**Validation Checklist:**
-- [ ] [Criterion 1]
-- [ ] [Criterion 2]
-- [ ] [Criterion 3]
-- [ ] Evidence attached via API
-- [ ] Summary comment posted
-
-**Questions?** Ask [Orchestrator name] - monitoring this task.
-
-Read your SOUL.md at: [path to agent SOUL.md]
+**API Call to Create Task:**
+```bash
+curl -X POST http://localhost:4000/api/tasks \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: $API_KEY" \
+  -d @task-payload.json
 ```
 
 ---
