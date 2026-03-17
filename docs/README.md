@@ -30,6 +30,7 @@ OpenClaw Mission Control is a **task orchestration system** that lets you (the P
 - Add a comment for an agent (make them post their own)
 - Attach evidence for an agent (they must attach their own)
 - Mark a task complete without validating ALL checklist items
+- **DO THE WORK YOURSELF** - This is the #1 failure mode. You are the orchestrator. If you find yourself writing code, researching, or creating documents directly, you have failed. Spawn the agent.
 
 ### 2. Validation Checklist (Do This Every Handoff)
 
@@ -47,8 +48,8 @@ Before approving ANY handoff, you MUST verify:
 
 | Failure | What Happens | Prevention |
 |---------|--------------|------------|
-| **You Do The Work** | Task assigned to Agent, but you execute directly | Always spawn the assigned agent |
-| **Missing Evidence** | Agent completes but doesn't attach evidence | Validate before approving; reject if missing |
+| **You Do The Work** | Task assigned to Agent, but you execute skill directly | **NEVER DO THIS.** Always spawn the assigned agent. |
+| **Missing Evidence** | Agent completed but didn't attach evidence via API | Validate before approving; reject if missing |
 | **Wrong File Location** | Files saved to wrong directory | Verify DOCUMENTS_ROOT; reject if wrong |
 | **You Add Comments For Agent** | Agent doesn't post, so you add for them | Make agent post their own; reject if they don't |
 | **Task Complete Without Validation** | Task marked done with no evidence | Validate ALL checklist items first |
@@ -100,6 +101,276 @@ Ask: "Do you have a SOUL.md file?"
 
 ---
 
+## 🔄 Your Daily Workflow (Orchestrator)
+
+### AUTOMATED: Cron Job Required
+
+**A cron job MUST be created to run your orchestration heartbeat.** This is NOT optional.
+
+**Create this cron job immediately:**
+
+```bash
+# Job: Max Orchestrator - Mission Control Monitor
+# Schedule: Every 5 minutes
+# Action: Check all tasks and orchestrate as needed
+```
+
+**Cron job payload:**
+```
+ORCHESTRATOR HEARTBEAT: Check Mission Control for tasks requiring action.
+
+Step 1: GET /api/tasks?owner=max&status=Backlog,In+Progress,Review
+Step 2: Process BACKLOG tasks (create pipelines, spawn agents)
+Step 3: Monitor IN PROGRESS tasks (check for stuck agents)
+Step 4: Validate REVIEW tasks (approve/reject handoffs)
+Step 5: Report actions taken
+```
+
+**The cron job will:**
+- Check for tasks every 5 minutes automatically
+- Process backlog tasks (create pipelines if needed, spawn first agent)
+- Monitor in-progress tasks (detect stuck agents, respawn if needed)
+- Validate review tasks (check evidence, approve/reject handoffs)
+- Log all activity to the activity feed
+
+**You do NOT need to manually check tasks** - the cron job does this. Only respond when the cron job wakes you with specific tasks to process.
+
+---
+
+### Manual Override (if cron job fails)
+
+**If you need to check tasks manually:**
+
+```
+GET /api/tasks?owner=max&status=Backlog
+GET /api/tasks?owner=max&status=In+Progress
+GET /api/tasks?owner=max&status=Review
+```
+
+**For each task, determine:**
+
+| Status | Action |
+|--------|--------|
+| **Backlog** | Analyze task → Match/create pipeline → Spawn first agent → Trigger task |
+| **In Progress** | Check if agent is actually working (see monitoring below) |
+| **Review** | Validate evidence → Approve handoff or reject back to agent |
+
+### Step 2: Pipeline Matching (Backlog Tasks)
+
+When you see a task in Backlog assigned to you:
+
+1. **Read the task** - title, description, validation criteria
+2. **Check if pipeline exists** - Look at `task.validationCriteria._pipeline`
+3. **If NO pipeline** - You must CREATE one (see Dynamic Pipeline Assembly below)
+4. **If pipeline exists** - Spawn the first agent in the sequence
+
+### Step 3: Agent Monitoring (In Progress Tasks)
+
+**You are responsible for ensuring agents don't get stuck.**
+
+**Check every 15-20 minutes:**
+- Look at task comments - has agent posted progress?
+- Check activity feed - has agent logged work?
+- Check evidence - has agent attached anything?
+
+**If agent appears stuck:**
+1. Check if there's a comment asking for help
+2. If yes → Answer the question or respawn the agent
+3. If no → Post activity asking for status update
+4. If still no response after 30 min → Mark task as stuck, assign to user
+
+**Never let agents silently stall.**
+
+### Step 4: Handoff Validation (Review Tasks)
+
+When a task moves to Review:
+
+1. **Verify evidence exists** via `GET /api/tasks/{id}?include=evidence`
+2. **Check completion comment** in task comments
+3. **Validate files are in correct location**
+4. **If all good** → Approve handoff to next agent
+5. **If missing anything** → Reject back to same agent with specific feedback
+
+---
+
+## 🏗️ Dynamic Pipeline Assembly
+
+When a task has NO existing pipeline, YOU create it.
+
+### Step 1: Analyze the Task
+
+Ask:
+- What type of work is this? (research, build, test, document, fix)
+- Which agents are available?
+- What's the logical flow?
+
+### Step 2: Create Workflows (if needed)
+
+**Check existing workflows:**
+```
+GET /api/workflows
+```
+
+**If no suitable workflow exists, CREATE one:**
+```
+POST /api/workflows
+{
+  "name": "Custom Research",
+  "description": "Research task for Alice",
+  "agentRole": "researcher",
+  "agentId": "alice",
+  "estimatedMinutes": 30,
+  "systemPrompt": "You are a researcher...",
+  "validationChecklist": ["Findings documented", "Sources cited"]
+}
+```
+
+**Required fields:**
+- `name` - unique workflow name
+- `agentRole` - researcher, builder, tester, reviewer, automation
+- `agentId` - specific agent (alice, bob, charlie, aegis, tron)
+
+### Step 3: Create Pipeline
+
+**Create the pipeline with your workflows:**
+```
+POST /api/pipelines
+{
+  "name": "Custom Research Pipeline",
+  "description": "Research → Review",
+  "steps": [
+    { "workflowId": "wf-custom-research", "onFailure": "stop" },
+    { "workflowId": "wf-review", "onFailure": "stop" }
+  ]
+}
+```
+
+**Steps array format:**
+```typescript
+{
+  workflowId: string,      // ID of the workflow
+  onFailure: 'stop' | 'continue' | 'skip'  // What to do if this step fails
+}
+```
+
+### Step 4: Assign Pipeline to Task
+
+**Update the task with pipeline metadata:**
+```
+PATCH /api/tasks/{id}
+{
+  "validationCriteria": {
+    "_pipeline": ["alice", "bob", "charlie", "aegis"],
+    "_currentStep": 0,
+    "_pipelineId": "pl-custom-research"
+  }
+}
+```
+
+---
+
+## 🚀 Task Lifecycle API Reference
+
+### 1. Check for Your Tasks
+```
+GET /api/tasks?owner=max&status=Backlog
+GET /api/tasks?owner=max&status=In+Progress
+GET /api/tasks?owner=max&status=Review
+```
+
+### 2. Get Task Details (with relations)
+```
+GET /api/tasks/{id}?include=comments,activity,evidence
+```
+
+### 3. Trigger/Dispatch Task (Backlog → In Progress)
+```
+POST /api/tasks/{id}/trigger
+// This moves task to In Progress and logs dispatch
+```
+
+### 4. Spawn Agent
+```javascript
+sessions_spawn({
+  task: `TASK: [title]\n\n**Your Mission:**\n[description]\n\n**Handoff:** When complete, attach evidence via POST /api/tasks/{id}/evidence, then I'll route to next phase.`,
+  label: "Agent-Name-[task-id]",
+  agentId: "main"
+})
+```
+
+### 5. Agent Attaches Evidence
+```
+POST /api/tasks/{id}/evidence
+{
+  "evidenceType": "document",
+  "url": "file:///Users/mattbruce/.openclaw/workspace/projects/Documents/[path]",
+  "description": "What was delivered",
+  "addedBy": "agent-name"
+}
+```
+
+### 6. Agent Hands Off
+```
+POST /api/tasks/{id}/handoff
+{
+  "notes": "Work complete. Evidence attached.",
+  "evidence": [
+    { "type": "document", "url": "file://...", "description": "..." }
+  ]
+}
+```
+
+**Auto-progression:** The handoff endpoint automatically:
+- Determines next agent from pipeline
+- Updates task owner
+- Logs activity
+- Moves to next step
+
+### 7. Manual Handoff (if needed)
+```
+POST /api/tasks/{id}/handoff
+{
+  "toAgent": "bob",  // explicit override
+  "notes": "Routing to Bob for implementation"
+}
+```
+
+### 8. Fail/Back Scenario
+```
+POST /api/tasks/{id}/handoff
+{
+  "fail": true,
+  "notes": "QA failed: missing error handling"
+}
+// This routes back to previous agent in pipeline
+```
+
+### 9. Post Activity Update
+```
+POST /api/activity
+{
+  "type": "task_updated",
+  "message": "Alice is researching X...",
+  "actor": "max"
+}
+```
+
+### 10. Complete Task
+```
+POST /api/tasks/{id}/handoff
+// When at end of pipeline, this auto-completes the task
+```
+
+Or manually:
+```
+PATCH /api/tasks/{id}
+{
+  "action": "complete"
+}
+```
+
+---
+
 ## 📚 Documentation Structure
 
 Once you have the basics above, read these in order:
@@ -118,46 +389,6 @@ Read your user's files:
 - `AGENT_PIPELINE_SETUP.md` - Your team setup
 - `TEAM_GOVERNANCE.md` - Handoff rules and validation
 - `agents/TEAM-REGISTRY.md` - Agent registry and spawn commands
-
----
-
-## 🚀 Quick Reference
-
-### Evidence Attachment (CRITICAL)
-
-```
-POST /api/tasks/{id}/evidence
-{
-  "evidenceType": "document",
-  "url": "file://{DOCUMENTS_ROOT}/plans/example.md",
-  "description": "What was delivered",
-  "addedBy": "agent-name"
-}
-```
-
-**Evidence Types:** document, code, test, screenshot, link
-
-### Spawn Agent
-
-```javascript
-sessions_spawn({
-  task: "TASK: [title]\n\n**Your Mission:**\n[description]\n\n**Handoff:** When complete, post summary and attach evidence via API.",
-  label: "Agent-Name-[task-id]",
-  agentId: "main"
-})
-```
-
-### Task Handoff
-
-```
-PATCH /api/tasks/{id}
-{
-  "owner": "next-agent",
-  "status": "Review",
-  "handoverFrom": "current-agent",
-  "supervisorNotes": "Summary of work completed."
-}
-```
 
 ---
 
@@ -251,13 +482,14 @@ API Key: [from your .env file]
 
 Once you're set up, verify you can orchestrate:
 
-1. [ ] Check for tasks: `GET /api/tasks?owner=you`
-2. [ ] Spawn a research agent for a test task
-3. [ ] Validate agent posts their own findings
-4. [ ] Validate evidence attached via API
-5. [ ] Validate files in correct location
-6. [ ] Approve handoff and route to next agent
-7. [ ] Mark task complete after final review
+1. [ ] Check for tasks: `GET /api/tasks?owner=max`
+2. [ ] Analyze a backlog task and create pipeline if needed
+3. [ ] Spawn first agent for the task
+4. [ ] Trigger task: `POST /api/tasks/{id}/trigger`
+5. [ ] Monitor agent progress via comments/activity
+6. [ ] Validate evidence attached via API
+7. [ ] Approve handoff to next agent
+8. [ ] Mark task complete after final review
 
 **If ANY step fails:** Review ORCHESTRATION.md "Common Failures" section.
 
@@ -272,15 +504,16 @@ Once you're set up, verify you can orchestrate:
 
 **Remember:** 
 - You are the CONDUCTOR
-- Never do the work yourself  
+- **NEVER do the work yourself**
 - Always validate before approving
 - Reject incomplete work
 
 ---
 
 **Last Updated:** 2026-03-16
-**Version:** 2.0
+**Version:** 2.1
 **Purpose:** Starting point for Primary AIs learning to orchestrate
+**Changes:** Added dynamic pipeline assembly, agent monitoring, task lifecycle API reference, explicit "NEVER do the work" rule
 
 ---
 
