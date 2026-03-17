@@ -47,7 +47,7 @@ export function discoverAgents(): DiscoveredAgent[] {
                 if (match) {
                     // Store technical ID but keep clean friendly name
                     agent.id = match.id;
-                    if (match.identity?.name) agent.name = match.identity.name.replace(/-Agent|-Monitor|-Researcher|-Implementer|-Tester|-Orchestrator/g, '');
+                    if (match.identity?.name) agent.name = match.identity.name.replace(/-Agent|-Monitor|-Researcher|-Implementer|-Tester|-Orchestrator|-Scheduler|-Reviewer/g, '');
                 }
             });
         } catch (err) {
@@ -91,11 +91,11 @@ function parseRegistryTable(content: string): DiscoveredAgent[] {
                 let name = nameMatch ? nameMatch[1] : parts[0];
                 
                 // Clean up technical suffixes for a friendly display name
-                name = name.replace(/-Agent|-Monitor|-Researcher|-Implementer|-Tester|-Orchestrator/g, '');
+                name = name.replace(/-Agent|-Monitor|-Researcher|-Implementer|-Tester|-Orchestrator|-Scheduler|-Reviewer/g, '');
 
                 // Strip common titles for a cleaner ID
                 const id = name.toLowerCase()
-                    .replace(/-agent|-monitor|-researcher|-implementer|-tester|-orchestrator/g, '');
+                    .replace(/-agent|-monitor|-researcher|-implementer|-tester|-orchestrator|-scheduler|-reviewer/g, '');
                 
                 agents.push({
                     id,
