@@ -8,9 +8,118 @@ The alex-mission-control orchestration system uses a **hybrid pipeline model** t
 2. **Predefined Pipelines** - Sequences of workflows for common patterns
 3. **Dynamic Pipeline Assembly** - the Primary AI builds custom pipelines on-the-fly when no predefined match exists
 
-## Core Concepts
+---
 
-### Workflows
+## Part 1: For Primary AIs (Orchestrators)
+
+### 🎭 Your Role: The Conductor
+
+**You are the CONDUCTOR, not the MUSICIAN.**
+
+| Role | Does | Does NOT |
+|------|------|----------|
+| **Orchestrator (You)** | Spawns agents, validates work, manages handoffs | Execute skills, write code, add comments for agents |
+| **Agent** | Does the actual work, posts findings, attaches evidence | Decide pipeline, validate other agents' work |
+
+### The Pipeline Flow
+
+```
+User → You → Researcher → You → Builder → You → Tester → You → Reviewer → You → Done
+```
+
+### CRITICAL: Validation Checklist
+
+Before approving ANY handoff, you MUST verify:
+
+#### 1. Agent Accountability
+- [ ] Agent was spawned (not you doing the work)
+- [ ] Agent posted their own findings (not you adding comments)
+- [ ] Agent attached their own evidence (not you attaching for them)
+
+#### 2. Evidence Requirements
+- [ ] Evidence attached via `POST /api/tasks/{id}/evidence`
+- [ ] Evidence includes file path or URL
+- [ ] Evidence description explains what was delivered
+- [ ] Files saved to correct location (DOCUMENTS_ROOT)
+
+#### 3. Documentation Requirements
+- [ ] Agent posted completion comment with summary
+- [ ] Activity feed shows agent's work
+- [ ] Handoff includes supervisor notes with context
+
+#### 4. File Location Standards
+- [ ] DOCUMENTS_ROOT configured in environment
+- [ ] Never use arbitrary locations like `~/Documents/`
+
+### Rejection Criteria
+
+**REJECT handoff if:**
+- Agent didn't post their own findings
+- Evidence not attached via API
+- Files in wrong location
+- Missing required deliverables
+- Work incomplete or unclear
+
+**When rejecting:**
+- Post comment explaining what's missing
+- Assign back to the same agent
+- Do NOT proceed to next phase
+
+### Common Failures & Prevention
+
+| Failure | What Happened | Prevention |
+|---------|---------------|------------|
+| **You Did The Work** | Task assigned to Agent, but you executed skill directly | Always spawn the assigned agent. Never execute skills yourself. |
+| **Missing Evidence** | Agent completed work but didn't attach evidence via API | Validate evidence exists before approving. Reject if missing. |
+| **Wrong File Location** | Files saved to wrong directory instead of DOCUMENTS_ROOT | Verify DOCUMENTS_ROOT. Reject if files in wrong location. |
+| **You Added Comments For Agent** | Agent didn't post findings, so you added comment for them | Make agent post their own findings. Reject if they don't. |
+| **Task Marked Complete Without Validation** | Task went to Complete with no evidence, no comments, no activity | Validate ALL checklist items before marking Complete. |
+
+### Spawn Commands
+
+#### Researcher
+```javascript
+sessions_spawn({
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Research\n\n**Your Mission:**\n[Research description]\n\n**Deliverables:**\n1. [Finding 1]\n2. [Finding 2]\n\n**Handoff:** When complete, post findings as comment, attach evidence via API, and I'll route to next phase.\n\n**Questions?** Ask me - monitoring this task.\n\nRead your SOUL.md at: {AGENT_PATH}/researcher/SOUL.md`,
+  label: "Researcher-[task-id]",
+  agentId: "main"
+})
+```
+
+#### Builder
+```javascript
+sessions_spawn({
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Build\n\n**Your Mission:**\n[Implementation description]\n\n**Requirements:**\n- [ ] Req 1\n- [ ] Req 2\n\n**Handoff:** When complete, post summary, attach evidence via API, and I'll validate.\n\n**Questions?** Ask me.\n\nRead your SOUL.md at: {AGENT_PATH}/builder/SOUL.md`,
+  label: "Builder-[task-id]",
+  agentId: "main"
+})
+```
+
+#### Tester
+```javascript
+sessions_spawn({
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Test\n\n**Your Mission:**\n[Testing description]\n\n**Requirements:**\n- [ ] Test 1\n- [ ] Test 2\n\n**Handoff:** Post test results, attach evidence, and I'll review.\n\nRead your SOUL.md at: {AGENT_PATH}/tester/SOUL.md`,
+  label: "Tester-[task-id]",
+  agentId: "main"
+})
+```
+
+#### Reviewer
+```javascript
+sessions_spawn({
+  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Review\n\n**Your Mission:**\nValidate all deliverables meet requirements.\n\n**Evidence to Review:**\n- [Evidence 1]\n- [Evidence 2]\n\n**Handoff:** Approve or reject with specific reasons.\n\nRead your SOUL.md at: {AGENT_PATH}/reviewer/SOUL.md`,
+  label: "Reviewer-[task-id]",
+  agentId: "main"
+})
+```
+
+---
+
+## Part 2: Technical Reference
+
+### Core Concepts
+
+#### Workflows
 
 A **workflow** is a reusable definition of work for a specific agent:
 
@@ -35,7 +144,7 @@ interface WorkflowTemplate {
 - `wf-document` - Alice writes documentation
 - `wf-automate` - Tron creates automation
 
-### Pipelines
+#### Pipelines
 
 A **pipeline** is an ordered sequence of workflows:
 
@@ -60,29 +169,7 @@ interface PipelineStep {
 - `pl-docs` - Document → Review
 - `pl-automation` - Automate → Review
 
-## The Hybrid Model
-
-### How Pipeline Matching Works
-
-When a task is created, the Primary AI analyzes it:
-
-1. **Check for explicit pipeline hint**
-   ```
-   "Build user dashboard [pipeline: standard]"
-   ```
-
-2. **Match to predefined pipeline**
-   - Keywords in task title/description
-   - Pattern matching against existing pipelines
-
-3. **Dynamic Assembly (fallback)**
-   - If no match, the Primary AI builds custom pipeline
-   - Detects required work types from content
-   - Assembles appropriate workflow sequence
-
 ### Dynamic Assembly Logic
-
-the Primary AI looks for keywords:
 
 | Keyword Detected | Workflow Added |
 |-----------------|----------------|
@@ -95,181 +182,47 @@ the Primary AI looks for keywords:
 
 **Always adds:** `wf-review` at the end (unless explicitly skipped)
 
-### Example Matches
+### API Endpoints
 
-| Task | Matched Pipeline | Workflows |
-|------|-----------------|-----------|
-| "Research YouTube API" | pl-research | Research → Review |
-| "Fix the broken cron" | Dynamic | Quick Fix → Automate → Review |
-| "Build new dashboard" | pl-standard | Research → Build → Test → Review |
-| "Document the API" | pl-docs | Document → Review |
-
-## Primary AI's Role
-
-As the orchestrator, the Primary AI manages the entire pipeline execution:
-
-### Core Responsibilities
-
-1. **Analyzes incoming tasks** - Determines what work is needed
-2. **Selects or builds pipeline** - Uses predefined or assembles dynamic
-3. **Spawns agents for each step** - Creates subagent sessions for workflow execution
-4. **Monitors progress** - Waits for agent completion, reviews deliverables
-5. **Communicates with agents** - Asks clarifying questions, requests changes
-6. **Resolves blockers** - Helps unblock stuck agents or reassigns work
-7. **Manages handoffs** - Routes completed work to next agent in pipeline
-8. **Enforces timeouts** - Kills workflows exceeding timeoutSeconds
-9. **Saves successful patterns** - Dynamic pipelines can become predefined
-
-### Communication Loop
-
-The Primary AI maintains active communication throughout the pipeline:
-
+#### Tasks
 ```
-Primary AI → Spawns Agent A (Step 1)
-    ↓
-Agent A → Works → Posts findings as comments
-    ↓
-Primary AI ← Reviews deliverables
-    ↓
-Primary AI → Asks questions (if needed) → Agent A responds
-    ↓
-Primary AI → Satisfied? → Spawns Agent B (Step 2)
-    ↓
-Repeat for each step...
+GET    /api/tasks              # List tasks
+POST   /api/tasks              # Create task
+GET    /api/tasks/:id          # Get task details
+PATCH  /api/tasks/:id          # Update task / handoff
 ```
 
-### Agent Interaction Pattern
-
-**For each workflow step:**
-
-1. **Spawn** - Create subagent with task context
-2. **Monitor** - Wait for completion or timeout
-3. **Review** - Check comments, activity, evidence
-4. **Communicate** - Ask questions if deliverables unclear
-5. **Iterate** - Loop until work meets criteria
-6. **Hand off** - Pass to next agent with full context
-
-**The Primary AI is the conductor** - agents are the musicians. The Primary AI keeps the orchestra playing in harmony, resolving issues as they arise.
-
-### Example: Research Pipeline Execution
-
-**Task:** "Research YouTube video on AI patterns and document findings"
-
-**Pipeline:** Research → Document → Review
-
-**Step 1: Research (Alice)**
+#### Activity
 ```
-Primary AI → Spawns Alice
-    "Research this video, extract key patterns"
-    ↓
-Alice → Watches video → Posts findings
-    "Found 3 patterns: Chain-of-Thought, ReAct, Reflexion"
-    ↓
-Primary AI ← Reviews
-    "What tools were mentioned?"
-    ↓
-Alice → Responds
-    "Tools: LangChain, AutoGPT, BabyAGI"
-    ↓
-Primary AI → Satisfied → Spawns Document workflow
+POST   /api/activity           # Post activity update
 ```
 
-**Step 2: Document (Alice)**
+#### Evidence (CRITICAL)
 ```
-Primary AI → Spawns Alice  
-    "Create summary document from research"
-    ↓
-Alice → Writes document → Saves to /docs
-    ↓
-Primary AI ← Reviews document
-    "Add code examples for ReAct pattern"
-    ↓
-Alice → Updates document
-    ↓
-Primary AI → Satisfied → Spawns Review workflow
+POST   /api/tasks/:id/evidence # Attach evidence
 ```
 
-**Step 3: Review (Aegis)**
-```
-Primary AI → Spawns Aegis
-    "Review document for accuracy"
-    ↓
-Aegis → Reviews → Approves
-    "Document complete, 2 minor typos fixed"
-    ↓
-Primary AI → Marks task complete
-```
-
-**Key Point:** The Primary AI stayed involved at every step, asked questions, requested changes, and only proceeded when satisfied.
-
-### Timeout Enforcement
-
-the Primary AI enforces `timeoutSeconds` when spawning agents:
-
-```javascript
-// the Primary AI spawns agent with timeout
-sessions_spawn({
-  task: workflow.systemPrompt,
-  timeoutSeconds: workflow.timeoutSeconds,
-  // If exceeded, agent killed, task marked failed
-});
-```
-
-## Dynamic → Predefined Pipeline Flow
-
-When the Primary AI assembles a dynamic pipeline that works well:
-
-1. Task completes successfully with dynamic pipeline
-2. the Primary AI offers: "Save this pipeline for reuse?"
-3. If yes, pipeline saved to database
-4. Future similar tasks use the now-predefined pipeline
-
-This creates a **learning system** where successful patterns become reusable.
-
-## API Endpoints
-
-### Workflows
-
-```
-GET    /api/workflows              # List all workflows
-POST   /api/workflows              # Create new workflow
-PUT    /api/workflows              # Update workflow
-DELETE /api/workflows              # Delete workflow
-```
-
-### Pipelines
-
-```
-GET    /api/pipelines              # List pipelines
-POST   /api/pipelines              # Create new pipeline
-PUT    /api/pipelines              # Update pipeline
-DELETE /api/pipelines              # Delete pipeline
-```
-
-### Task Pipeline Matching
-
-```
-POST   /api/tasks                  # Creates task + matches pipeline
-```
-
-Response includes:
+Payload:
 ```json
 {
-  "_meta": {
-    "pipelineMatch": {
-      "pipelineId": "pl-research",
-      "isDynamic": false,
-      "confidence": 0.9,
-      "reason": "Matched pattern: research"
-    }
-  }
+  "evidenceType": "document",
+  "url": "file://{DOCUMENTS_ROOT}/plans/example.md",
+  "description": "Structured plan document generated from analysis",
+  "addedBy": "agent-name"
 }
 ```
 
-## Database Schema
+**Evidence Types:** document, code, test, screenshot, link
 
-### workflow_templates
+#### Pipelines
+```
+GET    /api/pipelines          # List pipelines
+POST   /api/pipelines          # Create new pipeline
+```
 
+### Database Schema
+
+#### workflow_templates
 ```sql
 CREATE TABLE workflow_templates (
     id TEXT PRIMARY KEY,
@@ -280,21 +233,20 @@ CREATE TABLE workflow_templates (
     timeout_seconds INTEGER DEFAULT 1800,
     system_prompt TEXT,
     validation_checklist TEXT,  -- JSON array
-    tags TEXT,                   -- JSON array
+    tags TEXT,
     created_at TEXT,
     updated_at TEXT,
     use_count INTEGER DEFAULT 0
 );
 ```
 
-### pipelines
-
+#### pipelines
 ```sql
 CREATE TABLE pipelines (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     description TEXT,
-    steps TEXT NOT NULL,  -- JSON array of {workflow_id, on_failure}
+    steps TEXT NOT NULL,  -- JSON array
     is_dynamic INTEGER DEFAULT 0,
     created_from_task_id TEXT,
     created_at TEXT,
@@ -303,124 +255,89 @@ CREATE TABLE pipelines (
 );
 ```
 
-### task_pipelines
-
+#### task_pipelines
 ```sql
 CREATE TABLE task_pipelines (
     task_id TEXT PRIMARY KEY,
     pipeline_id TEXT,
-    workflow_ids TEXT,  -- For dynamic pipelines
+    workflow_ids TEXT,
     current_step INTEGER DEFAULT 0,
     is_dynamic INTEGER DEFAULT 0,
     matched_at TEXT
 );
 ```
 
-## Setup for New Installations
+---
 
-### 1. Database Setup
+## Part 3: Generic Example (For New Teams)
 
-The schema automatically initializes with built-in workflows and pipelines.
+### Example Team Structure
 
-### 2. Agent Configuration
+| Agent | Role | Responsibilities |
+|-------|------|------------------|
+| **Leo** | Orchestrator | Routes tasks, validates work, manages handoffs |
+| **Sam** | Researcher | Information gathering, analysis, investigation |
+| **Dana** | Builder | Code implementation, feature development |
+| **Alex** | Tester | QA, testing, validation |
+| **Jordan** | Reviewer | Final approval, quality gate |
+| **Taylor** | Automation | Cron jobs, scheduled tasks, monitoring |
 
-Ensure agents are registered in OpenClaw:
+### Example Workflow
 
-```json
-// openclaw.json agents section
-{
-  "agents": [
-    { "id": "alice", "name": "Alice", "role": "researcher" },
-    { "id": "bob", "name": "Bob", "role": "builder" },
-    { "id": "charlie", "name": "Charlie", "role": "tester" },
-    { "id": "aegis", "name": "Aegis", "role": "reviewer" },
-    { "id": "tron", "name": "Tron", "role": "automation" }
-  ]
-}
+```
+User → Leo → Sam (Research) → Leo → Dana (Build) → Leo → Alex (Test) → Leo → Jordan (Review) → Leo → Done
 ```
 
-### 3. the Primary AI Configuration
+See `examples/openclaw-workspace/` for complete generic setup with Leo/Sam/Dana.
 
-the Primary AI should be configured as the orchestrator:
-
-```json
-{
-  "id": "primary-ai",
-  "name": "Primary AI",
-  "role": "orchestrator",
-  "responsibilities": [
-    "Analyze tasks and match to pipelines",
-    "Spawn agents for workflow steps",
-    "Manage handoffs between agents",
-    "Enforce workflow timeouts",
-    "Save successful dynamic pipelines"
-  ]
-}
-```
-
-## Integration with Existing OpenClaw Sessions
-
-When connecting to an existing OpenClaw setup:
-
-1. **Import existing agents** - Webapp fetches from `/api/agents`
-2. **Map agent roles** - Ensure agent roles match workflow requirements
-3. **the Primary AI takes over** - Existing tasks can be processed through pipelines
-4. **Backward compatible** - Tasks without pipelines work as before
+---
 
 ## Best Practices
 
 ### For Workflow Authors
-
 1. **Clear validation checklist** - Define exactly what "done" means
 2. **Reasonable timeouts** - 1800s (30min) for research, 3600s (60min) for builds
 3. **Specific system prompts** - Give agents clear instructions
 4. **Use tags** - Helps with discovery and organization
 
 ### For Pipeline Authors
-
 1. **Logical flow** - Research → Build → Test → Review
 2. **Failure handling** - Decide: stop, continue, or skip on failure?
 3. **Keep it simple** - 2-4 steps is usually enough
 4. **Name descriptively** - "Quick Fix" vs "Standard Build"
 
-### For the Primary AI (Primary AI)
-
+### For Primary AIs
 1. **Prefer predefined** - Use existing pipelines when possible
 2. **Document dynamic** - Log why dynamic pipeline was chosen
 3. **Learn from success** - Save working dynamic patterns
 4. **Respect timeouts** - Always enforce workflow timeoutSeconds
 5. **Clear handoffs** - Pass context between agents
+6. **NEVER do the work** - Spawn agents, don't execute skills yourself
+7. **ALWAYS validate** - Check evidence exists before approving
+8. **REJECT incomplete work** - Send back to agent if deliverables missing
+
+---
 
 ## Troubleshooting
 
 ### Pipeline not matching?
-
 - Check task title/description for keywords
 - Verify workflow templates exist
 - Review the Orchestrator's matching logic
 
 ### Agent not spawning?
-
 - Verify agent is registered in OpenClaw
 - Check agent role matches workflow requirement
 - Review timeoutSeconds is reasonable
 
-### Dynamic pipeline not saving?
-
-- Ensure task completed successfully
-- Check pipeline has unique name
-- Verify the Primary AI has permission to create pipelines
-
-## Future Enhancements
-
-- **Conditional pipelines** - Branch based on task content
-- **Parallel workflows** - Multiple agents work simultaneously
-- **Pipeline templates** - Import/export pipeline definitions
-- **Usage analytics** - See which pipelines are most effective
-- **Auto-optimization** - the Primary AI learns optimal timeouts
+### Evidence not showing?
+- Verify POST to `/api/tasks/{id}/evidence`
+- Check evidence includes valid URL/path
+- Ensure `addedBy` field is populated
 
 ---
 
 **Last Updated:** 2026-03-16
-**Version:** 1.0
+**Version:** 2.0
 **Maintainer:** the Primary AI (Primary AI Orchestrator)
+**Changes:** Merged ORCHESTRATION.md + ORCHESTRATION_GUIDE.md, added validation checklist, common failures, evidence requirements

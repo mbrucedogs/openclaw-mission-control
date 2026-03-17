@@ -175,3 +175,47 @@ export interface ScheduleJob {
     lastRunAt?: string;
     status?: string;
 }
+
+// ============================================================================
+// DOCUMENTS
+// ============================================================================
+
+export interface DocumentEntry {
+    id: string;
+    title: string;
+    path: string;
+    category: string;
+    updatedAt: string;
+}
+
+export interface RepoDocument {
+    id: number;
+    title: string;
+    summary?: string;
+    content?: string;
+    source_url?: string;
+    document_type: string;
+    folder_id?: number;
+    tags: string[];
+    updated_at: string;
+}
+
+export interface DocumentFolder {
+    id: number;
+    name: string;
+}
+
+export interface LinkedTask {
+    id: number;
+    task_id: string;
+    link_type: string;
+    title: string;
+    status: string;
+}
+
+export interface MemoryEntry {
+    id: string;
+    content: string;
+    timestamp: string;
+    category: 'daily' | 'long-term';
+}

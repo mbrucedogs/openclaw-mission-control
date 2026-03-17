@@ -3,6 +3,17 @@ import { DocumentEntry, RepoDocument, DocumentFolder, LinkedTask } from '../type
 import fs from 'fs';
 import path from 'path';
 import { WORKSPACE_ROOTS, EXCLUDED_FOLDERS, ALLOWED_EXTENSIONS } from '../config';
+import os from 'os';
+
+function expandHome(p: string): string {
+    if (p.startsWith('~/')) {
+        return path.join(os.homedir(), p.slice(2));
+    }
+    if (p === '~') {
+        return os.homedir();
+    }
+    return p;
+}
 
 // ─── Viewer Mode (filesystem-backed, via local_documents table) ───────────────
 
@@ -21,8 +32,9 @@ export function getDocuments(query?: string): DocumentEntry[] {
 }
 
 export function getLocalFileContent(filePath: string): string {
+    const expandedPath = expandHome(filePath);
     try {
-        return fs.readFileSync(filePath, 'utf-8');
+        return fs.readFileSync(expandedPath, 'utf-8');
     } catch {
         return 'Could not load file content.';
     }
@@ -30,7 +42,8 @@ export function getLocalFileContent(filePath: string): string {
 
 /** List workspace files recursively with metadata */
 export function listWorkspaceFiles(rootDir: string, relativeDir: string = ''): DocumentEntry[] {
-    const fullDirPath = relativeDir ? path.join(rootDir, relativeDir) : rootDir;
+    const expandedRoot = expandHome(rootDir);
+    const fullDirPath = relativeDir ? path.join(expandedRoot, relativeDir) : expandedRoot;
     if (!fs.existsSync(fullDirPath)) return [];
 
     let results: DocumentEntry[] = [];
@@ -65,7 +78,8 @@ export function listWorkspaceFiles(rootDir: string, relativeDir: string = ''): D
 
 /** Search workspace files by content */
 export function searchWorkspaceFiles(rootDir: string, query: string): DocumentEntry[] {
-    const all = listWorkspaceFiles(rootDir);
+    const expandedRoot = expandHome(rootDir);
+    const all = listWorkspaceFiles(expandedRoot);
     const q = query.toLowerCase();
     return all.filter(f => {
         if (f.title.toLowerCase().includes(q)) return true;

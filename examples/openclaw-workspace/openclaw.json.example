@@ -6,14 +6,19 @@
       "agentDir": "agents/leo-lead"
     },
     {
+      "id": "sam-scout",
+      "name": "Sam",
+      "agentDir": "agents/sam-scout"
+    },
+    {
       "id": "dana-dev",
       "name": "Dana",
       "agentDir": "agents/dana-dev"
     },
     {
-      "id": "sam-scout",
-      "name": "Sam",
-      "agentDir": "agents/sam-scout"
+      "id": "jordan-review",
+      "name": "Jordan",
+      "agentDir": "agents/jordan-review"
     }
   ]
 }
