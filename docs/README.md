@@ -293,28 +293,14 @@ Ask: "Do you have a SOUL.md file?"
 
 ## 🔄 Your Daily Workflow (Orchestrator)
 
-### AUTOMATED: Cron Job Required
+### AUTOMATED: Tron Monitoring Required
 
-**A cron job MUST be created to run your orchestration heartbeat.** This is NOT optional.
+**A cron job runs Tron to monitor Mission Control.** This is NOT optional.
 
-**Create this cron job immediately:**
-
-```bash
-# Job: Max Orchestrator - Mission Control Monitor
-# Schedule: Every 5 minutes
-# Action: Check all tasks and orchestrate as needed
-```
-
-**Cron job payload:**
-```
-ORCHESTRATOR HEARTBEAT: Check Mission Control for tasks requiring action.
-
-Step 1: GET /api/tasks?owner=max&status=Backlog,In+Progress,Review
-Step 2: Process BACKLOG tasks (create pipelines, spawn agents)
-Step 3: Monitor IN PROGRESS tasks (check for stuck agents)
-Step 4: Validate REVIEW tasks (approve/reject handoffs)
-Step 5: Report actions taken
-```
+**The cron job is:** `Tron Mission Control Monitor`
+- **Schedule:** Every 2 minutes
+- **Model:** ollama/qwen3.5:35b-a3b (local, FREE)
+- **Action:** Detect tasks needing attention, wake you only when needed
 
 **Tron (local model) monitors automatically:**
 - Checks Mission Control every 2 minutes using local ollama model (free)
@@ -349,9 +335,12 @@ GET /api/tasks?owner=max&status=Review
 When you see a task in Backlog assigned to you:
 
 1. **Read the task** - title, description, validation criteria
-2. **Check if pipeline exists** - Look at `task.validationCriteria._pipeline`
-3. **If NO pipeline** - You must CREATE one (see Dynamic Pipeline Assembly below)
-4. **If pipeline exists** - Spawn the first agent in the sequence
+2. **Check KNOWLEDGE_INDEX.md** - What pipeline matches the task keywords?
+3. **Check if pipeline exists** - Look at `task.validationCriteria._pipeline`
+4. **If NO pipeline** - Workflows are created dynamically (see Dynamic Pipeline Assembly below)
+5. **If pipeline exists** - Spawn the first agent in the sequence
+
+**⚠️ CRITICAL:** Before spawning any agent, read [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) to ensure the task has all required fields (DOCUMENTS_ROOT, evidence format, tools, fallback).
 
 ### Step 3: Agent Monitoring (In Progress Tasks)
 
