@@ -23,7 +23,7 @@ The alex-mission-control orchestration system uses a **hybrid pipeline model** t
 
 ### The Pipeline Flow (Example)
 
-**This is an example using the fake agent names from `examples/openclaw-workspace/`. Your workspace will have similar files with your own agent names.**
+**This is an example using the fake agent names from `examples/openclaw/workspace/`. Your workspace will have similar files with your own agent names.**
 
 ```
 User → You (Leo) → Sam (Researcher) → You → Dana (Builder) → You → Dana (Tester) → You → Jordan (Reviewer) → You → Done
@@ -79,7 +79,7 @@ Before approving ANY handoff, you MUST verify:
 
 ### Spawn Commands (Example)
 
-**These examples use the fake agent names from `examples/openclaw-workspace/`. Your workspace will have similar commands with your own agent names in your `agents/TEAM-REGISTRY.md`.**
+**These examples use the fake agent names from `examples/openclaw/workspace/`. Your workspace will have similar commands with your own agent names in your `agents/TEAM-REGISTRY.md`.**
 
 #### Sam (Researcher)
 ```javascript
@@ -275,11 +275,11 @@ CREATE TABLE task_pipelines (
 
 ## Part 3: Complete Working Example
 
-**See `examples/openclaw-workspace/` for a complete, working example you can copy and customize.**
+**See `examples/openclaw/workspace/` for a complete, working example you can copy and customize.**
 
 This example uses fake agent names (Leo, Sam, Dana, Jordan) to demonstrate the structure. When you set up your own workspace, you'll create similar files with your own agent names.
 
-### Example Team Structure (from examples/openclaw-workspace/)
+### Example Team Structure (from examples/openclaw/workspace/)
 
 | Agent | Role | Responsibilities |
 |-------|------|------------------|
@@ -294,7 +294,7 @@ This example uses fake agent names (Leo, Sam, Dana, Jordan) to demonstrate the s
 User → Leo → Sam (Research) → Leo → Dana (Build) → Leo → Dana (Test) → Leo → Jordan (Review) → Leo → Done
 ```
 
-### Example File Structure (from examples/openclaw-workspace/)
+### Example File Structure (from examples/openclaw/workspace/)
 
 ```
 workspace/
@@ -370,4 +370,4 @@ workspace/
 **Version:** 2.0
 **Maintainer:** the Primary AI (Primary AI Orchestrator)
 **Changes:** Merged ORCHESTRATION.md + ORCHESTRATION_GUIDE.md, added validation checklist, common failures, evidence requirements
-**See Also:** [examples/openclaw-workspace/](../examples/openclaw-workspace/) - Complete working example with Leo/Sam/Dana/Jordan
+**See Also:** [examples/openclaw/workspace/](../examples/openclaw/workspace/) - Complete working example with Leo/Sam/Dana/Jordan

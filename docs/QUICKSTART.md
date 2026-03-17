@@ -22,7 +22,7 @@ Database auto-initializes on first run with:
 Copy the example agent configuration:
 
 ```bash
-cp examples/openclaw-workspace/openclaw.json.example ~/.openclaw/openclaw.json
+cp examples/openclaw/workspace/openclaw.json.example ~/.openclaw/openclaw.json
 ```
 
 Or manually configure agents in your OpenClaw `openclaw.json`:
@@ -38,7 +38,7 @@ Or manually configure agents in your OpenClaw `openclaw.json`:
 }
 ```
 
-See `examples/openclaw-workspace/` for complete agent templates.
+See `examples/openclaw/workspace/` for complete agent templates.
 
 ### 4. Start the Webapp
 

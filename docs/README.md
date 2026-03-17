@@ -42,7 +42,7 @@ Start here to learn how to manage agent pipelines:
 
 **Setting up your own agent team?** Use these examples:
 
-6. **[examples/openclaw-workspace/](./examples/openclaw-workspace/)** - Complete generic template
+6. **[examples/openclaw/workspace/](./examples/openclaw/workspace/)** - Complete generic template
    - `openclaw.json.example` - Agent configuration template
    - `TEAM-REGISTRY.md` - Generic team registry (Leo/Sam/Dana/Jordan)
    - `TEAM_GOVERNANCE.md` - Generic governance rules
@@ -93,7 +93,7 @@ Want to set up your own agent team? Copy the example:
 
 ```bash
 # Copy generic template to your workspace
-cp -r examples/openclaw-workspace/ ~/your-workspace/
+cp -r examples/openclaw/workspace/ ~/your-workspace/
 
 # Customize agents/
 # - Rename agent folders
@@ -112,7 +112,7 @@ cp -r examples/openclaw-workspace/ ~/your-workspace/
 - `docs/ORCHESTRATION.md` - Master orchestration guide
 - `docs/QUICKSTART.md` - Quick start guide
 - `docs/README.md` - Project overview
-- `examples/openclaw-workspace/` - Generic template for new teams
+- `examples/openclaw/workspace/` - Generic template for new teams
 
 ### In Your Workspace (loaded at runtime)
 Located at `~/.openclaw/workspace/` (or your configured workspace):
