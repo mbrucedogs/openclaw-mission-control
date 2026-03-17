@@ -93,7 +93,9 @@ SQLite with tables:
 - `task_activity` - Audit log
 - `task_evidence` - Proof of completion
 
-## API
+## API Endpoint
+
+**Default:** `http://localhost:4000`
 
 ```
 GET    /api/tasks              # List tasks
@@ -110,6 +112,26 @@ All API requests require an `X-API-Key` header with the value defined in your `.
 
 ```bash
 curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/tasks
+```
+
+### Configure Your Primary AI
+
+**Tell your Primary AI to use this endpoint:**
+
+```bash
+# In your Primary AI environment:
+export MISSION_CONTROL_URL=http://localhost:4000
+export MC_API_KEY=your_api_key_here
+```
+
+**Or in your workspace config:**
+```json
+{
+  "missionControl": {
+    "url": "http://localhost:4000",
+    "apiKey": "your_api_key_here"
+  }
+}
 ```
 
 ## Configuration

@@ -2,18 +2,8 @@ import { db } from '../db';
 import { DocumentEntry, RepoDocument, DocumentFolder, LinkedTask } from '../types';
 import fs from 'fs';
 import path from 'path';
-import { WORKSPACE_ROOTS, EXCLUDED_FOLDERS, ALLOWED_EXTENSIONS } from '../config';
-import os from 'os';
+import { WORKSPACE_ROOTS, EXCLUDED_FOLDERS, ALLOWED_EXTENSIONS, expandHome } from '../config';
 
-function expandHome(p: string): string {
-    if (p.startsWith('~/')) {
-        return path.join(os.homedir(), p.slice(2));
-    }
-    if (p === '~') {
-        return os.homedir();
-    }
-    return p;
-}
 
 // ─── Viewer Mode (filesystem-backed, via local_documents table) ───────────────
 

@@ -1,5 +1,7 @@
 import { db } from './db/index';
 import path from 'path';
+import os from 'os';
+
 
 // ============================================================================
 // CONFIGURATION MANAGER
@@ -12,14 +14,30 @@ interface ConfigValue {
   description?: string;
 }
 
-// Default configuration values
 const DEFAULTS: Record<string, string> = {
   DOCUMENTS_ROOT: '~/.openclaw/workspace/docs',
   RESEARCH_PATH: '~/.openclaw/workspace/docs/research',
   PLANS_PATH: '~/.openclaw/workspace/docs/plans',
   API_KEY: '', // Must be set via env or database
   API_URL: 'http://localhost:4000',
+  MEMORY_ROOT: '', // Fallback to BASE_WORKSPACE/memory
+  TMP_ROOT: '',    // Fallback to BASE_WORKSPACE/tmp
+  DOCS_ROOT: '',   // Fallback to BASE_WORKSPACE/docs
 };
+
+/**
+ * Expands character ~ at the start of a path to the user's home directory.
+ */
+export function expandHome(p: string): string {
+  if (!p) return p;
+  if (p.startsWith('~/')) {
+    return path.join(os.homedir(), p.slice(2));
+  }
+  if (p === '~') {
+    return os.homedir();
+  }
+  return p;
+}
 
 /** * Get configuration value
  * Priority: Environment (MC_*) → Database → Default
@@ -27,7 +45,7 @@ const DEFAULTS: Record<string, string> = {
 export function getConfig(key: string): string {
   // 1. Check environment variable (Favor plain name first)
   let envValue = process.env[key];
-  
+
   // Fallback to prefixed name if plain name is missing
   if (envValue === undefined) {
     const envKey = `MC_${key}`;
@@ -111,12 +129,11 @@ export const API_URL = () => getConfig('API_URL');
 const BASE_WORKSPACE = process.env.OPENCLAW_WORKSPACE || '/Volumes/Data/openclaw/workspace';
 
 export const WORKSPACE_ROOTS = [
-  path.join(BASE_WORKSPACE, 'memory'),
-  path.join(BASE_WORKSPACE, 'tmp'),
-  path.join(BASE_WORKSPACE, 'docs'),
-  path.join(BASE_WORKSPACE, 'projects/Web/alex-mission-control/docs/plans'),
-  path.join(BASE_WORKSPACE, 'projects/Documents'),
-];
+  expandHome(getConfig('MEMORY_ROOT') || path.join(BASE_WORKSPACE, 'memory')),
+  expandHome(getConfig('TMP_ROOT') || path.join(BASE_WORKSPACE, 'tmp')),
+  expandHome(getConfig('DOCS_ROOT') || path.join(BASE_WORKSPACE, 'docs')),
+  expandHome(getConfig('DOCUMENTS_ROOT')),
+].filter(Boolean);
 
 export const EXCLUDED_FOLDERS = [
   'node_modules',
@@ -124,8 +141,7 @@ export const EXCLUDED_FOLDERS = [
   '.git',
   'dist',
   'build',
-  '.gemini',
-  'bl-mission-control',
+  '.gemini'
 ];
 
 export const ALLOWED_EXTENSIONS = ['.md', '.txt'];
