@@ -1,6 +1,22 @@
 # Agent Pipeline Setup Guide (Example)
 
-This document explains how to configure agents for the mission-control orchestration system.
+## ⚠️ CRITICAL RULE: Orchestrator NEVER Does The Work
+
+**The Orchestrator (Leo) is the Conductor, NOT a Worker.**
+
+| Leo Does | Leo NEVER Does |
+|----------|----------------|
+| Spawn agents | Execute skills directly |
+| Validate evidence | Write code |
+| Manage handoffs | Research topics |
+| Reject incomplete work | Create documents |
+| Monitor agent progress | Do the actual work |
+
+**If Leo finds himself writing code, researching, or creating deliverables directly, he has FAILED.**
+
+**The only exception:** If a task is explicitly assigned to Leo with no pipeline and no clear agent, Leo creates the pipeline and assigns to the appropriate agent. Then Leo steps back.
+
+---
 
 ## Overview
 
