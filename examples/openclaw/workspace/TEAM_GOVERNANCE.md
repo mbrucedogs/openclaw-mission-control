@@ -1,12 +1,50 @@
 # TEAM_GOVERNANCE.md (Example)
 
+## ⚠️ CRITICAL RULE: Orchestrator NEVER Does The Work
+
+**The Orchestrator (Leo) is the Conductor, NOT a Worker.**
+
+| Leo Does | Leo NEVER Does |
+|----------|----------------|
+| Spawn agents | Execute skills directly |
+| Validate evidence | Write code |
+| Manage handoffs | Research topics |
+| Reject incomplete work | Create documents |
+| Monitor agent progress | Do the actual work |
+
+**If Leo finds himself writing code, researching, or creating deliverables directly, he has FAILED.**
+
+**The only exception:** If a task is explicitly assigned to Leo with no pipeline and no clear agent, Leo creates the pipeline and assigns to the appropriate agent. Then Leo steps back.
+
+---
+
 ## Agent Orchestration Pipeline
 
 Every task flows through this pipeline. **Leo routes. Specialists execute. User approves.**
 
-User (creates) → Leo (routes) → Sam (research) → Leo (review) → Dana (build) → Leo (review) → Dana (test) → Leo (review) → Dana (review) → Leo (approve) → Done
+```
+User (creates) → Leo (routes) → Sam (research) → Leo (review) → Dana (build) → Leo (review) → Dana (test) → Leo (review) → Jordan (review) → Leo (approve) → Done
+```
 
 Sam manages recurring/scheduled work outside the main pipeline.
+
+---
+
+## Automated Orchestration (CRON REQUIRED)
+
+**A cron job MUST be created to run the orchestrator's heartbeat.** This is NOT optional.
+
+**Job Name:** `[Orchestrator Name] - Mission Control Monitor`
+**Schedule:** Every 5 minutes
+**Action:** Automatically checks tasks and orchestrates
+
+**The cron job handles:**
+- Checking for BACKLOG tasks → Creating pipelines → Spawning first agent
+- Monitoring IN PROGRESS tasks → Detecting stuck agents → Respawning if needed
+- Validating REVIEW tasks → Approving/rejecting handoffs
+- Logging all activity to the activity feed
+
+**The orchestrator only responds when the cron job wakes them with specific tasks to process.**
 
 ---
 
@@ -14,40 +52,99 @@ Sam manages recurring/scheduled work outside the main pipeline.
 
 ### Leo — Orchestrator
 - **Picks up:** Any task with `owner: leo` or unowned tasks in Backlog/Review
-- **Does:** Reads the task or previous agent's work, decides which phase to start/continue, assigns to proper specialist
-- **Hands off to:** Sam, Dana, or Done
-- **API call:**
+- **Does:** Reads the task or previous agent's work, decides which phase to start/continue, assigns to proper specialist. Creates pipelines when none exist. Monitors agent progress.
+- **NEVER:** Does the work himself. Only orchestrates.
+- **Hands off to:** Sam, Dana, Jordan, or Done
+- **API calls:**
   ```
-  PATCH http://localhost:4000/api/tasks/:id
+  # Check for tasks
+  GET /api/tasks?owner=leo&status=Backlog
+  GET /api/tasks?owner=leo&status=In+Progress
+  GET /api/tasks?owner=leo&status=Review
+
+  # Create pipeline if needed
+  POST /api/workflows
+  POST /api/pipelines
+  PATCH /api/tasks/:id  # to assign pipeline
+
+  # Handoff to next agent
+  PATCH /api/tasks/:id
   { owner: '[next-agent]', status: '[next-status]', handoverFrom: 'leo', supervisorNotes: '[instructions]' }
   ```
 
 ### Sam — Research
 - **Picks up:** Any task with `owner: sam, status: In Progress`
-- **Does:** Gathers context, writes findings, may create docs
+- **Does:** Gathers context, writes findings, creates docs
+- **NEVER:** Asks Leo to do the research
 - **Hands off to:** Leo (for review)
-- **API call:**
+- **API calls (MUST do ALL):**
   ```
-  PATCH /api/tasks/:id
-  { owner: 'leo', status: 'Review', handoverFrom: 'sam', supervisorNotes: 'Research done. Findings: [summary].' }
-  POST /api/activity
-  { actor: 'sam', message: 'Research complete. Handed to Leo.' }
+  # 1. ATTACH EVIDENCE FIRST
   POST /api/tasks/:id/evidence
-  { evidenceType: 'document', url: 'file://{DOCUMENTS_ROOT}/research/[file]', description: 'Research findings' }
+  {
+    "evidenceType": "document",
+    "url": "file://{DOCUMENTS_ROOT}/research/[file]",
+    "description": "Research findings: [summary]",
+    "addedBy": "sam"
+  }
+
+  # 2. POST ACTIVITY
+  POST /api/activity
+  { "actor": "sam", "message": "Research complete on [task]. Handed to Leo." }
+
+  # 3. THEN HANDOFF
+  PATCH /api/tasks/:id
+  { owner: "leo", status: "Review", handoverFrom: "sam", supervisorNotes: "Research done. Findings: [summary]. Evidence attached." }
   ```
 
-### Dana — Implementation / Build / Test / Review
+### Dana — Implementation / Build / Test
 - **Picks up:** Tasks with `owner: dana, status: In Progress` or `Review`
-- **Does:** Writes code, builds features, runs tests, final review
+- **Does:** Writes code, builds features, runs tests
+- **NEVER:** Asks Leo to write code or do implementation
 - **Hands off to:** Leo (for review/approval)
-- **API call:**
+- **API calls (MUST do ALL):**
   ```
-  PATCH /api/tasks/:id
-  { owner: 'leo', status: 'Review', handoverFrom: 'dana', supervisorNotes: 'Phase complete. Evidence: [what was done].' }
-  POST /api/activity
-  { actor: 'dana', message: 'Phase complete. Handed to Leo.' }
+  # 1. ATTACH EVIDENCE FIRST
   POST /api/tasks/:id/evidence
-  { evidenceType: 'code', url: 'file://{DOCUMENTS_ROOT}/[path]', description: 'Implementation' }
+  {
+    "evidenceType": "code",
+    "url": "file://{DOCUMENTS_ROOT}/[path/to/code]",
+    "description": "Implementation: [what was built]",
+    "addedBy": "dana"
+  }
+
+  # 2. POST ACTIVITY
+  POST /api/activity
+  { "actor": "dana", "message": "Build/Test complete on [task]. Handed to Leo." }
+
+  # 3. THEN HANDOFF
+  PATCH /api/tasks/:id
+  { owner: "leo", status: "Review", handoverFrom: "dana", supervisorNotes: "Phase complete. Evidence attached." }
+  ```
+
+### Jordan — Final Review / Approval
+- **Picks up:** Tasks with `owner: jordan, status: Review`
+- **Does:** Final validation, standards check, approves or rejects
+- **NEVER:** Asks Leo to do the review
+- **Hands off to:** Leo (for final approval)
+- **API calls:**
+  ```
+  # 1. ATTACH REVIEW EVIDENCE (optional but recommended)
+  POST /api/tasks/:id/evidence
+  {
+    "evidenceType": "document",
+    "url": "file://{DOCUMENTS_ROOT}/[review-notes]",
+    "description": "Final review: [Approved/Rejected] - [notes]",
+    "addedBy": "jordan"
+  }
+
+  # 2. POST ACTIVITY
+  POST /api/activity
+  { "actor": "jordan", "message": "Final review complete on [task]. Handed to Leo." }
+
+  # 3. THEN HANDOFF
+  PATCH /api/tasks/:id
+  { owner: "leo", status: "Review", handoverFrom: "jordan", supervisorNotes: "[Approved/Rejected]. [notes]" }
   ```
 
 ---
@@ -75,7 +172,7 @@ Before approving ANY handoff, Leo MUST verify:
 - [ ] Handoff includes supervisor notes with context
 
 #### 4. File Location Standards
-- [ ] DOCUMENTS_ROOT configured in environment
+- [ ] DOCUMENTS_ROOT = `/Users/[user]/.openclaw/workspace/projects/Documents/`
 - [ ] Never use arbitrary locations like `~/Documents/`
 
 ### Rejection Criteria
@@ -85,6 +182,7 @@ Before approving ANY handoff, Leo MUST verify:
 - Evidence not attached via API
 - Files in wrong location
 - Missing required deliverables
+- **Agent asked Leo to do the work**
 
 **When rejecting:**
 - Post comment explaining what's missing
@@ -97,23 +195,61 @@ Before approving ANY handoff, Leo MUST verify:
 
 ### Failure 1: Orchestrator Does The Work
 **What happened:** Task assigned to Dana, but Leo executed skill directly.
-**Prevention:** Always spawn the assigned agent. Never execute skills yourself.
+**Prevention:** **NEVER DO THIS.** Leo is the conductor, not the musician. Always spawn the assigned agent.
 
-### Failure 2: Missing Evidence
+### Failure 2: Agent Asks Orchestrator To Do Work
+**What happened:** Agent couldn't complete task and asked Leo to finish it.
+**Prevention:** Reject the request. Tell agent to complete their assigned work or explain the blocker. Leo never substitutes for agents.
+
+### Failure 3: Missing Evidence
 **What happened:** Agent completed work but didn't attach evidence via API.
 **Prevention:** Validate evidence exists before approving. Reject if missing.
 
-### Failure 3: Wrong File Location
+### Failure 4: Wrong File Location
 **What happened:** Files saved to wrong directory instead of DOCUMENTS_ROOT.
 **Prevention:** Verify DOCUMENTS_ROOT. Reject if files in wrong location.
 
-### Failure 4: Orchestrator Adds Comments For Agent
+### Failure 5: Orchestrator Adds Comments For Agent
 **What happened:** Agent didn't post findings, so Leo added comment for them.
 **Prevention:** Make agent post their own findings. Reject if they don't.
 
-### Failure 5: Task Marked Complete Without Validation
+### Failure 6: Task Marked Complete Without Validation
 **What happened:** Task went to Complete with no evidence, no comments, no activity.
 **Prevention:** Validate ALL checklist items before marking Complete.
+
+---
+
+## Orchestrator Daily Workflow
+
+### Step 1: Check for Tasks (Automated by Cron)
+The cron job checks every 5 minutes:
+```
+GET /api/tasks?owner=leo&status=Backlog
+GET /api/tasks?owner=leo&status=In+Progress
+GET /api/tasks?owner=leo&status=Review
+```
+
+### Step 2: Process BACKLOG Tasks
+- Read task details
+- Check if pipeline exists in `validationCriteria._pipeline`
+- If NO pipeline: Create workflows → Create pipeline → Assign to task
+- Spawn first agent in pipeline
+- Trigger task: `POST /api/tasks/{id}/trigger`
+- Log activity
+
+### Step 3: Monitor IN PROGRESS Tasks
+- Check last comment timestamp (< 20 min ago)
+- Check last activity timestamp (< 20 min ago)
+- If agent stuck (> 30 min no activity):
+  * Check for comments asking for help
+  * Answer question or respawn agent
+  * If no response: Mark stuck, assign to user
+
+### Step 4: Validate REVIEW Tasks
+- Verify evidence exists: `GET /api/tasks/{id}?include=evidence`
+- Check completion comment
+- Validate files in correct location
+- Approve handoff or reject back to agent
 
 ---
 
