@@ -17,7 +17,7 @@ interface Project {
     description?: string;
     status: string;
     progress: number;
-    taskIds: string[];
+    taskIds?: string[];
 }
 
 export default function ProjectsClient({ projects }: { projects: Project[] }) {
@@ -75,7 +75,7 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-12 pb-20">
                 {projects.map((project) => {
-                    const taskCount = project.taskIds.length;
+                    const taskCount = project.taskIds?.length || 0;
                     return (
                         <Link key={project.id} href={`/projects/${project.id}`}>
                             <div className="bg-[#101010] border border-[#1a1a1a] rounded-3xl p-8 hover:border-emerald-500/30 transition-all cursor-pointer group flex flex-col min-h-[280px]">

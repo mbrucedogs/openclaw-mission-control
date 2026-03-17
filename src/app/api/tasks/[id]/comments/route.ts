@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/tasks/[id]/comments
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
@@ -25,7 +25,7 @@ export async function GET(
 // POST /api/tasks/[id]/comments
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;

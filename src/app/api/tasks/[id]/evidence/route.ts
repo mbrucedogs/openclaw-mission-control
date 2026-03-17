@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/tasks/[id]/evidence
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
@@ -22,7 +22,7 @@ export async function GET(
 // POST /api/tasks/[id]/evidence
 export async function POST(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
@@ -50,7 +50,7 @@ export async function POST(
 // DELETE /api/tasks/[id]/evidence
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;

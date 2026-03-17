@@ -34,7 +34,7 @@ interface Project {
     description?: string;
     status: string;
     progress: number;
-    taskIds: string[];
+    taskIds?: string[];
 }
 
 const statusIcons: Record<string, any> = {

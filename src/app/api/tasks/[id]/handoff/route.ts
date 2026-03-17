@@ -15,7 +15,7 @@ import { TaskStatus } from '@/lib/types';
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = await (params as any);
+        const { id } = await params;
         const body = await req.json();
 
         const task = getTaskById(id);
@@ -90,6 +90,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             }
         }
 
+        // Safety check - nextOwner should never be null here
+        if (!nextOwner) {
+            return NextResponse.json({ error: 'No next owner determined' }, { status: 500 });
+        }
+
         // Perform handover
         const updatedTask = handoverTask(id, {
             to: nextOwner,
@@ -108,7 +113,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             validationCriteria: {
                 ...task.validationCriteria,
                 _currentStep: newStep,
-            }
+            } as any
         }, fromAgent);
 
         return NextResponse.json({ 

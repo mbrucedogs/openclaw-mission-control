@@ -67,6 +67,8 @@ export interface ActivityDetails {
     errorMessage?: string;
     evidenceId?: string;
     commentId?: string;
+    commentType?: string;
+    evidenceType?: string;
 }
 
 export interface TaskActivity {
@@ -100,6 +102,8 @@ export interface TaskEvidence {
 // ============================================================================
 
 export interface ValidationCriteria {
+    _pipelineId?: string;
+    _currentStep?: number;
     checklist: string[];
     doneMeans: string;
     codeRequirements?: string[];
@@ -160,6 +164,7 @@ export interface Agent {
 }
 
 export interface Project {
+    taskIds?: string[];
     id: string;
     name: string;
     description?: string;

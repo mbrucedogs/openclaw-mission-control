@@ -373,6 +373,60 @@ CREATE INDEX IF NOT EXISTS idx_agent_alerts_status ON agent_alerts(status);
 CREATE INDEX IF NOT EXISTS idx_agent_alerts_task ON agent_alerts(task_id);
 
 -- ============================================================================
+-- TASK WORKFLOW STEPS
+-- Tracks each step in a pipeline with full audit trail
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS task_workflow_steps (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    step_number INTEGER NOT NULL,
+    
+    -- Workflow definition
+    workflow_id TEXT NOT NULL,
+    workflow_name TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    agent_name TEXT,
+    
+    -- Status tracking
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'complete', 'failed', 'blocked')),
+    started_at TEXT,
+    completed_at TEXT,
+    duration_minutes INTEGER,
+    
+    -- Evidence & deliverables
+    evidence_ids TEXT DEFAULT '[]', -- JSON array of evidence IDs
+    deliverables TEXT DEFAULT '[]', -- JSON array of what was produced
+    
+    -- Agent notes/comments
+    completion_notes TEXT,
+    blockers TEXT,
+    questions TEXT,
+    
+    -- Validation
+    validated_by TEXT,
+    validation_notes TEXT,
+    pass_fail TEXT CHECK (pass_fail IN ('pass', 'fail')),
+    
+    -- Next step
+    next_step_id TEXT,
+    handoff_notes TEXT,
+    
+    -- Audit
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (workflow_id) REFERENCES workflow_templates(id),
+    FOREIGN KEY (agent_id) REFERENCES agents(id)
+);
+
+-- Indexes for task workflow steps
+CREATE INDEX IF NOT EXISTS idx_task_workflow_steps_task ON task_workflow_steps(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_workflow_steps_status ON task_workflow_steps(status);
+CREATE INDEX IF NOT EXISTS idx_task_workflow_steps_agent ON task_workflow_steps(agent_id);
+
+-- ============================================================================
 -- INITIAL PIPELINES
 -- ============================================================================
 

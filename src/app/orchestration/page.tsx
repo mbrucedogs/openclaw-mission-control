@@ -938,20 +938,20 @@ function PipelineCard({
                                         </div>
                                         <div className="flex-1">
                                             <p className="text-xs font-bold text-white">
-                                                {step.workflow?.name || step.workflowId}
+                                                {step.workflow?.name || step.workflow_id}
                                             </p>
                                             <p className="text-[10px] text-slate-500">
                                                 {step.workflow?.agentRole} • {step.workflow?.timeoutSeconds}min
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            {step.onFailure === 'stop' && (
+                                            {step.on_failure === 'stop' && (
                                                 <AlertCircle className="w-3.5 h-3.5 text-red-400" />
                                             )}
-                                            {step.onFailure === 'continue' && (
+                                            {step.on_failure === 'continue' && (
                                                 <Play className="w-3.5 h-3.5 text-emerald-400" />
                                             )}
-                                            {step.onFailure === 'skip' && (
+                                            {step.on_failure === 'skip' && (
                                                 <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
                                             )}
                                         </div>

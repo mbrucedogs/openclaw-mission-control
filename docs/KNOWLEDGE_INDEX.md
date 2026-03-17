@@ -13,6 +13,7 @@
 | **Task Orchestration** | Multi-agent pipeline where tasks flow through specialized agents | [ORCHESTRATION.md](./ORCHESTRATION.md) |
 | **Pipeline Protocol** | 5-phase mandatory workflow: Route → Monitor → Validate → Complete → Report | [PIPELINE_PROTOCOL.md](./PIPELINE_PROTOCOL.md) |
 | **Task Creation** | Required fields and template for creating tasks that succeed | [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) |
+| **Task Workflow Steps** | Automatic step tracking per pipeline with evidence requirements | [TASK_WORKFLOW_STEPS.md](./TASK_WORKFLOW_STEPS.md) |
 | **Dynamic Workflows** | Rules for creating workflows/pipelines with API validation | [DYNAMIC_WORKFLOW_RULES.md](./DYNAMIC_WORKFLOW_RULES.md) |
 | **Fresh Install** | Database starts empty, workflows created dynamically at runtime | [ORCHESTRATION.md#part-4](./ORCHESTRATION.md) |
 | **Agent Pipeline** | Researcher → Builder → Tester → Reviewer workflow sequence | [ORCHESTRATION.md](./ORCHESTRATION.md) |
@@ -35,6 +36,16 @@
 - "workflow pipeline"
 
 **Loads:** ORCHESTRATION.md, PIPELINE_PROTOCOL.md, TASK_CREATION_REQUIREMENTS.md
+
+### Task Workflow Steps
+- "task workflow steps"
+- "pipeline steps"
+- "step tracking"
+- "step evidence"
+- "task completion blocker"
+- "step status"
+
+**Loads:** TASK_WORKFLOW_STEPS.md, TASK_CREATION_REQUIREMENTS.md
 
 ### Pipeline Protocol
 - "5 phase protocol"
@@ -81,6 +92,14 @@
 - ✅ Created **dynamically** when first task arrives
 - ✅ Based on **actual configured agents** (from TEAM-REGISTRY.md)
 - ✅ Multiple pipelines exist: standard, quick-fix, research, docs, automation
+
+### Task Workflow Steps (NEW)
+- ✅ Steps **auto-created** when task matches pipeline
+- ✅ Each step tracks: status, agent, evidence, deliverables
+- ✅ Task **CANNOT complete** until ALL steps are `complete`
+- ✅ Steps flow: `pending` → `in-progress` → `complete` | `failed` | `blocked`
+- ✅ Evidence **required** per step before completion
+- ✅ API enforces: rejects task completion if steps incomplete
 
 ### Task Keywords → Pipeline Mapping
 
@@ -192,7 +211,7 @@ A: Fallback plan kicks in. If all fail, task marked blocked with error details.
 
 ---
 
-**Last Updated:** 2026-03-16
-**Version:** 1.0
+**Last Updated:** 2026-03-17
+**Version:** 1.1
 **Purpose:** Single source of truth - quick reference + trigger phrases + document map
 **Maintainer:** Primary AI Orchestrator (Max)

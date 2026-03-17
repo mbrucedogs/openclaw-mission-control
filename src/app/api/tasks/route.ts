@@ -84,6 +84,28 @@ export async function POST(req: Request) {
         // Store pipeline match for this task
         setTaskPipeline(task.id, pipelineMatch);
 
+        // Create workflow steps if pipeline matched
+        if (pipelineMatch.matched && pipelineMatch.workflowIds) {
+            const { getWorkflowTemplateById, createTaskWorkflowStep } = await import('@/lib/domain/workflows');
+            
+            for (let i = 0; i < pipelineMatch.workflowIds.length; i++) {
+                const workflowId = pipelineMatch.workflowIds[i];
+                const workflow = await getWorkflowTemplateById(workflowId);
+                
+                if (workflow) {
+                    await createTaskWorkflowStep({
+                        taskId: task.id,
+                        stepNumber: i + 1,
+                        workflowId: workflow.id,
+                        workflowName: workflow.name,
+                        agentId: workflow.agentId || 'matt',
+                        agentName: workflow.name,
+                        nextStepId: i < pipelineMatch.workflowIds.length - 1 ? `step-${task.id}-${i + 2}` : undefined
+                    });
+                }
+            }
+        }
+
         return NextResponse.json({
             ...task,
             _meta: {

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/tasks/[id]
 export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
@@ -33,12 +33,46 @@ export async function GET(
 // PATCH /api/tasks/[id]
 export async function PATCH(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;
         const body = await request.json();
         const actor = body.actor || 'system';
+
+        // BLOCKER: Check if task has incomplete steps before allowing completion
+        if (body.status === 'Complete' || body.action === 'complete') {
+            const { getTaskWorkflowSteps } = await import('@/lib/domain/workflows');
+            const steps = getTaskWorkflowSteps(id);
+            
+            if (steps.length > 0) {
+                const incompleteSteps = steps.filter(s => s.status !== 'complete');
+                const failedSteps = steps.filter(s => s.status === 'failed');
+                
+                if (incompleteSteps.length > 0) {
+                    return NextResponse.json({ 
+                        error: 'Cannot complete task with incomplete steps',
+                        incompleteSteps: incompleteSteps.map(s => ({ 
+                            stepNumber: s.stepNumber, 
+                            workflowName: s.workflowName,
+                            status: s.status 
+                        })),
+                        message: `Task has ${incompleteSteps.length} incomplete step(s). Complete all steps before marking task done.`
+                    }, { status: 400 });
+                }
+                
+                if (failedSteps.length > 0) {
+                    return NextResponse.json({ 
+                        error: 'Cannot complete task with failed steps',
+                        failedSteps: failedSteps.map(s => ({ 
+                            stepNumber: s.stepNumber, 
+                            workflowName: s.workflowName 
+                        })),
+                        message: `Task has ${failedSteps.length} failed step(s). Fix or retry failed steps before marking task done.`
+                    }, { status: 400 });
+                }
+            }
+        }
 
         // Handle special actions
         if (body.action) {
@@ -121,7 +155,7 @@ export async function PATCH(
 // DELETE /api/tasks/[id]
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const { id } = await params;

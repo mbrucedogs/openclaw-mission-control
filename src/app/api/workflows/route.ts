@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { name, description, agentRole, agentId, estimatedMinutes, model, systemPrompt, validationChecklist, tags } = body;
+        const { name, description, agentRole, agentId, timeoutSeconds, model, systemPrompt, validationChecklist, tags } = body;
         
         if (!name || !agentRole) {
             return NextResponse.json({ error: 'Name and agentRole required' }, { status: 400 });
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
             description,
             agentRole,
             agentId,
-            estimatedMinutes: estimatedMinutes || 30,
+            timeoutSeconds: timeoutSeconds || 30,
             model: model || 'gemini-2.5-flash',
             systemPrompt,
             validationChecklist: validationChecklist || [],

@@ -1,4 +1,49 @@
 // ============================================================================
+// TASK WORKFLOW STEP TRACKING
+// Full audit trail for each step in a pipeline
+// ============================================================================
+
+export interface TaskWorkflowStep {
+    id: string;
+    taskId: string;
+    stepNumber: number;
+    
+    // Workflow definition
+    workflowId: string;
+    workflowName: string;
+    agentId: string;
+    agentName?: string;
+    
+    // Status tracking
+    status: 'pending' | 'in-progress' | 'complete' | 'failed' | 'blocked';
+    startedAt?: string;
+    completedAt?: string;
+    durationMinutes?: number;
+    
+    // Evidence & deliverables
+    evidenceIds: string[];
+    deliverables: string[];
+    
+    // Agent notes/comments
+    completionNotes?: string;
+    blockers?: string;
+    questions?: string;
+    
+    // Validation
+    validatedBy?: string;
+    validationNotes?: string;
+    passFail?: 'pass' | 'fail';
+    
+    // Next step
+    nextStepId?: string;
+    handoffNotes?: string;
+    
+    // Audit
+    createdAt: string;
+    updatedAt: string;
+}
+
+// ============================================================================
 // WORKFLOW AND PIPELINE TYPES
 // ============================================================================
 
@@ -10,7 +55,8 @@ export interface WorkflowTemplate {
     description?: string;
     agentRole: AgentRole;
     agentId?: string; // specific agent like 'alice', 'bob'
-    timeoutSeconds: number; // Hard limit - workflow killed if exceeds this
+    timeoutSeconds: number;
+    model?: string; // Hard limit - workflow killed if exceeds this
     systemPrompt?: string;
     validationChecklist: string[];
     tags: string[];

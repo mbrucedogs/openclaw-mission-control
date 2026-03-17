@@ -259,7 +259,7 @@ function ensureDefaultMetadata(agents: DiscoveredAgent[]) {
         if ((!agent.mission || agent.mission === '') && defaults[id]) {
             agent.mission = defaults[id].mission!;
         }
-        if (agent.responsibilities.length === 0 && defaults[id]) {
+        if (agent.responsibilities?.length === 0 && defaults[id]) {
             agent.responsibilities = defaults[id].responsibilities!;
         }
     }

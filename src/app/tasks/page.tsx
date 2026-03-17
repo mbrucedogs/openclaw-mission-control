@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { TaskWorkflowSteps } from '@/components/TaskWorkflowSteps';
 import {
     Plus, Search, RefreshCcw, X, MessageSquare, FileText, Activity,
     AlertCircle, CheckCircle, Clock, Zap, Pencil, Trash2, ChevronRight,
     Paperclip, PlayCircle, CheckCircle2, RotateCcw, ArrowRightLeft,
-    Loader2, CheckSquare
+    Loader2, CheckSquare, GitBranch
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, Agent, Project, TaskComment, TaskActivity, TaskEvidence, CommentType } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -135,7 +136,7 @@ function getActivityColor(type: string) {
 
 // ─── Task Detail Modal ────────────────────────────────────────────────────────
 
-type DetailTab = 'overview' | 'comments' | 'activity' | 'evidence';
+type DetailTab = 'overview' | 'comments' | 'activity' | 'evidence' | 'pipeline';
 
 function TaskDetailModal({ task, onClose, onDeleted, onEdit }: { 
     task: Task; 
@@ -157,9 +158,9 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
         console.log('TaskDetailModal: Loading details for task:', task.id);
         try {
             const [cRes, aRes, eRes] = await Promise.all([
-                fetch(`/api/tasks/${task.id}/comments`),
-                fetch(`/api/tasks/${task.id}/activity`),
-                fetch(`/api/tasks/${task.id}/evidence`),
+                fetch(`/api/tasks/${task.id}/comments`, { credentials: "include" }),
+                fetch(`/api/tasks/${task.id}/activity`, { credentials: "include" }),
+                fetch(`/api/tasks/${task.id}/evidence`, { credentials: "include" }),
             ]);
             
             console.log('TaskDetailModal: Responses:', { 
@@ -215,6 +216,7 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
         try {
             const res = await fetch(`/api/tasks/${task.id}/comments`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     content: newComment, 
@@ -237,7 +239,7 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
         if (!confirm('Are you sure you want to delete this task?')) return;
         setIsDeleting(true);
         try {
-            await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+            await fetch(`/api/tasks/${task.id}`, { method: 'DELETE', credentials: 'include' });
             onDeleted();
             onClose();
         } catch (err) {
@@ -327,6 +329,7 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
                         {tabButton('comments', 'Comments', <MessageSquare className="w-3.5 h-3.5" />, comments.length)}
                         {tabButton('activity', 'Activity', <Clock className="w-3.5 h-3.5" />, activity.length)}
                         {tabButton('evidence', 'Evidence', <Paperclip className="w-3.5 h-3.5" />, evidence.length)}
+                        {tabButton('pipeline', 'Pipeline', <GitBranch className="w-3.5 h-3.5" />)}
                     </div>
                 </div>
 
@@ -580,6 +583,20 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
                                     )}
                                 </div>
                             )}
+                            {activeTab === 'pipeline' && (
+                                <div className="space-y-4">
+                                    {task.validationCriteria?._pipelineId && (
+                                        <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <GitBranch className="w-4 h-4 text-blue-400" />
+                                                <h3 className="text-sm font-bold text-white">Pipeline</h3>
+                                            </div>
+                                            <p className="text-xs text-slate-400">{task.validationCriteria._pipelineId}</p>
+                                        </div>
+                                    )}
+                                    <TaskWorkflowSteps taskId={task.id} />
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
@@ -701,12 +718,13 @@ function TaskCard({ task, onMoved, onClick }: { task: Task; onMoved: () => void;
 
 // ─── New Task Modal ────────────────────────────────────────────────────────────
 
-function TaskFormModal({ task, onClose, onSaved, agents, projects }: {
+function TaskFormModal({ task, onClose, onSaved, agents, projects, pipelines }: {
     task?: Task;
     onClose: () => void;
     onSaved: () => void;
     agents: Agent[];
     projects: Project[];
+    pipelines: any[];
 }) {
     const [title, setTitle] = useState(task?.title || '');
     const [description, setDescription] = useState(task?.description || '');
@@ -716,16 +734,18 @@ function TaskFormModal({ task, onClose, onSaved, agents, projects }: {
     const [priority, setPriority] = useState<Priority>((task?.priority as Priority) || 'normal');
     const [doneMeans, setDoneMeans] = useState(task?.validationCriteria?.doneMeans || '');
     const [checklist, setChecklist] = useState(task?.validationCriteria?.checklist?.join('\n') || '');
+    const [pipelineId, setPipelineId] = useState<string>(task?.validationCriteria?._pipelineId || '');
     const [loading, setLoading] = useState(false);
 
     const submit = async () => {
         if (!title.trim()) return;
         setLoading(true);
         
-        const validationCriteria = doneMeans || checklist ? {
+        const validationCriteria = {
             doneMeans: doneMeans || 'Task completed',
             checklist: checklist.split('\n').filter(s => s.trim()),
-        } : undefined;
+            ...(pipelineId && { _pipelineId: pipelineId }),
+        };
 
         const url = task ? `/api/tasks/${task.id}` : '/api/tasks';
         const method = task ? 'PATCH' : 'POST';
@@ -831,6 +851,19 @@ function TaskFormModal({ task, onClose, onSaved, agents, projects }: {
                         </div>
                     </div>
 
+                    <div>
+                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Pipeline</label>
+                        <select
+                            value={pipelineId}
+                            onChange={e => setPipelineId(e.target.value)}
+                            className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-slate-600"
+                        >
+                            <option value="">— Auto-detect —</option>
+                            {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <p className="text-[10px] text-slate-500 mt-1">Leave empty to auto-detect based on task description</p>
+                    </div>
+
                     <div className="p-3 bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg space-y-3">
                         <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Validation Criteria</p>
                         <div>
@@ -896,6 +929,7 @@ export default function TasksPage() {
     const [activity, setActivity] = useState<any[]>([]);
     const [agents, setAgents] = useState<Agent[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
+    const [pipelines, setPipelines] = useState<any[]>([]);
     const [ownerFilter, setOwnerFilter] = useState<string>('all');
     const [projectFilter, setProjectFilter] = useState<string>('all');
     const [showNewTask, setShowNewTask] = useState(false);
@@ -904,16 +938,18 @@ export default function TasksPage() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const load = useCallback(async () => {
-        const [t, a, ag, pr] = await Promise.all([
+        const [t, a, ag, pr, pl] = await Promise.all([
             fetch('/api/tasks').then(r => r.json()),
             fetch('/api/activity').then(r => r.json()),
             fetch('/api/agents').then(r => r.json()),
             fetch('/api/projects').then(r => r.json()),
+            fetch('/api/pipelines').then(r => r.json()),
         ]);
         setTasks(Array.isArray(t) ? t : []);
         setActivity(Array.isArray(a) ? a : []);
         setAgents(Array.isArray(ag) ? ag : []);
         setProjects(Array.isArray(pr) ? pr : []);
+        setPipelines(Array.isArray(pl) ? pl : []);
     }, []);
 
     useEffect(() => { load(); }, [load]);
@@ -1089,6 +1125,7 @@ export default function TasksPage() {
                     onSaved={load}
                     agents={agents}
                     projects={projects}
+                    pipelines={pipelines}
                 />
             )}
             

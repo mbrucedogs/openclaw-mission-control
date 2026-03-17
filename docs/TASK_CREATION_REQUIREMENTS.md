@@ -301,7 +301,160 @@ curl -X POST http://localhost:4000/api/tasks \
 
 ---
 
+## Pipeline Steps (NEW - Automatic)
+
+**What:** When a task is created with a pipeline, steps are automatically generated from the pipeline definition.
+
+**How it works:**
+1. Task created → Pipeline matched (based on keywords)
+2. Steps auto-created from pipeline workflow sequence
+3. Each step tracks: status, agent, evidence, deliverables
+4. Task CANNOT be marked complete until ALL steps are complete
+
+**Example Pipeline Steps:**
+```
+Task: Research YouTube video
+├── Step 1: Research [PENDING] → Alice
+│   └── Download transcript, extract key content
+├── Step 2: Document [PENDING] → Alice  
+│   └── Create summary, save to Mission Control
+└── Step 3: Review [PENDING] → Aegis
+    └── Validate document, approve or reject
+```
+
+**Step Status Flow:**
+- `pending` → `in-progress` → `complete` | `failed` | `blocked`
+
+**API for Steps:**
+```bash
+# Get all steps for task
+GET /api/tasks/{task-id}/steps
+
+# Start step
+POST /api/tasks/{task-id}/steps/{step-id}
+{ "action": "start" }
+
+# Complete step (REQUIRES evidence)
+POST /api/tasks/{task-id}/steps/{step-id}
+{
+  "action": "complete",
+  "passFail": "pass",
+  "evidenceIds": ["ev-123"],
+  "deliverables": ["Document 19"],
+  "completionNotes": "Transcript downloaded, summary created"
+}
+
+# Fail step
+POST /api/tasks/{task-id}/steps/{step-id}
+{
+  "action": "fail",
+  "blockers": "Could not access video"
+}
+```
+
+---
+
+## Task Completion Blocker (NEW - Enforced)
+
+**Rule:** Task CANNOT be marked `Complete` if:
+1. Any steps are NOT `complete` (pending, in-progress, blocked)
+2. Any steps are `failed`
+3. Evidence is missing from completed steps
+
+**API Response if Blocked:**
+```json
+{
+  "error": "Cannot complete task with incomplete steps",
+  "incompleteSteps": [
+    { "stepNumber": 2, "workflowName": "Document", "status": "pending" }
+  ],
+  "message": "Task has 1 incomplete step(s). Complete all steps before marking task done."
+}
+```
+
+**Orchestrator Responsibility:**
+- Validate each step before marking complete
+- Ensure evidence attached to each step
+- Only mark task complete when ALL steps done
+
+---
+
+## Step-Level Evidence Requirements
+
+**Each step MUST have:**
+1. **Evidence attached via API** - File path or URL
+2. **Completion comment** - Posted by the agent
+3. **Deliverables listed** - What was produced
+4. **Pass/fail status** - For review steps
+
+**Evidence Checklist Per Step:**
+- [ ] Evidence record created via `/api/tasks/{id}/evidence`
+- [ ] Evidence type correct (document|code|test|screenshot|link)
+- [ ] File path uses `{DOCUMENTS_ROOT}` format
+- [ ] Description explains what was delivered
+- [ ] Agent name in `addedBy` field
+- [ ] Completion comment posted to task
+
+---
+
+## Orchestrator 5-Phase Protocol (REQUIRED)
+
+**Every task MUST go through all 5 phases:**
+
+### Phase 1: Route
+- Read task completely (title, description, validationCriteria)
+- Determine correct agent from pipeline step
+- Spawn agent with full context
+- Update task to "In Progress"
+
+### Phase 2: Monitor  
+- Wait for agent to complete
+- Poll for activity/comments
+- Check for stuck agents (>20 min no activity)
+
+### Phase 3: Validate
+- Check evidence attached via API
+- Verify files in DOCUMENTS_ROOT
+- Confirm checklist items complete
+- **REJECT if anything missing**
+
+### Phase 4: Complete
+- Mark step complete via API
+- Attach step evidence
+- Handoff to next agent (if more steps)
+
+### Phase 5: Report
+- Tell user task is complete
+- Include evidence locations
+- Reference document IDs
+
+**Critical Rule:** "Spawned" ≠ "Done". Spawning is Phase 1 of 5.
+
+---
+
+## Updated Quick Checklist (Before Creating Task)
+
+- [ ] Task description is clear and specific
+- [ ] Input is fully specified
+- [ ] Deliverables are numbered and verifiable
+- [ ] Save location uses {DOCUMENTS_ROOT}
+- [ ] Evidence API call format included
+- [ ] Tools listed with availability checks
+- [ ] Fallback plan provided
+- [ ] Validation checklist included
+- [ ] File naming follows conventions
+- [ ] Agent knows who to ask for help
+- [ ] **Pipeline steps will be auto-created**
+- [ ] **Each step requires evidence before completion**
+- [ ] **Task blocked until all steps complete**
+
+---
+
 **Document Location:** `alex-mission-control/docs/TASK_CREATION_REQUIREMENTS.md`
-**Last Updated:** 2026-03-16
+**Last Updated:** 2026-03-17
 **Applies To:** All tasks created by Orchestrator
-**See Also:** ORCHESTRATION.md (pipeline logic), README.md (getting started)
+**See Also:** 
+- ORCHESTRATION.md (full system docs)
+- TASK_WORKFLOW_STEPS.md (step tracking API)
+- PIPELINE_PROTOCOL.md (5-phase protocol)
+- README.md (getting started)

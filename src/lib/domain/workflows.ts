@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { WorkflowTemplate, Pipeline, PipelineStep, TaskPipeline, PipelineMatchResult } from '../types/workflows';
+import { WorkflowTemplate, Pipeline, PipelineStep, TaskPipeline, PipelineMatchResult, AgentRole } from '../types/workflows';
 
 // ============================================================================
 // WORKFLOW TEMPLATES
@@ -175,10 +175,13 @@ export function matchPipelineToTask(title: string, description?: string): Pipeli
     for (const pipeline of pipelines) {
         if (text.includes(pipeline.name.toLowerCase())) {
             incrementPipelineUse(pipeline.id);
+            // Steps from DB have snake_case keys
+            const steps = pipeline.steps as any[];
             return {
                 matched: true,
                 pipelineId: pipeline.id,
                 pipelineName: pipeline.name,
+                workflowIds: steps.map(s => s.workflow_id || s.workflowId),
                 isDynamic: false,
                 confidence: 0.9,
                 reason: `Matched pipeline name: ${pipeline.name}`,
@@ -200,10 +203,13 @@ export function matchPipelineToTask(title: string, description?: string): Pipeli
             const pipeline = pipelines.find(p => p.name === pipelineName);
             if (pipeline) {
                 incrementPipelineUse(pipeline.id);
+                // Steps from DB have snake_case keys
+                const steps = pipeline.steps as any[];
                 return {
                     matched: true,
                     pipelineId: pipeline.id,
                     pipelineName: pipeline.name,
+                    workflowIds: steps.map(s => s.workflow_id || s.workflowId),
                     isDynamic: false,
                     confidence: 0.85,
                     reason: `Matched pattern: ${pattern}`,
@@ -425,7 +431,7 @@ export function createWorkflow(input: {
         id,
         name: input.name,
         description: input.description,
-        agentRole: input.agentRole,
+        agentRole: input.agentRole as AgentRole,
         agentId: input.agentId,
         timeoutSeconds: input.timeoutSeconds || 30,
         model: input.model || 'gemini-2.5-flash',
@@ -522,4 +528,206 @@ export function saveDynamicPipelineAsTemplate(taskId: string, name: string, desc
         .run(pipeline.id, taskId);
     
     return pipeline;
+}
+
+
+// ============================================================================
+// TASK WORKFLOW STEP CRUD
+// Full audit trail for each step in a pipeline
+// ============================================================================
+
+import { TaskWorkflowStep } from '../types/workflows';
+
+export function createTaskWorkflowStep(input: {
+    taskId: string;
+    stepNumber: number;
+    workflowId: string;
+    workflowName: string;
+    agentId: string;
+    agentName?: string;
+    nextStepId?: string;
+}): TaskWorkflowStep {
+    const now = new Date().toISOString();
+    const id = 'step-' + Math.random().toString(36).substring(2, 10);
+    
+    db.prepare(`
+        INSERT INTO task_workflow_steps (
+            id, task_id, step_number, workflow_id, workflow_name, agent_id, agent_name,
+            status, evidence_ids, deliverables, next_step_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        id,
+        input.taskId,
+        input.stepNumber,
+        input.workflowId,
+        input.workflowName,
+        input.agentId,
+        input.agentName || null,
+        'pending',
+        '[]',
+        '[]',
+        input.nextStepId || null,
+        now,
+        now
+    );
+    
+    return getTaskWorkflowStepById(id)!;
+}
+
+export function getTaskWorkflowStepById(id: string): TaskWorkflowStep | null {
+    const row = db.prepare('SELECT * FROM task_workflow_steps WHERE id = ?').get(id) as any;
+    if (!row) return null;
+    
+    return hydrateTaskWorkflowStep(row);
+}
+
+export function getTaskWorkflowSteps(taskId: string): TaskWorkflowStep[] {
+    const rows = db.prepare('SELECT * FROM task_workflow_steps WHERE task_id = ? ORDER BY step_number').all(taskId) as any[];
+    return rows.map(hydrateTaskWorkflowStep);
+}
+
+export function getCurrentTaskWorkflowStep(taskId: string): TaskWorkflowStep | null {
+    const row = db.prepare(`
+        SELECT * FROM task_workflow_steps 
+        WHERE task_id = ? AND status IN ('pending', 'in-progress', 'blocked')
+        ORDER BY step_number 
+        LIMIT 1
+    `).get(taskId) as any;
+    
+    if (!row) return null;
+    return hydrateTaskWorkflowStep(row);
+}
+
+export function startTaskWorkflowStep(id: string): TaskWorkflowStep | null {
+    const now = new Date().toISOString();
+    
+    db.prepare(`
+        UPDATE task_workflow_steps 
+        SET status = 'in-progress', started_at = ?, updated_at = ?
+        WHERE id = ?
+    `).run(now, now, id);
+    
+    return getTaskWorkflowStepById(id);
+}
+
+export function completeTaskWorkflowStep(
+    id: string, 
+    input: {
+        evidenceIds?: string[];
+        deliverables?: string[];
+        completionNotes?: string;
+        passFail?: 'pass' | 'fail';
+        validatedBy?: string;
+        validationNotes?: string;
+        handoffNotes?: string;
+    }
+): TaskWorkflowStep | null {
+    const step = getTaskWorkflowStepById(id);
+    if (!step) return null;
+    
+    const now = new Date().toISOString();
+    const startedAt = step.startedAt ? new Date(step.startedAt) : new Date(now);
+    const completedAt = new Date(now);
+    const durationMinutes = Math.round((completedAt.getTime() - startedAt.getTime()) / 60000);
+    
+    db.prepare(`
+        UPDATE task_workflow_steps 
+        SET status = 'complete',
+            completed_at = ?,
+            duration_minutes = ?,
+            evidence_ids = ?,
+            deliverables = ?,
+            completion_notes = ?,
+            pass_fail = ?,
+            validated_by = ?,
+            validation_notes = ?,
+            handoff_notes = ?,
+            updated_at = ?
+        WHERE id = ?
+    `).run(
+        now,
+        durationMinutes,
+        JSON.stringify(input.evidenceIds || []),
+        JSON.stringify(input.deliverables || []),
+        input.completionNotes || null,
+        input.passFail || null,
+        input.validatedBy || null,
+        input.validationNotes || null,
+        input.handoffNotes || null,
+        now,
+        id
+    );
+    
+    return getTaskWorkflowStepById(id);
+}
+
+export function failTaskWorkflowStep(
+    id: string,
+    input: {
+        blockers?: string;
+        questions?: string;
+    }
+): TaskWorkflowStep | null {
+    const now = new Date().toISOString();
+    
+    db.prepare(`
+        UPDATE task_workflow_steps 
+        SET status = 'failed',
+            blockers = ?,
+            questions = ?,
+            updated_at = ?
+        WHERE id = ?
+    `).run(
+        input.blockers || null,
+        input.questions || null,
+        now,
+        id
+    );
+    
+    return getTaskWorkflowStepById(id);
+}
+
+export function blockTaskWorkflowStep(
+    id: string,
+    blockers: string
+): TaskWorkflowStep | null {
+    const now = new Date().toISOString();
+    
+    db.prepare(`
+        UPDATE task_workflow_steps 
+        SET status = 'blocked',
+            blockers = ?,
+            updated_at = ?
+        WHERE id = ?
+    `).run(blockers, now, id);
+    
+    return getTaskWorkflowStepById(id);
+}
+
+function hydrateTaskWorkflowStep(row: any): TaskWorkflowStep {
+    return {
+        id: row.id,
+        taskId: row.task_id,
+        stepNumber: row.step_number,
+        workflowId: row.workflow_id,
+        workflowName: row.workflow_name,
+        agentId: row.agent_id,
+        agentName: row.agent_name,
+        status: row.status,
+        startedAt: row.started_at,
+        completedAt: row.completed_at,
+        durationMinutes: row.duration_minutes,
+        evidenceIds: row.evidence_ids ? JSON.parse(row.evidence_ids) : [],
+        deliverables: row.deliverables ? JSON.parse(row.deliverables) : [],
+        completionNotes: row.completion_notes,
+        blockers: row.blockers,
+        questions: row.questions,
+        validatedBy: row.validated_by,
+        validationNotes: row.validation_notes,
+        passFail: row.pass_fail,
+        nextStepId: row.next_step_id,
+        handoffNotes: row.handoff_notes,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
 }
