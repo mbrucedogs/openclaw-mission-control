@@ -175,16 +175,25 @@ interface PipelineStep {
 
 ### Dynamic Assembly Logic
 
-| Keyword Detected | Workflow Added |
-|-----------------|----------------|
-| research, investigate, analyze | wf-research |
-| build, implement, create, code | wf-build |
-| fix, bug, quick | wf-quick-fix |
-| document, readme, docs | wf-document |
-| test, qa, verify | wf-test |
-| automate, script, cron | wf-automate |
+| Keyword Detected | Workflow Added | Agent Role |
+|-----------------|----------------|------------|
+| **Research:** research, investigate, analyze, study, extract, summarize, explore, discover, find out, look into, survey, compare, evaluate | wf-research | researcher |
+| **Design:** design, ui, ux, wireframe, mockup, prototype | wf-design | designer |
+| **Build:** build, implement, create code, write code, develop, code, program, engineer, construct, architect | wf-build | builder |
+| **Refactor:** refactor, restructure, reorganize, clean up code | wf-refactor | builder |
+| **Quick Fix:** fix, bug, patch, resolve, repair, debug, correct, address + quick | wf-quick-fix | builder |
+| **Document:** document, readme, docs, write, explain, describe, guide, manual, tutorial, wiki | wf-document | researcher |
+| **Test:** test, qa, check, ensure, confirm + run tests, verify, validate | wf-test | tester |
+| **Performance:** optimize, improve performance, speed up, performance, efficiency | wf-perf | builder |
+| **Security:** secure, security audit, vulnerability, pen test, security review | wf-security | researcher |
+| **Migrate:** migrate, migration, port, upgrade | wf-migrate | builder |
+| **Deploy:** deploy, release, publish, ship, launch | wf-deploy | builder |
+| **Configure:** configure, setup, provision, install | wf-config | automation |
+| **Automate:** automate, script, cron, bot, pipeline, workflow automation | wf-automate | automation |
 
 **Always adds:** `wf-review` at the end (unless explicitly skipped)
+
+**Note:** Keywords are checked in priority order. A task can trigger multiple workflows (e.g., "Research and build" = Research → Build → Review).
 
 ### API Endpoints
 

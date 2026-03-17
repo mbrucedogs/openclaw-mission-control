@@ -220,15 +220,27 @@ function assembleDynamicPipeline(text: string): PipelineMatchResult {
     const workflowIds: string[] = [];
     const reasons: string[] = [];
     
-    // Check if this is primarily a research task
+    // Check if this is primarily a research task (expanded keywords)
     const isResearchTask = text.includes('research') || text.includes('investigate') || 
                           text.includes('analyze') || text.includes('study') ||
-                          text.includes('extract') || text.includes('summarize');
+                          text.includes('extract') || text.includes('summarize') ||
+                          text.includes('explore') || text.includes('discover') ||
+                          text.includes('find out') || text.includes('look into') ||
+                          text.includes('survey') || text.includes('compare') ||
+                          text.includes('evaluate');
     
-    // Check if this is primarily a documentation task  
+    // Check if this is primarily a documentation task (expanded keywords)
     const isDocTask = text.includes('document') || text.includes('readme') || 
                      text.includes('docs') || text.includes('write') ||
-                     text.includes('create summary') || text.includes('document findings');
+                     text.includes('create summary') || text.includes('document findings') ||
+                     text.includes('explain') || text.includes('describe') ||
+                     text.includes('guide') || text.includes('manual') ||
+                     text.includes('tutorial') || text.includes('wiki');
+    
+    // Check if this is a design task (UI/UX)
+    const isDesignTask = text.includes('design') || text.includes('ui') || 
+                        text.includes('ux') || text.includes('wireframe') ||
+                        text.includes('mockup') || text.includes('prototype');
     
     // Determine which workflows are needed
     if (isResearchTask) {
@@ -236,23 +248,43 @@ function assembleDynamicPipeline(text: string): PipelineMatchResult {
         reasons.push('research detected');
     }
     
+    // Design workflow (separate from research/build)
+    if (isDesignTask && !isResearchTask) {
+        workflowIds.push('wf-design');
+        reasons.push('design detected');
+    }
+    
     // Only add build if explicitly building/coding (not just researching implementation)
     // Must have explicit build keywords AND not be research-only
     const hasExplicitBuild = text.includes('build ') || text.includes('create code') || 
                             text.includes('write code') || text.includes('develop feature') ||
-                            text.includes('implement feature') || text.includes('build component');
+                            text.includes('implement feature') || text.includes('build component') ||
+                            text.includes('develop') || text.includes('code ') ||
+                            text.includes('program') || text.includes('engineer') ||
+                            text.includes('construct') || text.includes('architect');
     
     if (hasExplicitBuild && !isResearchTask) {
         workflowIds.push('wf-build');
         reasons.push('build detected');
     }
     
-    // Quick fix - only if explicitly fixing something
-    if ((text.includes('fix') || text.includes('bug')) && text.includes('quick')) {
-        if (!workflowIds.includes('wf-build')) {
-            workflowIds.push('wf-quick-fix');
-            reasons.push('quick fix detected');
-        }
+    // Refactor workflow
+    const isRefactor = text.includes('refactor') || text.includes('restructure') ||
+                      text.includes('reorganize') || text.includes('clean up code');
+    if (isRefactor && !isResearchTask) {
+        workflowIds.push('wf-refactor');
+        reasons.push('refactor detected');
+    }
+    
+    // Quick fix - only if explicitly fixing something (expanded keywords)
+    const isQuickFix = (text.includes('fix') || text.includes('bug') || 
+                       text.includes('patch') || text.includes('resolve') ||
+                       text.includes('repair') || text.includes('debug') ||
+                       text.includes('correct') || text.includes('address')) && 
+                       text.includes('quick');
+    if (isQuickFix && !workflowIds.includes('wf-build') && !workflowIds.includes('wf-refactor')) {
+        workflowIds.push('wf-quick-fix');
+        reasons.push('quick fix detected');
     }
     
     // Documentation - add if creating docs (separate from research)
@@ -266,15 +298,65 @@ function assembleDynamicPipeline(text: string): PipelineMatchResult {
         reasons.push('documentation detected');
     }
     
-    // Test - only for actual testing/QA work
-    if ((text.includes('test') || text.includes('qa')) && 
-        (text.includes('run tests') || text.includes('verify') || text.includes('validate'))) {
+    // Test - expanded keywords
+    const isTest = (text.includes('test') || text.includes('qa') || 
+                   text.includes('check') || text.includes('ensure') ||
+                   text.includes('confirm')) && 
+                   (text.includes('run tests') || text.includes('verify') || 
+                    text.includes('validate') || text.includes('check'));
+    if (isTest) {
         workflowIds.push('wf-test');
         reasons.push('testing detected');
     }
     
-    // Automation - only for actual automation work
-    if (text.includes('automate') || text.includes('script') || text.includes('cron')) {
+    // Performance optimization
+    const isPerf = text.includes('optimize') || text.includes('improve performance') ||
+                   text.includes('speed up') || text.includes('performance') ||
+                   text.includes('efficiency');
+    if (isPerf && !isResearchTask) {
+        workflowIds.push('wf-perf');
+        reasons.push('performance optimization detected');
+    }
+    
+    // Security audit/review
+    const isSecurity = text.includes('secure') || text.includes('security audit') ||
+                       text.includes('vulnerability') || text.includes('pen test') ||
+                       text.includes('security review');
+    if (isSecurity) {
+        workflowIds.push('wf-security');
+        reasons.push('security detected');
+    }
+    
+    // Migration
+    const isMigrate = text.includes('migrate') || text.includes('migration') ||
+                      text.includes('port') || text.includes('upgrade');
+    if (isMigrate && !isResearchTask) {
+        workflowIds.push('wf-migrate');
+        reasons.push('migration detected');
+    }
+    
+    // Deployment/Release
+    const isDeploy = text.includes('deploy') || text.includes('release') ||
+                     text.includes('publish') || text.includes('ship') ||
+                     text.includes('launch');
+    if (isDeploy && !isResearchTask) {
+        workflowIds.push('wf-deploy');
+        reasons.push('deployment detected');
+    }
+    
+    // Configuration/Setup
+    const isConfig = text.includes('configure') || text.includes('setup') ||
+                      text.includes('provision') || text.includes('install');
+    if (isConfig && !isResearchTask) {
+        workflowIds.push('wf-config');
+        reasons.push('configuration detected');
+    }
+    
+    // Automation - expanded
+    const isAutomate = text.includes('automate') || text.includes('script') || 
+                       text.includes('cron') || text.includes('bot') ||
+                       text.includes('pipeline') || text.includes('workflow automation');
+    if (isAutomate) {
         workflowIds.push('wf-automate');
         reasons.push('automation detected');
     }
