@@ -700,11 +700,22 @@ Once you're set up, verify you can orchestrate:
 
 ---
 
-**Last Updated:** 2026-03-16
-**Version:** 2.1
-**Purpose:** Starting point for Primary AIs learning to orchestrate
-**Changes:** Added dynamic pipeline assembly, agent monitoring, task lifecycle API reference, explicit "NEVER do the work" rule
+## 📚 Documentation Index
+
+| Document | Purpose | Read When |
+|----------|---------|-----------|
+| **README.md** (this file) | Starting point, critical rules | First |
+| **ORCHESTRATION.md** | Full system docs, pipeline logic | After README |
+| **TASK_CREATION_REQUIREMENTS.md** | Required fields for every task | Before creating tasks |
+| **QUICKSTART.md** | Installation and setup | Setting up new instance |
 
 ---
 
-**Now: Ask your user the Setup Checklist questions above, then proceed to read ORCHESTRATION.md.**
+**Last Updated:** 2026-03-16
+**Version:** 2.2
+**Purpose:** Starting point for Primary AIs learning to orchestrate
+**Changes:** Added dynamic pipeline assembly, agent monitoring, task lifecycle API reference, explicit "NEVER do the work" rule, documentation index
+
+---
+
+**Now: Ask your user the Setup Checklist questions above, then proceed to read ORCHESTRATION.md and TASK_CREATION_REQUIREMENTS.md.**

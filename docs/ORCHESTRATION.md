@@ -76,6 +76,9 @@ Before approving ANY handoff, you MUST verify:
 | **Wrong File Location** | Files saved to wrong directory instead of DOCUMENTS_ROOT | Verify DOCUMENTS_ROOT. Reject if files in wrong location. |
 | **You Added Comments For Agent** | Agent didn't post findings, so you added comment for them | Make agent post their own findings. Reject if they don't. |
 | **Task Marked Complete Without Validation** | Task went to Complete with no evidence, no comments, no activity | Validate ALL checklist items before marking Complete. |
+| **Task Missing Requirements** | Task created without DOCUMENTS_ROOT, evidence format, or tool requirements | **See TASK_CREATION_REQUIREMENTS.md** - required fields checklist |
+
+**⚠️ CRITICAL:** Before creating ANY task, read [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) for the complete template and required fields.
 
 ### Spawn Commands (Example)
 
