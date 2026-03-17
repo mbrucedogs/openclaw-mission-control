@@ -5,7 +5,7 @@ import { Agent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { 
     X, Search, Code, TestTube, Shield, Zap, User, 
-    ChevronRight, Target, Activity, Cpu 
+    ChevronRight, Target, Activity, Cpu, Users 
 } from 'lucide-react';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 
@@ -31,8 +31,21 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
     const automationAgents = agents.filter(a => a.layer === 'automation').sort((a, b) => (a.order || 0) - (b.order || 0));
 
     return (
-        <>
-            <div className="space-y-24 relative pb-20">
+        <div className="flex flex-col h-full bg-[#0a0a0a]">
+            {/* Page Header */}
+            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+                <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                        <Users className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Agent Registry</h1>
+                        <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Authorized autonomous agents and human coordinators</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-12 pb-20 relative">
                 {/* Governance Layer */}
                 {governanceAgents.length > 0 && (
                     <div className="flex flex-col items-center space-y-8">
@@ -90,7 +103,7 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
             {selectedAgent && (
                 <RoleCardModal agent={selectedAgent} onClose={() => setSelectedAgent(null)} />
             )}
-        </>
+        </div>
     );
 }
 
@@ -127,7 +140,7 @@ function AgentCard({ agent, highlight, badge, onClick }: { agent: Agent, highlig
             </p>
 
             <div className="flex flex-wrap gap-1.5 mb-8">
-                {agent.responsibilities.map((chip, i) => (
+                {agent.responsibilities?.map((chip, i) => (
                     <span key={i} className="px-2 py-1 bg-blue-500/5 text-blue-400/80 text-[9px] font-bold uppercase tracking-widest rounded border border-blue-500/10">
                         {chip}
                     </span>
@@ -208,7 +221,7 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Capabilities</span>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {agent.responsibilities.map((r, i) => (
+                                    {agent.responsibilities?.map((r, i) => (
                                         <div key={i} className="flex items-center space-x-4 p-4 bg-[#111113] border border-[#1a1a1f] rounded-2xl group hover:border-blue-500/30 transition-colors">
                                             <div className="w-2 h-2 rounded-full bg-blue-500/20 group-hover:bg-blue-500 transition-colors" />
                                             <span className="text-sm font-medium text-slate-300">{r}</span>
@@ -225,14 +238,14 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                     <div className="flex space-x-6">
                         <div className="flex flex-col">
                             <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">Layer</span>
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">{agent.layer}</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">{agent.layer ?? 'N/A'}</span>
                         </div>
                         <div className="flex flex-col">
                             <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">Status</span>
                             <span className={cn(
                                 "text-xs font-bold uppercase tracking-tight",
-                                agent.status === 'idle' ? "text-emerald-500" : "text-amber-500"
-                            )}>{agent.status}</span>
+                                (agent.status === 'idle' || !agent.status) ? "text-emerald-500" : "text-amber-500"
+                            )}>{agent.status ?? 'idle'}</span>
                         </div>
                     </div>
                     <button 

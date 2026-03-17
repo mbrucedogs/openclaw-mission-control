@@ -10,7 +10,8 @@ import {
     Maximize2,
     Clock,
     LayoutGrid,
-    CalendarDays
+    CalendarDays,
+    Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CronExpressionParser } from 'cron-parser';
@@ -87,11 +88,17 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
     });
 
     return (
-        <div className="max-w-[1400px] p-12 space-y-8">
+        <div className="flex flex-col h-full bg-[#0a0a0a]">
+            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
             <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-black text-white mb-1">Scheduled Tasks</h1>
-                    <p className="text-[13px] font-bold text-slate-500">System automated routines</p>
+                <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
+                        <Calendar className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Calendar</h1>
+                        <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Scheduled tasks and system routines</p>
+                    </div>
                 </div>
                 <div className="flex items-center space-x-2">
                     <div className="bg-[#101010] border border-[#1a1a1a] rounded-lg p-1 flex space-x-1">
@@ -116,7 +123,9 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
                     </div>
                 </div>
             </div>
+        </div>
 
+        <div className="flex-1 overflow-y-auto px-12 pb-20 relative">
             {alwaysRunning.length > 0 && (
                 <div className="bg-[#0c0c0e] border border-[#1a1a1a] rounded-2xl p-6">
                     <div className="flex items-center space-x-4 mb-6">
@@ -173,7 +182,8 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
                 })}
             </div>
         </div>
-    );
+    </div>
+);
 }
 
 function RunningTag({ name, interval, active }: { name: string, interval: string, active?: boolean }) {

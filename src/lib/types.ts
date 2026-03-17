@@ -152,6 +152,11 @@ export interface Agent {
     role: string;
     mission?: string;
     status?: string;
+    layer?: string;
+    order?: number;
+    responsibilities?: string[];
+    folder?: string;
+    soulContent?: string;
 }
 
 export interface Project {
@@ -160,4 +165,13 @@ export interface Project {
     description?: string;
     status: string;
     progress: number;
+}
+
+export interface ScheduleJob {
+    id: string;
+    name: string;
+    cron?: string;
+    nextRunAt?: string;
+    lastRunAt?: string;
+    status?: string;
 }

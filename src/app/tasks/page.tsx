@@ -5,7 +5,7 @@ import {
     Plus, Search, RefreshCcw, X, MessageSquare, FileText, Activity,
     AlertCircle, CheckCircle, Clock, Zap, Pencil, Trash2, ChevronRight,
     Paperclip, PlayCircle, CheckCircle2, RotateCcw, ArrowRightLeft,
-    Loader2
+    Loader2, CheckSquare
 } from 'lucide-react';
 import { Task, TaskStatus, Priority, Agent, Project, TaskComment, TaskActivity, TaskEvidence, CommentType } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -946,7 +946,18 @@ export default function TasksPage() {
         <div className="flex h-full overflow-hidden">
             {/* Left: Kanban */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex-shrink-0 px-10 pt-8 pb-0">
+                <div className="flex-shrink-0 px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
+                            <CheckSquare className="w-6 h-6 text-blue-400" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Task Matrix</h1>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Operational objectives and agent execution logs</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="px-12">
                     <div className="flex items-center gap-10 mb-6">
                         <div className="flex items-baseline gap-2">
                             <span className="text-3xl font-black text-blue-500">{stats.inProgress}</span>

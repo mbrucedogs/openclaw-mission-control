@@ -95,16 +95,23 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
         <div className="flex h-screen relative bg-[#09090b] text-slate-200 overflow-hidden">
             {/* Left Sidebar */}
             <aside className="w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20">
-                <div className="p-6 space-y-6 flex flex-col h-full overflow-hidden">
+                <div className="px-6 py-6 border-b border-[#1a1a1a] bg-[#09090b] flex-shrink-0">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-xl font-black text-white tracking-tighter">MEMORIES</h2>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Neural Logs & Journals</p>
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.05)]">
+                                <Brain className="w-4 h-4 text-purple-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] leading-none">Memories</h2>
+                                <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-wider opacity-70">Logs & Journals</p>
+                            </div>
                         </div>
                         <button onClick={() => window.location.reload()} className="p-2 hover:bg-[#1a1a1a] rounded-xl transition-all text-slate-500 hover:text-indigo-400">
                             <RefreshCw className="w-4 h-4" />
                         </button>
                     </div>
+                </div>
+                <div className="p-6 space-y-6 flex flex-col h-full overflow-hidden">
 
                     {/* Search */}
                     <div className="relative flex-shrink-0 group">
@@ -212,35 +219,39 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
             {/* Main Content Area */}
             <main className="flex-1 bg-[#000] overflow-y-auto relative custom-scrollbar p-10">
                 {selectedItem ? (
-                    <div className="max-w-4xl mx-auto py-10">
-                        <div className="flex items-center justify-between mb-10">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl text-indigo-500">
-                                    <Calendar className="w-6 h-6" />
+                    <div className="flex-1 flex flex-col">
+                        <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-10">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.05)]">
+                                        <Brain className="w-6 h-6 text-purple-400" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">{selectedItem.id}</h1>
+                                        <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">
+                                            {new Date(selectedItem.timestamp).toLocaleDateString('en-US', {
+                                                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                                            })}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h1 className="text-3xl font-black text-white tracking-tight">{selectedItem.id}</h1>
-                                    <p className="text-[12px] font-bold text-slate-600 uppercase tracking-widest mt-1">
-                                        {new Date(selectedItem.timestamp).toLocaleDateString('en-US', {
-                                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-                                        })}
-                                    </p>
-                                </div>
+                                <button
+                                    onClick={() => setFullscreen(true)}
+                                    className="flex items-center gap-2 px-4 py-2 bg-[#101010] hover:bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
+                                >
+                                    <Maximize2 className="w-3.5 h-3.5" />
+                                    Expand View
+                                </button>
                             </div>
-                            <button 
-                                onClick={() => setFullscreen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-[#101010] hover:bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
-                            >
-                                <Maximize2 className="w-3.5 h-3.5" />
-                                Expand View
-                            </button>
                         </div>
 
-                        <div className="prose prose-invert max-w-none">
-                             <MarkdownRenderer 
-                                content={selectedItem.content} 
-                                preview={false}
-                            />
+                        <div className="px-12 max-w-4xl">
+                            <div className="prose prose-invert max-w-none">
+                                 <MarkdownRenderer 
+                                    content={selectedItem.content} 
+                                    preview={false}
+                                />
+                            </div>
                         </div>
                     </div>
                 ) : (

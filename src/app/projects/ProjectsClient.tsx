@@ -55,34 +55,25 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
     }
 
     return (
-        <div className="max-w-[1400px] p-12 space-y-10">
-            <div className="flex items-center space-x-6">
-                <div className="bg-[#101010] border border-[#1a1a1a] p-3 rounded-2xl text-emerald-500">
-                    <LayoutGrid className="w-6 h-6" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-black text-white mb-1">Projects</h1>
-                    <div className="flex items-center space-x-4 text-[13px] font-bold text-slate-500">
-                        <span>{projects.length} total</span>
-                        <span className="opacity-30">•</span>
-                        <span>{activeCount} active</span>
-                        {holdCount > 0 && (
-                            <>
-                                <span className="opacity-30">•</span>
-                                <span>{holdCount} on hold</span>
-                            </>
-                        )}
-                        {completedCount > 0 && (
-                            <>
-                                <span className="opacity-30">•</span>
-                                <span>{completedCount} completed</span>
-                            </>
-                        )}
+        <div className="flex flex-col h-full bg-[#0a0a0a]">
+            {/* Header Section */}
+            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+                <div className="flex items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                        <LayoutGrid className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Active Domains</h1>
+                        <div className="flex items-center space-x-3 text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider">
+                            <span>{projects.length} nodes</span>
+                            <span className="opacity-30">•</span>
+                            <span>{activeCount} active</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-12 pb-20">
                 {projects.map((project) => {
                     const taskCount = project.taskIds.length;
                     return (

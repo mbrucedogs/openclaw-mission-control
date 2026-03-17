@@ -6,6 +6,7 @@ const execAsync = promisify(exec);
 const API_URL = 'http://127.0.0.1:4000/api/tasks';
 const ACTIVITY_URL = 'http://127.0.0.1:4000/api/activity';
 const POLL_INTERVAL_MS = 15000;
+const API_KEY = process.env.API_KEY || 'ab7b2a5c2d931b9092784ce71e879138d92108c90fd8e6899a4c5e3fc0d89429';
 
 // Internal mission control owners mapped to actual OpenClaw CLI agent IDs
 const AGENT_MAP: Record<string, string> = {
@@ -23,7 +24,9 @@ const processedTasks = new Map<string, string>();
 
 async function fetchTasks() {
     try {
-        const res = await fetch(API_URL);
+        const res = await fetch(API_URL, {
+            headers: { 'X-API-Key': API_KEY }
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.json() as any[];
     } catch (err) {
@@ -36,7 +39,10 @@ async function logActivity(message: string, actor: string) {
     try {
         await fetch(ACTIVITY_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-API-Key': API_KEY
+            },
             body: JSON.stringify({ message, actor, type: 'trigger' })
         });
     } catch (err) {

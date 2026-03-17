@@ -279,16 +279,23 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
         <div className="flex h-screen relative bg-[#09090b] text-slate-200">
             {/* Left Sidebar */}
             <aside className="w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20">
-                <div className="p-6 space-y-6 flex flex-col h-full overflow-hidden">
+                <div className="px-6 py-6 border-b border-[#1a1a1a] bg-[#09090b] flex-shrink-0">
                     <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-xl font-black text-white tracking-tighter">DOCUMENTS</h2>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Knowledge Base & Workspace</p>
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.05)]">
+                                <FileText className="w-4 h-4 text-blue-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] leading-none">Documents</h2>
+                                <p className="text-[9px] font-bold text-slate-500 mt-1 uppercase tracking-wider opacity-70">Doc Repository</p>
+                            </div>
                         </div>
                         <button onClick={mode === 'repo' ? loadRepoDocs : () => switchViewerRoot(viewerRoot)} className="p-2 hover:bg-[#1a1a1a] rounded-xl transition-all text-slate-500 hover:text-indigo-400">
                             <RefreshCw className="w-4 h-4" />
                         </button>
                     </div>
+                </div>
+                <div className="p-6 space-y-6 flex flex-col h-full overflow-hidden">
 
                     {/* Mode Toggle */}
                     <div className="flex bg-[#101010] border border-[#1a1a1a] rounded-2xl p-1 flex-shrink-0">
@@ -503,31 +510,30 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                 "flex-1 bg-[#000] overflow-y-auto relative custom-scrollbar transition-all duration-500",
                 fullscreen && "fixed inset-0 z-50 bg-[#000]"
             )}>
-                {/* Header Actions */}
-                <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-xl border-b border-[#1a1a1a] px-10 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        {fullscreen && (
-                            <div className="flex items-center gap-3 pr-4 border-r border-[#1a1a1a]">
-                                <h1 className="text-lg font-black text-white tracking-tight">
-                                    {mode === 'viewer' ? selectedViewerFile?.title : repoDetail?.title}
-                                </h1>
+                {/* Header Section */}
+                <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-xl border-b border-[#1a1a1a] px-12 py-10 bg-[#09090b] mb-8">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
+                                <FileText className="w-6 h-6 text-blue-400" />
                             </div>
-                        )}
-                        <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">
-                            {mode === 'viewer' ? 'WORKPLACE FILE' : 'KNOWLEDGE BASE'}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={() => setFullscreen(!fullscreen)} 
-                            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white px-4 py-2 rounded-xl bg-[#101010] border border-[#1a1a1a] hover:border-slate-700 transition-all"
-                        >
-                            {fullscreen ? (
-                                <><Minimize2 className="w-3.5 h-3.5" /> COLLAPSE</>
-                            ) : (
-                                <><Maximize2 className="w-3.5 h-3.5" /> EXPAND VIEW</>
-                            )}
-                        </button>
+                            <div>
+                                <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Knowledge Base</h1>
+                                <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">System documentation and research logs</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button 
+                                onClick={() => setFullscreen(!fullscreen)} 
+                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white px-4 py-2 rounded-xl bg-[#101010] border border-[#1a1a1a] hover:border-slate-700 transition-all"
+                            >
+                                {fullscreen ? (
+                                    <><Minimize2 className="w-3.5 h-3.5" /> COLLAPSE</>
+                                ) : (
+                                    <><Maximize2 className="w-3.5 h-3.5" /> EXPAND VIEW</>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -560,7 +566,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                     )}
 
                     {mode === 'viewer' && !selectedViewerFile && (
-                        <div className="h-[60vh] flex flex-col items-center justify-center text-center">
+                        <div className="h-[60vh] flex flex-col items-center justify-center text-center px-12 pb-20">
                             <div className="w-24 h-24 bg-[#0a0a0c] rounded-[40px] flex items-center justify-center mb-8 border border-[#1a1a1a] shadow-inner">
                                 <FolderOpen className="w-10 h-10 text-slate-800" />
                             </div>
@@ -571,7 +577,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
 
                     {/* ─── Repo View ───────────────────────────────────────────── */}
                     {mode === 'repo' && editing && (
-                        <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+                        <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500 px-12 pb-20">
                             <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-8">
                                 <div>
                                     <h2 className="text-3xl font-black text-white tracking-tighter italic">
@@ -668,7 +674,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                     )}
 
                     {mode === 'repo' && !editing && repoDetail && (
-                        <div className="space-y-16 animate-in fade-in duration-700">
+                        <div className="space-y-16 animate-in fade-in duration-700 px-12 pb-20">
                             <div className="space-y-8">
                                 <div className="flex items-start justify-between">
                                     <div className="space-y-6 flex-1">
@@ -770,7 +776,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                     )}
 
                     {mode === 'repo' && !editing && !repoDetail && (
-                        <div className="h-[60vh] flex flex-col items-center justify-center text-center">
+                        <div className="h-[60vh] flex flex-col items-center justify-center text-center px-12 pb-20">
                             <div className="w-24 h-24 bg-[#0a0a0c] rounded-[40px] flex items-center justify-center mb-8 border border-[#1a1a1a] shadow-inner">
                                 <RefreshCw className="w-10 h-10 text-slate-800" />
                             </div>

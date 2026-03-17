@@ -171,25 +171,30 @@ export function OfficeClient({ agents }: { agents: any[] }) {
 
     return (
         <div className="flex flex-col h-screen relative overflow-hidden">
-            {/* Top Demo Bar */}
-            <div className="h-16 border-b border-[#1a1a1a] bg-[#0c0c0e] flex items-center justify-between px-8 z-10">
-                <div className="flex items-center space-x-4">
-                    <div className="w-8 h-8 bg-purple-600/20 border border-purple-500/30 rounded-lg flex items-center justify-center">
-                        <Sparkles className="w-4 h-4 text-purple-400" />
+            {/* Unified Header */}
+            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+                            <Monitor className="w-6 h-6 text-amber-500" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Command Center</h1>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Real-time agent orchestration and HQ monitoring</p>
+                        </div>
                     </div>
-                    <span className="text-xs font-black text-slate-300 uppercase tracking-widest">Demo Controls</span>
-                </div>
 
-                <div className="flex items-center space-x-2">
-                    <ControlBtn icon={Monitor} label="Reset Desks" color="text-emerald-400" onClick={handleReset} />
-                    <ControlBtn icon={Users} label="Gather" color="text-blue-400" onClick={handleGather} />
-                    <ControlBtn icon={Waves} label="Watercooler" color="text-cyan-400" onClick={handleWatercooler} />
+                    <div className="flex items-center space-x-2">
+                        <ControlBtn icon={Monitor} label="Reset Desks" color="text-emerald-400" onClick={handleReset} />
+                        <ControlBtn icon={Users} label="Gather" color="text-blue-400" onClick={handleGather} />
+                        <ControlBtn icon={Waves} label="Watercooler" color="text-cyan-400" onClick={handleWatercooler} />
+                    </div>
                 </div>
             </div>
 
-            <div className="flex flex-1 min-h-0 relative">
+            <div className="flex flex-1 min-h-0 relative px-12 pb-20">
                 {/* Main 2D Floor Plan Area */}
-                <div className="flex-1 bg-black relative p-6 overflow-hidden flex items-center justify-center">
+                <div className="flex-1 bg-black relative overflow-hidden flex items-center justify-center">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(26,26,26,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(26,26,26,0.3)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
                     {/* The Map Container */}
