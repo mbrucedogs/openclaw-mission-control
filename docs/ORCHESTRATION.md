@@ -515,13 +515,14 @@ Routes/validates/orchestrates
 ### Why This Matters
 
 **Without this design:**
-- your Primary AI wakes every 5 minutes
+- your Primary AI wakes every 2 minutes (cloud model)
 - Burns cloud tokens 24/7
-- ~288 wakes/day × token cost = $$$$
+- ~720 wakes/day × token cost = $$$$
 
 **With this design:**
 - Tron monitors every 2 minutes (local = free)
 - your Primary AI only wakes when there's actual work
+- Maybe 10-20 wakes/day × token cost = $
 - Maybe 10-20 wakes/day × token cost = $
 
 ### Implementation
