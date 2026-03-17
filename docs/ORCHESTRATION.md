@@ -345,8 +345,8 @@ the Primary AI should be configured as the orchestrator:
 
 ```json
 {
-  "id": "max",
-  "name": "Max",
+  "id": "primary-ai",
+  "name": "Primary AI",
   "role": "orchestrator",
   "responsibilities": [
     "Analyze tasks and match to pipelines",
@@ -397,7 +397,7 @@ When connecting to an existing OpenClaw setup:
 
 - Check task title/description for keywords
 - Verify workflow templates exist
-- Review MAX's matching logic
+- Review the Orchestrator's matching logic
 
 ### Agent not spawning?
 

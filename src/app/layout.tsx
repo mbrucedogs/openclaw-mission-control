@@ -28,13 +28,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const username = process.env.AUTH_USER || 'Admin';
+
   return (
     <html lang="en" className="dark">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white selection:bg-blue-500/30`}
       >
         <div className="flex h-screen overflow-hidden">
-          <Sidebar />
+          <Sidebar username={username} />
           <main className="flex-1 overflow-y-auto">
               {children}
           </main>

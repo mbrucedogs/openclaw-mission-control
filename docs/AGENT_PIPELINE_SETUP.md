@@ -48,10 +48,10 @@ Configure these agents in your OpenClaw `openclaw.json`:
       "description": "Automation and scripting"
     },
     {
-      "id": "max",
-      "name": "Max",
+      "id": "primary-ai",
+      "name": "Primary AI",
       "role": "orchestrator",
-      "description": "Primary AI - manages pipeline execution"
+      "description": "System Orchestrator - manages pipeline execution"
     }
   ]
 }
@@ -84,7 +84,7 @@ Configure these agents in your OpenClaw `openclaw.json`:
 - **Tasks:** Create scripts, automation, cron jobs
 - **Skills:** Scripting, automation, system integration
 
-### Max (Orchestrator / Primary AI)
+### Primary AI (Orchestrator)
 - **Role:** Pipeline conductor, not musician
 - **Responsibilities:**
   - Analyzes tasks and matches to pipelines

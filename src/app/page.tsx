@@ -59,10 +59,6 @@ export default function DashboardPage() {
 
           <div className="flex items-center space-x-4">
             <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-6 flex flex-col items-center">
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Supervisor</span>
-              <span className="text-xl font-black text-white">MAX</span>
-            </div>
-            <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-6 flex flex-col items-center">
               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Status</span>
               <span className="text-xl font-black text-emerald-500">NOMINAL</span>
             </div>

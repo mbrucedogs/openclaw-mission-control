@@ -123,10 +123,6 @@ export default function LoginPage() {
                     </div>
                 </div>
 
-                {/* Global Message */}
-                <div className="absolute -bottom-20 left-0 right-0 text-center">
-                    <p className="text-[10px] font-bold text-slate-600 italic">"Supervisor MAX is monitoring all access attempts"</p>
-                </div>
             </div>
 
             {/* Floating Terminal Snippets for Vibe */}

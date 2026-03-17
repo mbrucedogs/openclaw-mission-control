@@ -30,7 +30,7 @@ The system now natively supports your "Durable Orchestration" requirements:
 3. **Evidence-Based Execution**: Deep links to artifacts/markdown plans are integrated directly into task cards.
 4. **Retry Control**: Automatic retry counting (R:N) is visible on tasks that encounter issues.
 5. **Stuck-Task Recovery**: Red-alert "Stuck" state with visual triangle warnings for tasks lagging in the pipeline.
-6. **Supervisor Logic**: "Supervisor Hub" activity feed provides Max's oversight stream, with special "Supervisor Notes" fields on task cards.
+6. **Orchestrator Logic**: "Supervisor Hub" activity feed provides system oversight stream, with special "Orchestrator Notes" fields on task cards.
 
 ### 🚀 Port Configuration
 The app is running on **port 4000**.
@@ -49,7 +49,7 @@ npm run dev # Running on http://localhost:4000
 ### 🔐 Security & Authentication
 - **High-Fidelity Login**: A premium obsidian-themed login screen with biometric-style verification.
 - **Route Protection**: Next.js Middleware prevents unauthorized access to all dashboard routes.
-- **Max Oversight**: The login process is branded with "Supervisor Max" monitoring.
+- **Oversight**: The login process is branded with system monitoring.
 - **Logout Flow**: Integrated logout button in the bottom sidebar for secure session termination.
 
 #### 🔑 Credentials
@@ -72,7 +72,7 @@ Expected a secure entry point for the application. This plan added a high-fideli
 - Create a premium, obsidian-themed login screen.
 - Features:
   - Biometric-style interaction/animations.
-  - "Max" supervisor greeting.
+  - Orchestrator greeting.
   - Secure input fields.
 
 **[NEW] Middleware**

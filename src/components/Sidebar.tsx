@@ -40,8 +40,9 @@ const navigation = [
     { name: 'Team', href: '/team', icon: Users },
 ];
 
-export function Sidebar() {
+export function Sidebar({ username = 'Admin' }: { username?: string }) {
     const pathname = usePathname();
+    const initials = username.slice(0, 2).toUpperCase();
 
     return (
         <div className="flex flex-col w-64 border-r border-[#1a1a1a] bg-[#09090b] h-screen text-slate-400">
@@ -81,12 +82,12 @@ export function Sidebar() {
 
             <div className="p-4 border-t border-[#1a1a1a] flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center">
-                        <span className="text-[10px] font-black text-white">MA</span>
+                    <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-white/5">
+                        <span className="text-[10px] font-black text-white">{initials}</span>
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[11px] font-bold text-white uppercase tracking-tight">Supervisor Max</span>
-                        <span className="text-[9px] font-black text-slate-600 uppercase">Master Admin</span>
+                        <span className="text-[11px] font-bold text-white uppercase tracking-tight">{username}</span>
+                        <span className="text-[9px] font-black text-slate-600 uppercase tracking-tighter">Authorized Session</span>
                     </div>
                 </div>
                 <button

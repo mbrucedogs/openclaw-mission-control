@@ -868,6 +868,11 @@ OPENCLAW_CONFIG=~/.openclaw/openclaw.json
 # Server
 PORT=4000
 NODE_ENV=development
+
+# Security
+AUTH_USER=admin
+AUTH_PASS=your_secure_password_here
+API_KEY=your_secure_api_key_here
 ```
 
 ---
@@ -910,17 +915,20 @@ Database auto-initializes on first run with all tables and default data.
 
 ### 12.2 API Testing
 
+Note: All API requests require the `X-API-Key` header.
+
 ```bash
 # Create task
 curl -X POST http://localhost:4000/api/tasks \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your_api_key_here" \
   -d '{"title":"Test task"}'
 
 # List workflows
-curl http://localhost:4000/api/workflows
+curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/workflows
 
 # List pipelines
-curl http://localhost:4000/api/pipelines
+curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/pipelines
 ```
 
 ---
