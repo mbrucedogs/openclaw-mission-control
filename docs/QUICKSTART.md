@@ -12,10 +12,15 @@ npm install
 
 ### 2. Database Setup
 
-Database auto-initializes on first run with:
-- 7 built-in workflows
-- 5 built-in pipelines
-- All required tables
+Database auto-initializes on first run with required tables only. **Workflows and pipelines are created dynamically** when the Primary AI (Max) processes the first task. This ensures workflows match your actual configured agents.
+
+**On first task:**
+- Max discovers your agents from TEAM-REGISTRY.md
+- Creates workflows for each agent role
+- Creates pipelines linking those workflows
+- Then matches the task to the appropriate pipeline
+
+See [ORCHESTRATION.md#part-4-fresh-install--dynamic-workflow-creation](./ORCHESTRATION.md) for details.
 
 ### 3. Configure OpenClaw
 
