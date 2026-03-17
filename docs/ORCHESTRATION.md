@@ -1,5 +1,7 @@
 # Orchestration System Documentation
 
+> **Quick Reference:** See [KNOWLEDGE_INDEX.md](./KNOWLEDGE_INDEX.md) for trigger phrases, critical facts, and document map.
+
 ## Overview
 
 The openclaw-mission-control orchestration system uses a **hybrid pipeline model** that combines:
