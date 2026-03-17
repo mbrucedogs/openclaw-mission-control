@@ -136,13 +136,13 @@ interface WorkflowTemplate {
 ```
 
 **Built-in Workflows:**
-- `wf-research` - Alice investigates and documents
-- `wf-build` - Bob implements code/features
-- `wf-quick-fix` - Bob fixes bugs quickly
-- `wf-test` - Charlie runs QA
-- `wf-review` - Aegis approves/rejects
-- `wf-document` - Alice writes documentation
-- `wf-automate` - Tron creates automation
+- `wf-research` - Sam investigates and documents
+- `wf-build` - Dana implements code/features
+- `wf-quick-fix` - Dana fixes bugs quickly
+- `wf-test` - Dana runs QA
+- `wf-review` - Jordan approves/rejects
+- `wf-document` - Sam writes documentation
+- `wf-automate` - Taylor creates automation
 
 #### Pipelines
 
@@ -341,3 +341,4 @@ See `examples/openclaw-workspace/` for complete generic setup with Leo/Sam/Dana.
 **Version:** 2.0
 **Maintainer:** the Primary AI (Primary AI Orchestrator)
 **Changes:** Merged ORCHESTRATION.md + ORCHESTRATION_GUIDE.md, added validation checklist, common failures, evidence requirements
+**See Also:** [examples/openclaw-workspace/](../examples/openclaw-workspace/) - Complete working example with Leo/Sam/Dana/Jordan

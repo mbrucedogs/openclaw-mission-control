@@ -22,9 +22,18 @@ Access at `http://localhost:4000`
 
 ## Documentation
 
-- **[QUICKSTART.md](./docs/QUICKSTART.md)** - Get up and running in 5 minutes
-- **[ORCHESTRATION.md](./docs/ORCHESTRATION.md)** - Full orchestration system documentation
-- **[AGENT_PIPELINE_SETUP.md](./docs/AGENT_PIPELINE_SETUP.md)** - Agent configuration guide
+### System Documentation
+- **[docs/README.md](./docs/README.md)** - **START HERE** - Knowledge index and navigation
+- **[docs/QUICKSTART.md](./docs/QUICKSTART.md)** - Get up and running in 5 minutes
+- **[docs/ORCHESTRATION.md](./docs/ORCHESTRATION.md)** - Full orchestration system documentation
+
+### Your Team Setup (in workspace)
+- **AGENT_PIPELINE_SETUP.md** (workspace root) - Your specific agent configuration
+- **TEAM_GOVERNANCE.md** (workspace root) - Handoff rules and validation
+- **TEAM-REGISTRY.md** (workspace root) - Agent registry and spawn commands
+
+### For New Teams
+- **[examples/openclaw-workspace/](./examples/openclaw-workspace/)** - Complete generic template
 
 ## Core Concepts
 

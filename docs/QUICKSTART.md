@@ -19,20 +19,26 @@ Database auto-initializes on first run with:
 
 ### 3. Configure OpenClaw
 
-Ensure your OpenClaw `openclaw.json` has these agents:
+Copy the example agent configuration:
+
+```bash
+cp examples/openclaw-workspace/openclaw.json.example ~/.openclaw/openclaw.json
+```
+
+Or manually configure agents in your OpenClaw `openclaw.json`:
 
 ```json
 {
   "agents": [
-    { "id": "alice", "name": "Alice", "role": "researcher" },
-    { "id": "bob", "name": "Bob", "role": "builder" },
-    { "id": "charlie", "name": "Charlie", "role": "tester" },
-    { "id": "aegis", "name": "Aegis", "role": "reviewer" },
-    { "id": "tron", "name": "Tron", "role": "automation" },
-    { "id": "primary-ai", "name": "Primary AI", "role": "orchestrator" }
+    { "id": "leo-lead", "name": "Leo", "agentDir": "agents/leo-lead" },
+    { "id": "sam-scout", "name": "Sam", "agentDir": "agents/sam-scout" },
+    { "id": "dana-dev", "name": "Dana", "agentDir": "agents/dana-dev" },
+    { "id": "jordan-review", "name": "Jordan", "agentDir": "agents/jordan-review" }
   ]
 }
 ```
+
+See `examples/openclaw-workspace/` for complete agent templates.
 
 ### 4. Start the Webapp
 
@@ -47,7 +53,7 @@ Access at: `http://localhost:4000`
 1. Go to **Orchestration** → **Workflows** - should see 7 workflows
 2. Go to **Orchestration** → **Pipelines** - should see 5 pipelines
 3. Create a test task: "Research something"
-4. Check task has owner (alice) and pipeline assigned
+4. Check task has owner (sam) and pipeline assigned
 
 ## Existing OpenClaw Session
 
