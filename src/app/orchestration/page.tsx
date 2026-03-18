@@ -378,12 +378,19 @@ function WorkflowForm({ workflow, onSave, onCancel, isSaving }: {
                         required
                     >
                         <option value="">Select an agent...</option>
-                        {agents.map(agent => (
+                        {agents.filter(a => a.type).map(agent => (
                             <option key={agent.id} value={agent.id}>
                                 {agent.name} ({agent.role})
                             </option>
                         ))}
                     </select>
+                    {agents.some(a => !a.type) && (
+                        <p className="text-[9px] text-amber-500 mt-2 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Some agents are missing System Types. 
+                            <a href="/team" className="underline ml-1 font-bold">Manage Agents in Team Registry</a>
+                        </p>
+                    )}
                     {selectedAgent && (
                         <p className="text-[10px] text-slate-500 mt-1">
                             Uses model: {selectedAgent.model || 'Default'}

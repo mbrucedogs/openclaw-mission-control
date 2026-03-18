@@ -27,6 +27,32 @@ export function discoverAgents(): DiscoveredAgent[] {
     // 1. Parse Registry Table
     const agents = parseRegistryTable(registryContent);
 
+    // 1.5. Check for Primary Agent (Max) in Workspace Root
+    const rootSoulPath = path.join(WORKSPACE_ROOT, 'soul.md');
+    const rootIdentityPath = path.join(WORKSPACE_ROOT, 'identity.md');
+    
+    if (fs.existsSync(rootSoulPath) || fs.existsSync(rootIdentityPath)) {
+        const soulContent = fs.existsSync(rootSoulPath) ? fs.readFileSync(rootSoulPath, 'utf-8') : '';
+        const identityContent = fs.existsSync(rootIdentityPath) ? fs.readFileSync(rootIdentityPath, 'utf-8') : '';
+        
+        // Extract name/vibe from identity if possible
+        const nameMatch = identityContent.match(/Name:\*\*? (.*)/i) || identityContent.match(/- \*\*Name:\*\* (.*)/i);
+        const name = nameMatch ? nameMatch[1].trim() : 'Max';
+        
+        agents.unshift({
+            id: 'main',
+            name: name,
+            role: 'Primary Orchestrator & Companion',
+            mission: 'An autonomous organization of AI agents that does work for me and produces value 24/7',
+            status: 'idle',
+            responsibilities: ['Governance', 'Task Routing', 'System Monitoring', 'User Interaction'],
+            folder: '.',
+            soulContent: soulContent || identityContent,
+            layer: 'governance',
+            order: 0
+        });
+    }
+
     // 2. Load Global OpenClaw Config for Technical IDs
     const globalConfigPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
     if (fs.existsSync(globalConfigPath)) {
@@ -64,6 +90,9 @@ export function discoverAgents(): DiscoveredAgent[] {
             enrichAgentMetadata(agent, agentDir);
         }
     }
+
+    // 4. Determine Layers (Governance/Pipeline/Automation)
+    applyGovernance(agents, governanceContent);
 
     return agents;
 }

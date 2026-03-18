@@ -29,6 +29,7 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
     const governanceAgents = agents.filter(a => a.layer === 'governance').sort((a, b) => (a.order || 0) - (b.order || 0));
     const pipelineAgents = agents.filter(a => a.layer === 'pipeline').sort((a, b) => (a.order || 0) - (b.order || 0));
     const automationAgents = agents.filter(a => a.layer === 'automation').sort((a, b) => (a.order || 0) - (b.order || 0));
+    const unassignedAgents = agents.filter(a => !a.layer || (a.layer !== 'governance' && a.layer !== 'pipeline' && a.layer !== 'automation'));
 
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a]">
@@ -98,6 +99,25 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
 
                 {/* Vertical Lines */}
                 <div className="absolute top-48 left-1/2 -ml-px w-px h-[calc(100%-12rem)] bg-[#1a1a1a] -z-10" />
+
+                {/* Unassigned / Available Agents */}
+                {unassignedAgents.length > 0 && (
+                    <div className="mt-20 space-y-12">
+                        <div className="flex items-center justify-center space-x-4">
+                            <div className="h-px w-24 bg-amber-500/10" />
+                            <span className="text-[10px] font-black text-amber-500/60 uppercase tracking-[0.3em] flex items-center">
+                                UNASSIGNED AGENTS
+                            </span>
+                            <div className="h-px w-24 bg-amber-500/10" />
+                        </div>
+
+                        <div className="flex flex-wrap justify-center gap-6">
+                            {unassignedAgents.map(a => (
+                                <AgentCard key={a.id} agent={a} onClick={() => setSelectedAgent(a)} />
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {selectedAgent && (
@@ -109,15 +129,21 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
 
 function AgentCard({ agent, highlight, badge, onClick }: { agent: Agent, highlight?: string, badge?: string, onClick: () => void }) {
     const Icon = getAgentIcon(agent);
+    const isUnassigned = !agent.type || agent.type === '';
 
     return (
         <div 
             onClick={onClick}
             className={cn(
                 "w-[280px] bg-[#101010] border border-[#1a1a1a] rounded-3xl p-6 transition-all hover:border-slate-700 cursor-pointer group relative",
-                highlight
+                isUnassigned ? "border-amber-500/20 bg-amber-500/5 hover:border-amber-500/50" : highlight
             )}
         >
+            {isUnassigned && (
+                <div className="absolute -top-3 -right-3 px-3 py-1 bg-amber-500 text-black text-[9px] font-black uppercase tracking-widest rounded-full shadow-lg z-10">
+                    Setup Required
+                </div>
+            )}
             <div className="flex items-start space-x-4 mb-6">
                 <div className="w-12 h-12 bg-[#1a1a1a] rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
                     {typeof Icon === 'string' ? Icon : <Icon className="w-6 h-6 text-slate-400" />}
@@ -192,10 +218,22 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                 {/* Modal Content */}
                 <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
                     {/* Mission Section */}
-                    <div className="p-6 bg-blue-500/5 border border-blue-500/10 rounded-3xl">
-                        <div className="flex items-center space-x-2 mb-4">
-                            <Target className="w-4 h-4 text-blue-400" />
-                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.2em]">Core Mission</span>
+                    <div className={cn(
+                        "p-6 border rounded-3xl",
+                        !agent.type ? "bg-amber-500/10 border-amber-500/20" : "bg-blue-500/5 border-blue-500/10"
+                    )}>
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center space-x-2">
+                                <Target className={cn("w-4 h-4", !agent.type ? "text-amber-500" : "text-blue-400")} />
+                                <span className={cn("text-[10px] font-black uppercase tracking-[0.2em]", !agent.type ? "text-amber-500" : "text-blue-500")}>
+                                    {!agent.type ? "Identity Required" : "Core Mission"}
+                                </span>
+                            </div>
+                            {!agent.type && (
+                                <span className="text-[9px] font-black text-amber-600 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded italic">
+                                    Registration Pending
+                                </span>
+                            )}
                         </div>
                         <p className="text-base text-slate-300 font-medium leading-relaxed italic">
                             "{agent.mission}"
@@ -247,8 +285,16 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                                 (agent.status === 'idle' || !agent.status) ? "text-emerald-500" : "text-amber-500"
                             )}>{agent.status ?? 'idle'}</span>
                         </div>
-                        <div className="flex flex-col min-w-[140px]">
-                            <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">System Type</span>
+                        <div className={cn(
+                            "flex flex-col p-4 rounded-xl transition-all",
+                            !agent.type ? "bg-amber-500/10 border border-amber-500/30 ring-4 ring-amber-500/5" : "bg-[#111113] border border-[#1a1a1f]"
+                        )}>
+                            <span className={cn(
+                                "text-[9px] font-black uppercase tracking-widest mb-2",
+                                !agent.type ? "text-amber-500" : "text-slate-600"
+                            )}>
+                                {!agent.type ? "Step 1: Assign System Type" : "System Type"}
+                            </span>
                             <select 
                                 value={agent.type || ''} 
                                 onChange={async (e) => {
@@ -260,18 +306,20 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                                             body: JSON.stringify({ id: agent.id, type: newType })
                                         });
                                         if (response.ok) {
-                                            // Ideally we would refresh the parent state here, 
-                                            // but for now we just show it updated in the DB.
-                                            // In a real app we'd use a context or state management.
                                             window.location.reload(); 
                                         }
                                     } catch (err) {
                                         console.error('Failed to update agent type', err);
                                     }
                                 }}
-                                className="bg-[#111113] border border-[#1a1a1f] rounded-lg text-xs font-bold text-blue-400 uppercase tracking-tight px-2 py-1 outline-none hover:border-blue-500/30 transition-colors"
+                                className={cn(
+                                    "rounded-lg text-xs font-bold uppercase tracking-tight px-3 py-2 outline-none transition-all",
+                                    !agent.type 
+                                        ? "bg-amber-500 text-black hover:bg-amber-400 cursor-pointer" 
+                                        : "bg-[#0a0a0c] border border-[#1a1a1f] text-blue-400 hover:border-blue-500/30"
+                                )}
                             >
-                                <option value="">UNASSIGNED</option>
+                                <option value="" disabled={!!agent.type}>SELECT ROLE...</option>
                                 <option value="orchestrator">ORCHESTRATOR</option>
                                 <option value="researcher">RESEARCHER</option>
                                 <option value="builder">BUILDER</option>
