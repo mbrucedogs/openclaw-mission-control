@@ -44,7 +44,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Title is required' }, { status: 400 });
         }
 
-        // MAX: Match task to pipeline
+        // Orchestrator: Match task to pipeline
         const pipelineMatch = matchPipelineToTask(body.title, body.description);
         
         // Determine owner from pipeline

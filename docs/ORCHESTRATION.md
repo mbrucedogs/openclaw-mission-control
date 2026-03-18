@@ -8,11 +8,11 @@ The openclaw-mission-control orchestration system uses a **hybrid pipeline model
 
 1. **Predefined Workflows** - Reusable work templates for agents
 2. **Predefined Pipelines** - Sequences of workflows for common patterns
-3. **Dynamic Pipeline Assembly** - the Primary AI builds custom pipelines on-the-fly when no predefined match exists
+3. **Dynamic Pipeline Assembly** - The Orchestrator builds custom pipelines on-the-fly when no predefined match exists
 
 ---
 
-## Part 1: For Primary AIs (Orchestrators)
+## Part 1: For Orchestrators (Conductors)
 
 ### 🎭 Your Role: The Conductor
 
@@ -25,17 +25,17 @@ The openclaw-mission-control orchestration system uses a **hybrid pipeline model
 
 ### The Pipeline Flow (Example)
 
-**This is an example using the fake agent names from `examples/openclaw/workspace/`. Your workspace will have similar files with your own agent names.**
+**This is an example using the canon agent names from `examples/openclaw/workspace/`. Your workspace will have similar files with your own agent names.**
 
 ```
-User → You (Leo) → Sam (Researcher) → You → Dana (Builder) → You → Dana (Tester) → You → Jordan (Reviewer) → You → Done
+User → You (Leo) → Sam (Researcher) → You → Dana (Builder) → You → Jordan (Reviewer) → You → Done
 ```
 
 ### CRITICAL: Validation Checklist
 
 Before approving ANY handoff, you MUST verify:
 
-#### 0. Task Model Validation (NEW - CRITICAL)
+#### 0. Task Model Validation (MANDATORY)
 **Always check `task.validationCriteria` for structured requirements:**
 
 ```typescript
@@ -97,18 +97,6 @@ interface ValidationCriteria {
 - Assign back to the same agent
 - Do NOT proceed to next phase
 
-### Common Failures & Prevention
-
-| Failure | What Happened | Prevention |
-|---------|---------------|------------|
-| **You Did The Work** | Task assigned to Agent, but you executed skill directly | Always spawn the assigned agent. Never execute skills yourself. |
-| **Missing Evidence** | Agent completed work but didn't attach evidence via API | Validate evidence exists before approving. Reject if missing. |
-| **Wrong File Location** | Files saved to wrong directory instead of DOCUMENTS_ROOT | Verify DOCUMENTS_ROOT. Reject if files in wrong location. |
-| **You Added Comments For Agent** | Agent didn't post findings, so you added comment for them | Make agent post their own findings. Reject if they don't. |
-| **Task Marked Complete Without Validation** | Task went to Complete with no evidence, no comments, no activity | Validate ALL checklist items before marking Complete. |
-| **Task Missing Requirements** | Task created without DOCUMENTS_ROOT, evidence format, or tool requirements | **See TASK_CREATION_REQUIREMENTS.md** - required fields checklist |
-| **Orchestrator Abandoned Pipeline** | Orchestrator spawned agent then moved on without completing validation | **Follow the 5-Phase Protocol below. Never consider "spawned" as "done".** |
-
 ---
 
 ## 🔥 5-Phase Pipeline Orchestration Protocol (MANDATORY)
@@ -131,7 +119,7 @@ interface ValidationCriteria {
 
 ### Phase 3: Validate
 **Orchestrator Actions:**
-1. Check evidence attached via `GET /api/tasks/{id}?include=evidence`
+1. Check evidence attached via `GET /api/tasks/{id}?include=comments,activity,evidence`
 2. Verify files exist in correct location (DOCUMENTS_ROOT)
 3. Confirm all checklist items are complete
 4. **Reject if anything missing** - Send back to same agent with specific feedback
@@ -158,22 +146,22 @@ interface ValidationCriteria {
 | **Validate before reporting** | Never tell user "I spawned an agent" as if that's completion. |
 | **Reject incomplete work** | If evidence is missing, send it back. Don't complete on behalf of agents. |
 
-### When Tron Alerts You
+### When Automated Monitoring Alerts You
 
 1. Check `/api/agent-alerts` for pending alerts
 2. For each alert, execute the full 5-Phase Protocol
 3. Mark alert as acknowledged via API
 4. Report completion to user
 
-**Remember:** Tron detects work. You complete the pipeline. That's the division of labor.
+**Remember:** Monitoring detects work. You complete the pipeline. That's the division of labor.
 
 **⚠️ CRITICAL:** Before creating ANY task, read [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) for the complete template and required fields.
 
 ### Spawn Commands (Example)
 
-**These examples use the fake agent names from `examples/openclaw/workspace/`. Your workspace will have similar commands with your own agent names in your `agents/TEAM-REGISTRY.md`.**
+**These examples use the canon agent names from `examples/openclaw/workspace/`. Your workspace will have similar commands with your own agent names in your `agents/TEAM-REGISTRY.md`.**
 
-#### Sam (Researcher)
+#### Sam-Scout (Researcher)
 ```javascript
 sessions_spawn({
   task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Research\n\n**Your Mission:**\n[Research description]\n\n**Deliverables:**\n1. [Finding 1]\n2. [Finding 2]\n\n**Handoff:** When complete, post findings as comment, attach evidence via API, and I'll route to next phase.\n\n**Questions?** Ask Leo - monitoring this task.\n\nRead your SOUL.md at: agents/sam-scout/SOUL.md`,
@@ -182,7 +170,7 @@ sessions_spawn({
 })
 ```
 
-#### Dana (Builder)
+#### Dana-Dev (Builder)
 ```javascript
 sessions_spawn({
   task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Build\n\n**Your Mission:**\n[Implementation description]\n\n**Requirements:**\n- [ ] Req 1\n- [ ] Req 2\n\n**Handoff:** When complete, post summary, attach evidence via API, and I'll validate.\n\n**Questions?** Ask Leo.\n\nRead your SOUL.md at: agents/dana-dev/SOUL.md`,
@@ -191,16 +179,7 @@ sessions_spawn({
 })
 ```
 
-#### Dana (Tester)
-```javascript
-sessions_spawn({
-  task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Test\n\n**Your Mission:**\n[Testing description]\n\n**Requirements:**\n- [ ] Test 1\n- [ ] Test 2\n\n**Handoff:** Post test results, attach evidence, and I'll review.\n\nRead your SOUL.md at: agents/dana-dev/SOUL.md`,
-  label: "Dana-Test-[task-id]",
-  agentId: "main"
-})
-```
-
-#### Jordan (Reviewer)
+#### Jordan-Reviewer (Reviewer)
 ```javascript
 sessions_spawn({
   task: `TASK: [title]\n\nPipeline: [pipeline] - Step [N]/[total]\nCurrent Phase: Review\n\n**Your Mission:**\nValidate all deliverables meet requirements.\n\n**Evidence to Review:**\n- [Evidence 1]\n- [Evidence 2]\n\n**Handoff:** Approve or reject with specific reasons.\n\nRead your SOUL.md at: agents/jordan-review/SOUL.md`,
@@ -217,28 +196,28 @@ sessions_spawn({
 
 #### Workflows
 
-A **workflow** is a reusable definition of work for a specific agent:
+A **workflow** is a reusable definition of work for a specific agent role:
 
 ```typescript
 interface WorkflowTemplate {
   id: string;           // e.g., "wf-research"
   name: string;         // e.g., "Research"
   agentRole: string;    // researcher, builder, tester, reviewer, automation
-  agentId?: string;     // Specific agent (alice, bob, charlie, aegis, tron)
+  agentId?: string;     // Specific agent ID
   timeoutSeconds: number;  // Hard limit - workflow killed if exceeded
   systemPrompt?: string;   // Instructions for the agent
   validationChecklist: string[];  // What "done" means
 }
 ```
 
-**Built-in Workflows:**
+**Common Workflows:**
 - `wf-research` - Sam investigates and documents
 - `wf-build` - Dana implements code/features
 - `wf-quick-fix` - Dana fixes bugs quickly
-- `wf-test` - Dana runs QA
+- `wf-test` - Dana/Jordan runs QA
 - `wf-review` - Jordan approves/rejects
 - `wf-document` - Sam writes documentation
-- `wf-automate` - Taylor creates automation
+- `wf-automate` - Sam/Taylor creates automation
 
 #### Pipelines
 
@@ -249,7 +228,7 @@ interface Pipeline {
   id: string;
   name: string;
   steps: PipelineStep[];
-  isDynamic: boolean;  // true if the Primary AI assembled it
+  isDynamic: boolean;  // true if the Orchestrator assembled it
 }
 
 interface PipelineStep {
@@ -258,7 +237,7 @@ interface PipelineStep {
 }
 ```
 
-**Built-in Pipelines:**
+**Common Pipelines:**
 - `pl-standard` - Research → Build → Test → Review
 - `pl-quick-fix` - Quick Fix → Review
 - `pl-research` - Research → Review
@@ -302,7 +281,7 @@ PATCH  /api/tasks/:id          # Update task / handoff
 POST   /api/activity           # Post activity update
 ```
 
-#### Evidence (CRITICAL)
+#### Evidence (MANDATORY)
 ```
 POST   /api/tasks/:id/evidence # Attach evidence
 ```
@@ -322,7 +301,7 @@ Payload:
 #### Pipelines
 ```
 GET    /api/pipelines          # List pipelines
-POST   /api/pipelines          # Create new pipeline
+POST   /api/api/pipelines          # Create new pipeline
 ```
 
 ### Database Schema
@@ -378,21 +357,21 @@ CREATE TABLE task_pipelines (
 
 **See `examples/openclaw/workspace/` for a complete, working example you can copy and customize.**
 
-This example uses fake agent names (Leo, Sam, Dana, Jordan) to demonstrate the structure. When you set up your own workspace, you'll create similar files with your own agent names.
+This example uses the canon agent names (Leo, Sam, Dana, Jordan) to demonstrate the structure. When you set up your own workspace, you'll create similar files with your own agent names.
 
 ### Example Team Structure (from examples/openclaw/workspace/)
 
 | Agent | Role | Responsibilities |
 |-------|------|------------------|
-| **Leo** | Orchestrator | Routes tasks, validates work, manages handoffs |
-| **Sam** | Researcher | Information gathering, analysis, investigation |
-| **Dana** | Builder | Code implementation, feature development |
-| **Jordan** | Reviewer | Final approval, quality gate |
+| **Leo-Lead** | Orchestrator | Routes tasks, validates work, manages handoffs |
+| **Sam-Scout** | Researcher | Information gathering, analysis, investigation |
+| **Dana-Dev** | Builder | Code implementation, feature development |
+| **Jordan-Reviewer** | Reviewer | Final approval, quality gate |
 
 ### Example Workflow
 
 ```
-User → Leo → Sam (Research) → Leo → Dana (Build) → Leo → Dana (Test) → Leo → Jordan (Review) → Leo → Done
+User → Leo-Lead → Sam-Scout (Research) → Leo-Lead → Dana-Dev (Build) → Leo-Lead → Jordan-Reviewer (Review) → Leo-Lead → Done
 ```
 
 ### Example File Structure (from examples/openclaw/workspace/)
@@ -436,7 +415,7 @@ workspace/
 3. **Keep it simple** - 2-4 steps is usually enough
 4. **Name descriptively** - "Quick Fix" vs "Standard Build"
 
-### For Primary AIs
+### For Orchestrators (Conductors)
 1. **Prefer predefined** - Use existing pipelines when possible
 2. **Document dynamic** - Log why dynamic pipeline was chosen
 3. **Learn from success** - Save working dynamic patterns
@@ -475,7 +454,7 @@ On a fresh install of Mission Control:
 - Database tables exist but are **EMPTY**
 - No workflows created yet
 - No pipelines created yet
-- **I don't know what agents exist** (Alice? Bob? Sam? Dana?)
+- **I don't know what agents exist**
 
 ### The Solution: Runtime Workflow Creation
 
@@ -489,7 +468,7 @@ On a fresh install of Mission Control:
 ```
 First task arrives in Backlog
   ↓
-your Primary AI wakes up (cloud model)
+The Orchestrator wakes up
   ↓
 Check: Do workflows exist?
   ↓
@@ -505,19 +484,19 @@ Now match task to newly created pipeline
 **Step 1: Discover Agents**
 ```javascript
 // Read TEAM-REGISTRY.md or scan agents/ directory
-// Find: alice, bob, charlie, aegis, etc.
+// Find registered agents and their roles
 ```
 
 **Step 2: Create Workflows** (POST /api/workflows)
 | Workflow | Agent Role | Purpose |
 |------------|------------|---------|
-| `wf-research → Researcher (or whoever does research) | Investigation, analysis |
-| `wf-build → Builder (or whoever builds) | Implementation, coding |
-| `wf-quick-fix → Builder | Quick bug fixes |
-| `wf-test → Tester (or whoever tests) | QA, validation |
-| `wf-review → Reviewer (or whoever reviews) | Final approval |
-| `wf-document → Researcher | Documentation writing |
-| `wf-automate → Monitor | Automation scripts |
+| `wf-research` | Researcher | Investigation, analysis |
+| `wf-build` | Builder | Implementation, coding |
+| `wf-quick-fix` | Builder | Quick bug fixes |
+| `wf-test` | Tester | QA, validation |
+| `wf-review` | Reviewer | Final approval |
+| `wf-document` | Researcher | Documentation writing |
+| `wf-automate` | Automation | Automation scripts |
 
 **Step 3: Create Pipelines** (POST /api/pipelines)
 | Pipeline | Steps | Use When |
@@ -529,7 +508,7 @@ Now match task to newly created pipeline
 | `pl-automate` | Automate → Review | Scripts, cron jobs |
 
 **Step 4: Match Task**
-Now use `matchPipelineToTask()` with actual existing pipelines.
+Now use the matching logic with actual existing pipelines.
 
 ### Dynamic Assembly Fallback
 
@@ -565,73 +544,70 @@ This works immediately on fresh install without any DB setup.
 
 | Tier | Agent | Model | Cost | Responsibility |
 |------|-------|-------|------|----------------|
-| **Monitor** | Tron | Local (ollama/qwen3.5:35b-a3b) | **FREE** | Detect problems only |
-| **Orchestrator** | your Primary AI | Cloud (when needed) | Per-use | Solve problems, route tasks |
+| **Monitor** | Aiden (Automation Agent) | Local (free) | **FREE** | Detect problems only |
+| **Orchestrator** | Orchestrator | Cloud (when needed) | Per-use | Solve problems, route tasks |
 
 ### How It Works
 
 ```
-Tron (every 2 min, local model)
+Aiden (every 2 min, local model)
   ↓
 Checks Mission Control API
   ↓
 All agents working? → HEARTBEAT_OK (done, no cloud cost)
-Needs attention? → Wake your Primary AI
+Needs attention? → Wake the Orchestrator
   ↓
-your Primary AI (cloud model, only when needed)
+The Orchestrator (cloud model, only when needed)
   ↓
 Routes/validates/orchestrates
 ```
 
-### What Tron Checks
+### What Is Checked
 
 1. **Query tasks:** Backlog, In Progress, Review
 2. **Check agent activity:** Last comment/activity < 20 min?
 3. **Detect stuck tasks:** > 30 min no activity?
-4. **Decision:** Wake your Primary AI only if work needed
+4. **Decision:** Wake the Orchestrator only if work needed
 
-### Tron's Detection Rules
+### Detection Rules
 
 | Condition | Action |
 |-----------|--------|
-| BACKLOG task with no owner | Wake your Primary AI: "Task TASK-XXX needs routing" |
-| IN_PROGRESS but agent inactive (> 20 min) | Wake your Primary AI: "Task TASK-XXX assigned to Researcher appears stuck" |
-| REVIEW task waiting | Wake your Primary AI: "Task TASK-XXX needs validation" |
+| BACKLOG task with no owner | Wake the Orchestrator: "Task [ID] needs routing" |
+| IN_PROGRESS but agent inactive (> 20 min) | Wake the Orchestrator: "Task [ID] appears stuck" |
+| REVIEW task waiting | Wake the Orchestrator: "Task [ID] needs validation" |
 | All agents working | `HEARTBEAT_OK` - no wake |
 
 ### Why This Matters
 
 **Without this design:**
-- your Primary AI wakes every 2 minutes (cloud model)
+- The Orchestrator wakes every 2 minutes (cloud model)
 - Burns cloud tokens 24/7
 - ~720 wakes/day × token cost = $$$$
 
 **With this design:**
-- Tron monitors every 2 minutes (local = free)
-- your Primary AI only wakes when there's actual work
-- Maybe 10-20 wakes/day × token cost = $
+- Automation Agent monitors every 2 minutes (local = free)
+- The Orchestrator only wakes when there's actual work
 - Maybe 10-20 wakes/day × token cost = $
 
 ### Implementation
 
-**Cron Job:** `Tron Mission Control Monitor`
+**Cron Job:** `Mission Control Monitor`
 - **Schedule:** Every 2 minutes
-- **Model:** `ollama/qwen3.5:35b-a3b` (local)
-- **Action:** Detect only, report to your Primary AI
-- **Delivery:** Announce to webchat when your Primary AI needs to wake
+- **Model:** Local
+- **Action:** Detect only, report to the Orchestrator
+- **Delivery:** Announce when the Orchestrator needs to wake
 
 **Critical Rules:**
-1. Tron NEVER spawns agents
-2. Tron NEVER does the work
-3. Tron ONLY detects and reports
-4. your Primary AI ONLY wakes when Tron finds work
+3. Aiden ONLY detects and reports
+4. The Orchestrator ONLY wakes when Aiden finds work
 
 ### Anti-Pattern: Cloud Monitoring
 
 ❌ **DON'T DO THIS:**
 ```json
 {
-  "name": "your Primary AI Orchestrator Monitor",
+  "name": "Orchestrator Monitor",
   "schedule": "every 5 min",
   "model": "gpt-4o",  // CLOUD - burns tokens!
   "action": "Check tasks and orchestrate"
@@ -641,10 +617,10 @@ Routes/validates/orchestrates
 ✅ **DO THIS:**
 ```json
 {
-  "name": "Tron Mission Control Monitor",
+  "name": "Aiden Mission Control Monitor",
   "schedule": "every 2 min",
   "model": "ollama/qwen3.5:35b-a3b",  // LOCAL - free!
-  "action": "Detect problems, wake your Primary AI if needed"
+  "action": "Detect problems, wake the Orchestrator if needed"
 }
 ```
 
@@ -652,6 +628,6 @@ Routes/validates/orchestrates
 
 **Last Updated:** 2026-03-16
 **Version:** 2.2
-**Maintainer:** the Primary AI (Primary AI Orchestrator)
+**Maintainer:** The Orchestrator
 **Changes:** Added Part 4 - Fresh Install workflow, Part 5 - Automated Monitoring. Clarified dynamic workflow creation based on runtime agent discovery.
 **See Also:** [examples/openclaw/workspace/](../examples/openclaw/workspace/) - Complete working example with Leo/Sam/Dana/Jordan

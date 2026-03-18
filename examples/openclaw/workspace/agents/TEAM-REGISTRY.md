@@ -26,6 +26,7 @@
 | **Sam** | Research / Analysis | `agents/sam-scout/` | ✅ Ready | gpt-4 |
 | **Dana** | Build / Test | `agents/dana-dev/` | ✅ Ready | gpt-4 |
 | **Jordan** | Review / Quality Gate | `agents/jordan-review/` | ✅ Ready | gpt-4 |
+| **Aiden** | Automation / Monitoring | `agents/aiden-auto/` | ✅ Ready | local |
 
 ## Workflow
 
@@ -99,6 +100,9 @@ agents/
 │   └── AGENTS.md
 ├── jordan-review/
 │   ├── SOUL.md          # Reviewer personality
+│   └── AGENTS.md
+├── aiden-auto/
+│   ├── SOUL.md          # Automation personality
 │   └── AGENTS.md
 └── TEAM-REGISTRY.md     # This file
 ```

@@ -162,7 +162,7 @@ export function setTaskPipeline(taskId: string, matchResult: PipelineMatchResult
 }
 
 // ============================================================================
-// PIPELINE MATCHING LOGIC (MAX's brain)
+// PIPELINE MATCHING LOGIC (Orchestrator brain)
 // ============================================================================
 
 export function matchPipelineToTask(title: string, description?: string): PipelineMatchResult {

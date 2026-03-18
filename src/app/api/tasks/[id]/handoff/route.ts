@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const notes = body.notes ?? '';
 
         // Get pipeline from task metadata (stored in validationCriteria)
-        const pipeline: string[] = (task.validationCriteria as any)?._pipeline || ['alice', 'bob', 'charlie', 'aegis'];
+        const pipeline: string[] = (task.validationCriteria as any)?._pipeline || [];
         const currentStep = (task.validationCriteria as any)?._currentStep || pipeline.indexOf(fromAgent);
 
         let nextOwner: string | null;

@@ -154,6 +154,7 @@ export interface Agent {
     id: string;
     name: string;
     role: string;
+    type?: string;
     mission?: string;
     status?: string;
     layer?: string;

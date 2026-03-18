@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Agent } from '../types';
 
-const WORKSPACE_ROOT = '/Volumes/Data/openclaw/workspace';
+const WORKSPACE_ROOT = process.env.OPENCLAW_WORKSPACE || '/Volumes/Data/openclaw/workspace';
 
 export interface DiscoveredAgent extends Agent {
     folder?: string;
@@ -39,8 +39,8 @@ export function discoverAgents(): DiscoveredAgent[] {
                     if (agent.folder && ta.agentDir?.toLowerCase().includes(agent.folder.toLowerCase().replace(/\/$/, ''))) return true;
                     // Match by name
                     if (ta.name?.toLowerCase() === agent.id.toLowerCase()) return true;
-                    // Fallback for Max
-                    if (agent.id === 'max' && ta.id === 'main') return true;
+                    // Rely on dynamic discovery via name and role
+                    return false;
                     return false;
                 });
 
@@ -61,14 +61,6 @@ export function discoverAgents(): DiscoveredAgent[] {
             const agentDir = path.join(WORKSPACE_ROOT, agent.folder);
             enrichAgentMetadata(agent, agentDir);
         }
-    }
-
-    // 4. Fallbacks for standard agents if not fully discovered
-    ensureDefaultMetadata(agents);
-
-    // 5. Hierarchy & Governance
-    if (governanceContent) {
-        applyGovernance(agents, governanceContent);
     }
 
     return agents;
@@ -112,22 +104,6 @@ function parseRegistryTable(content: string): DiscoveredAgent[] {
             // inTable = false; 
         }
     }
-
-    // Ensure core infrastructure agents exist
-    const coreIds = ['max', 'tron', 'aegis'];
-    coreIds.forEach(id => {
-        if (!agents.find(a => a.id === id)) {
-            agents.push({
-                id,
-                name: id.charAt(0).toUpperCase() + id.slice(1),
-                role: id === 'max' ? 'Orchestrator' : (id === 'tron' ? 'Automation' : 'Reviewer'),
-                status: 'idle',
-                mission: '',
-                responsibilities: [],
-                folder: `agents/${id}-agent` // Heuristic
-            });
-        }
-    });
 
     return agents;
 }
@@ -177,37 +153,35 @@ function enrichAgentMetadata(agent: DiscoveredAgent, dir: string) {
 
 function applyGovernance(agents: DiscoveredAgent[], content: string) {
     // Determine layers
-    // 1. Governance (Max / Orchestrator)
-    const max = agents.find(a => 
-        a.id === 'max' || a.id === 'main' || 
+    // 1. Governance (Orchestrator role)
+    const orchestrator = agents.find(a => 
         a.role.toLowerCase().includes('orchestrat') || 
-        a.name.toLowerCase() === 'max'
+        a.role.toLowerCase().includes('governance')
     );
-    if (max) {
-        max.layer = 'governance';
-        max.order = 0;
+    if (orchestrator) {
+        orchestrator.layer = 'governance';
+        orchestrator.order = 0;
     }
 
-    // 2. Automation (Tron / Monitors)
+    // 2. Automation (Automation/Cron roles)
     agents.forEach(a => {
-        const id = a.id.toLowerCase();
         const role = a.role.toLowerCase();
-        const name = a.name.toLowerCase();
+        const id = a.id.toLowerCase();
         
-        if (id === 'tron' || name === 'tron' || id.includes('monitor') || id.includes('heartbeat') || role.includes('automation') || role.includes('cron')) {
+        if (id.includes('monitor') || id.includes('heartbeat') || role.includes('automation') || role.includes('cron') || role.includes('monitor')) {
             a.layer = 'automation';
             a.order = 100;
         }
     });
 
     // 3. Pipeline (The rest)
-    // Extract pipeline order: Alice -> Bob -> Charlie
+    // Extract pipeline order: Researcher -> Builder -> Tester
     const pipelineMatch = content.match(/Matt \(creates\) → (.*) → Done/);
     if (pipelineMatch) {
         const flow = pipelineMatch[1].split('→').map(s => s.trim().split(' ')[0].toLowerCase());
         
         agents.forEach(agent => {
-            // If already assigned layer (Max/Tron), don't move to pipeline unless explicitly ordered
+            // If already assigned layer, don't move to pipeline unless explicitly ordered
             if (agent.layer && agent.layer !== 'pipeline') return;
 
             // Match against ID or friendly name
@@ -217,50 +191,9 @@ function applyGovernance(agents: DiscoveredAgent[], content: string) {
             );
             
             if (index !== -1) {
-                agent.layer = 'pipeline';
-                agent.order = index + 1;
-            } else if (!agent.layer) {
-                agent.layer = 'pipeline';
-                agent.order = 50; // Default middle
+                agent.layer = 'pipeline'; // Ensure it's marked as pipeline if in flow
+                agent.order = index + 1; // 1-based order
             }
         });
-    } else {
-        // Fallback categorization based on role keywords
-        agents.forEach(agent => {
-            if (agent.layer) return;
-            const role = agent.role.toLowerCase();
-            if (role.includes('orchestrat') || role.includes('governance')) {
-                agent.layer = 'governance';
-            } else if (role.includes('automation') || role.includes('cron') || role.includes('monitor')) {
-                agent.layer = 'automation';
-            } else {
-                agent.layer = 'pipeline';
-            }
-        });
-    }
-}
-
-function ensureDefaultMetadata(agents: DiscoveredAgent[]) {
-    const defaults: Record<string, Partial<DiscoveredAgent>> = {
-        main: { mission: 'Conductor, not musician. Breaks work into steps and delegates.', responsibilities: ['Decomposition', 'Delegation', 'Coordination'] },
-        max: { mission: 'Conductor, not musician. Breaks work into steps and delegates.', responsibilities: ['Decomposition', 'Delegation', 'Coordination'] },
-        alice: { mission: 'Intelligence gatherer. All research flows through Alice.', responsibilities: ['Information Gathering', 'Analysis', 'Context'] },
-        'alice-researcher': { mission: 'Intelligence gatherer. All research flows through Alice.', responsibilities: ['Information Gathering', 'Analysis', 'Context'] },
-        bob: { mission: 'Builder. All implementation flows through Bob.', responsibilities: ['Coding', 'Development', 'Refactoring'] },
-        'bob-implementer': { mission: 'Builder. All implementation flows through Bob.', responsibilities: ['Coding', 'Development', 'Refactoring'] },
-        charlie: { mission: 'Quality gatekeeper. All testing flows through Charlie.', responsibilities: ['Testing', 'Validation', 'Reports'] },
-        'charlie-tester': { mission: 'Quality gatekeeper. All testing flows through Charlie.', responsibilities: ['Testing', 'Validation', 'Reports'] },
-        aegis: { mission: 'Validator. All final approval flows through Aegis.', responsibilities: ['Validation', 'Standards', 'Approval'] },
-        tron: { mission: 'Scheduler. All automated/recurring work flows through Tron.', responsibilities: ['Cron Jobs', 'Scheduled Work', 'Triggers'] },
-    };
-
-    for (const agent of agents) {
-        const id = agent.id.toLowerCase();
-        if ((!agent.mission || agent.mission === '') && defaults[id]) {
-            agent.mission = defaults[id].mission!;
-        }
-        if (agent.responsibilities?.length === 0 && defaults[id]) {
-            agent.responsibilities = defaults[id].responsibilities!;
-        }
     }
 }

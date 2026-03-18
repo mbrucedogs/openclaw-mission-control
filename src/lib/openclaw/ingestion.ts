@@ -127,7 +127,7 @@ function ingestScheduleJobs() {
         for (const file of plists) {
             const id = file.replace(/\.(plist|json)$/, '');
             const name = id.replace(/^com\.[^.]+\./, '').replace(/\./g, ' ');
-            insertJob.run(id, name, null, null, 'tron');
+            insertJob.run(id, name, null, null, 'automation');
             currentJobIds.push(id);
         }
     }
@@ -155,29 +155,13 @@ function ingestScheduleJobs() {
                         }
                     }
                     const nextRun = job.state?.nextRunAtMs ? new Date(job.state.nextRunAtMs).toISOString() : null;
-                    const agentId = job.agentId || 'tron';
+                    const agentId = job.agentId || 'automation';
                     insertJob.run(job.id, job.name, cronExpr, nextRun, agentId);
                     currentJobIds.push(job.id);
                 }
             }
         } catch(e) {
             console.error('Failed to parse OpenClaw cron jobs.json:', e);
-        }
-    }
-
-    // Seed defaults only if absolutely nothing was found
-    const count = (db.prepare('SELECT COUNT(*) as c FROM schedule_jobs').get() as any).c;
-    if (count === 0) {
-        const defaults = [
-            { id: 'morning-kickoff', name: 'Morning Kickoff', cron: '0 7 * * *' },
-            { id: 'daily-digest', name: 'Daily Digest', cron: '0 9 * * *' },
-            { id: 'trend-radar', name: 'Trend Radar', cron: '0 12 * * *' },
-            { id: 'evening-wrap', name: 'Evening Wrap Up', cron: '0 21 * * *' },
-            { id: 'heartbeat-check', name: 'Heartbeat Check', cron: '*/30 * * * *' },
-        ];
-        for (const job of defaults) {
-            insertJob.run(job.id, job.name, job.cron, null, 'tron');
-            currentJobIds.push(job.id);
         }
     }
 

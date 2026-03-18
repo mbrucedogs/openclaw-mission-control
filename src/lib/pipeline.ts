@@ -1,66 +1,66 @@
 import { Task, TaskStatus, Priority, ValidationCriteria } from '@/lib/types';
 
-// Agent capabilities
-const AGENT_CAPABILITIES: Record<string, string[]> = {
-    alice: ['research', 'documentation', 'analysis', 'investigation', 'youtube', 'transcript'],
-    bob: ['build', 'implement', 'code', 'create', 'fix', 'refactor', 'develop', 'api', 'database', 'ui'],
-    charlie: ['test', 'qa', 'verify', 'validate', 'check', 'audit'],
-    aegis: ['approve', 'review', 'validate', 'final'],
-    tron: ['monitor', 'schedule', 'heartbeat', 'cron', 'automate'],
+import { getAgents } from './domain/agents';
+
+// Agent capabilities - now dynamic via discovery, these are for keyword matching
+const ROLE_KEYWORDS: Record<string, string[]> = {
+    researcher: ['research', 'documentation', 'analysis', 'investigation', 'youtube', 'transcript'],
+    builder: ['build', 'implement', 'code', 'create', 'fix', 'refactor', 'develop', 'api', 'database', 'ui'],
+    tester: ['test', 'qa', 'verify', 'validate', 'check', 'audit'],
+    reviewer: ['approve', 'review', 'validate', 'final'],
+    automation: ['monitor', 'schedule', 'heartbeat', 'cron', 'automate'],
 };
 
-// Task type to required agents mapping
-const TASK_PIPELINES: Record<string, string[]> = {
-    'research-only': ['alice', 'aegis'],           // Research → Review
-    'documentation': ['alice', 'aegis'],           // Research/Write → Review
-    'quick-fix': ['bob', 'aegis'],                // Build → Review (skip QA)
-    'standard-build': ['bob', 'charlie', 'aegis'],  // Build → QA → Review
-    'complex-feature': ['alice', 'bob', 'charlie', 'aegis'], // Full pipeline
-    'automation': ['tron'],                        // Just Tron
-    'qa-only': ['charlie', 'aegis'],               // Existing code needs QA
-};
+/**
+ * Find the best agent ID for a given role/type
+ */
+function findAgentByRole(role: string): string {
+    const agents = getAgents();
+    // 1. Try to match by explicit type
+    const typeMatch = agents.find(a => a.type === role.toLowerCase());
+    if (typeMatch) return typeMatch.id;
+
+    // 2. Fallback to role string matching
+    const roleMatch = agents.find(a => a.role.toLowerCase().includes(role.toLowerCase()));
+    return roleMatch ? roleMatch.id : role; // Fallback to role name as ID if none found
+}
 
 /**
  * Determine the pipeline for a task based on its content
  */
 export function determinePipeline(title: string, description?: string): string[] {
     const text = (title + ' ' + (description || '')).toLowerCase();
-    
-    // Check for specific patterns
-    if (text.includes('research') && !text.includes('build') && !text.includes('implement')) {
-        return TASK_PIPELINES['research-only'];
+    const pipeline: string[] = [];
+
+    // Helper to add agent by role
+    const addRole = (role: string) => {
+        const id = findAgentByRole(role);
+        if (!pipeline.includes(id)) pipeline.push(id);
+    };
+
+    // Logic to determine roles needed
+    const needsResearch = text.includes('research') || text.includes('investigate');
+    const needsBuild = text.includes('build') || text.includes('implement') || text.includes('fix') || text.includes('create');
+    const needsTest = text.includes('test') || text.includes('qa') || text.includes('verify');
+    const needsAutomation = text.includes('schedule') || text.includes('cron') || text.includes('monitor');
+
+    if (needsResearch) addRole('researcher');
+    if (needsBuild) addRole('builder');
+    if (needsTest) addRole('tester');
+    if (needsAutomation) addRole('automation');
+
+    // Always end with a review if it's a build or research task
+    if (pipeline.length > 0 && !needsAutomation) {
+        addRole('reviewer');
     }
-    
-    if (text.includes('document') || text.includes('readme') || text.includes('write')) {
-        return TASK_PIPELINES['documentation'];
+
+    // Default if nothing matched
+    if (pipeline.length === 0) {
+        addRole('builder');
+        addRole('reviewer');
     }
-    
-    if ((text.includes('fix') || text.includes('bug')) && text.includes('quick')) {
-        return TASK_PIPELINES['quick-fix'];
-    }
-    
-    if (text.includes('test') || text.includes('qa') || text.includes('verify')) {
-        return TASK_PIPELINES['qa-only'];
-    }
-    
-    if (text.includes('schedule') || text.includes('cron') || text.includes('monitor')) {
-        return TASK_PIPELINES['automation'];
-    }
-    
-    // Check complexity indicators
-    const isComplex = text.includes('complex') || text.includes('large') || text.includes('architecture');
-    const isSimple = text.includes('simple') || text.includes('small') || text.includes('quick');
-    
-    if (isComplex) {
-        return TASK_PIPELINES['complex-feature'];
-    }
-    
-    if (isSimple && (text.includes('build') || text.includes('create'))) {
-        return TASK_PIPELINES['quick-fix']; // Simple build = quick pipeline
-    }
-    
-    // Default: standard build pipeline
-    return TASK_PIPELINES['standard-build'];
+
+    return pipeline;
 }
 
 /**
@@ -100,46 +100,61 @@ export function isPipelineComplete(currentAgent: string, pipeline: string[]): bo
 }
 
 /**
- * Get handoff status based on next agent
+ * Check if a pipeline contains an agent with a specific role/type
  */
-export function getHandoffStatus(nextAgent: string): TaskStatus {
-    if (nextAgent === 'charlie' || nextAgent === 'aegis') {
+function hasRoleInPipeline(pipeline: string[], roleKeyword: string): boolean {
+    const agents = getAgents();
+    return pipeline.some(id => {
+        const agent = agents.find(a => a.id === id);
+        if (!agent) return false;
+        
+        // 1. Check explicit type
+        if (agent.type === roleKeyword.toLowerCase()) return true;
+        
+        // 2. Fallback to role string
+        return agent.role.toLowerCase().includes(roleKeyword.toLowerCase());
+    });
+}
+
+/**
+ * Get handoff status based on next agent's role
+ */
+export function getHandoffStatus(nextAgentId: string): TaskStatus {
+    const agents = getAgents();
+    const agent = agents.find(a => a.id === nextAgentId);
+    const role = agent?.role.toLowerCase() || '';
+    
+    if (role.includes('tester') || role.includes('reviewer') || role.includes('qa')) {
         return 'Review';
-    }
-    if (nextAgent === 'bob') {
-        return 'In Progress';
-    }
-    if (nextAgent === 'alice') {
-        return 'In Progress';
     }
     return 'In Progress';
 }
 
 /**
- * Generate validation criteria based on pipeline
+ * Generate validation criteria based on pipeline roles
  */
 export function generateDynamicValidationCriteria(pipeline: string[], title: string, description?: string): ValidationCriteria {
     const checklist: string[] = [];
     const text = (title + ' ' + (description || '')).toLowerCase();
     
-    // Add checks based on who's in the pipeline
-    if (pipeline.includes('alice')) {
+    // Add checks based on roles in the pipeline
+    if (hasRoleInPipeline(pipeline, 'researcher')) {
         checklist.push('Research completed');
         checklist.push('Findings documented');
     }
     
-    if (pipeline.includes('bob')) {
+    if (hasRoleInPipeline(pipeline, 'builder')) {
         checklist.push('Implementation complete');
         checklist.push('Code tested locally');
         checklist.push('Documentation updated');
     }
     
-    if (pipeline.includes('charlie')) {
+    if (hasRoleInPipeline(pipeline, 'tester')) {
         checklist.push('QA testing passed');
         checklist.push('Edge cases verified');
     }
     
-    if (pipeline.includes('aegis')) {
+    if (hasRoleInPipeline(pipeline, 'reviewer')) {
         checklist.push('Final review approved');
         checklist.push('Requirements met');
     }
@@ -162,14 +177,14 @@ export function generateDynamicValidationCriteria(pipeline: string[], title: str
     // Generate doneMeans
     let doneMeans = 'Task completed';
     if (pipeline.length === 1) {
-        doneMeans = `${pipeline[0]} work completed and verified`;
-    } else if (pipeline.includes('aegis')) {
+        doneMeans = `Task completed and verified`;
+    } else if (hasRoleInPipeline(pipeline, 'reviewer')) {
         doneMeans = 'Task fully validated and approved';
-    } else if (pipeline.includes('charlie')) {
+    } else if (hasRoleInPipeline(pipeline, 'tester')) {
         doneMeans = 'Task built and QA verified';
-    } else if (pipeline.includes('bob')) {
+    } else if (hasRoleInPipeline(pipeline, 'builder')) {
         doneMeans = 'Task built and ready for review';
-    } else if (pipeline.includes('alice')) {
+    } else if (hasRoleInPipeline(pipeline, 'researcher')) {
         doneMeans = 'Research complete with documented findings';
     }
     
@@ -180,7 +195,7 @@ export function generateDynamicValidationCriteria(pipeline: string[], title: str
 }
 
 /**
- * Full task analysis - returns everything MAX needs to know
+ * Full task analysis - returns everything orchestrator needs to know
  */
 export function analyzeTask(title: string, description?: string) {
     const pipeline = determinePipeline(title, description);
@@ -202,8 +217,8 @@ export function analyzeTask(title: string, description?: string) {
         validationCriteria,
         priority,
         estimatedAgents: pipeline.length,
-        canSkipQA: !pipeline.includes('charlie'),
-        requiresResearch: pipeline.includes('alice'),
-        requiresBuild: pipeline.includes('bob'),
+        canSkipQA: !hasRoleInPipeline(pipeline, 'tester'),
+        requiresResearch: hasRoleInPipeline(pipeline, 'researcher'),
+        requiresBuild: hasRoleInPipeline(pipeline, 'builder'),
     };
 }

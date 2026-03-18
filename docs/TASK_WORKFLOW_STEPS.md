@@ -71,8 +71,8 @@ POST /api/tasks/{taskId}/steps
 {
   "workflowId": "wf-research",
   "workflowName": "Research",
-  "agentId": "alice-researcher",
-  "agentName": "Alice",
+  "agentId": "sam-scout",
+  "agentName": "Sam-Scout",
   "stepNumber": 1,
   "nextStepId": "step-xyz789"  // optional
 }
@@ -100,7 +100,7 @@ POST /api/tasks/{taskId}/steps/{stepId}
   "deliverables": ["Document 13", "Document 14"],
   "completionNotes": "Downloaded 5 articles",
   "passFail": "pass",
-  "validatedBy": "aegis",
+  "validatedBy": "jordan-reviewer",
   "validationNotes": "All docs verified",
   "handoffNotes": "Ready for review"
 }
@@ -169,14 +169,14 @@ if (currentStep) {
 ```
 Task: Download 5 articles
 ├── Step 1: Document [COMPLETE] ✓ (3m 35s)
-│   ├── Agent: Alice
+│   ├── Agent: Sam-Scout
 │   ├── Evidence: ev-abc123
 │   ├── Deliverables: 5 documents (13-17)
 │   └── Notes: "All articles downloaded"
 │
 ├── Step 2: Review [COMPLETE] ✓ (2m 10s)
-│   ├── Agent: Aegis
-│   ├── Validated By: Aegis
+│   ├── Agent: Jordan-Reviewer
+│   ├── Validated By: Jordan-Reviewer
 │   ├── Pass/Fail: PASS
 │   └── Notes: "All docs verified"
 │

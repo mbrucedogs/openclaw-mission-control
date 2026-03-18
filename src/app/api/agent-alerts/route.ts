@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 /**
  * Agent Alert Webhook
  * 
- * Receives alerts from monitoring agents (like Tron) when work needs
+ * Receives alerts from monitoring agents (Aiden-Auto) when work needs
  * orchestrator attention. Stores the alert and notifies the orchestrator.
  * 
  * POST /api/agent-alerts

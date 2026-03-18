@@ -9,13 +9,13 @@
 
 ## 1. Executive Summary
 
-Mission Control is a task management and agent orchestration system built for OpenClaw autonomous organizations. It provides a hybrid pipeline model combining predefined workflows with dynamic assembly, enabling the Primary AI to orchestrate multi-agent task execution.
+Mission Control is a task management and agent orchestration system built for OpenClaw autonomous organizations. It provides a hybrid pipeline model combining predefined workflows with dynamic assembly, enabling the Orchestrator to orchestrate multi-agent task execution.
 
 ### Key Features
 - **Task Management** - Kanban board with structured comments, activity tracking, and evidence
 - **Agent Orchestration** - Hybrid pipeline system (predefined + dynamic)
 - **Workflow Templates** - Reusable work definitions with timeout enforcement
-- **Dynamic Pipelines** - Primary AI assembles custom pipelines on-the-fly
+- **Dynamic Pipelines** - The Orchestrator assembles custom pipelines on-the-fly
 - **Full Audit Trail** - Every action logged with actor, timestamp, and details
 
 ---
@@ -51,7 +51,7 @@ Mission Control is a task management and agent orchestration system built for Op
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              OpenClaw Integration                           │
-│         (Primary AI + Agent Spawning)                       │
+│         (Orchestrator + Agent Spawning)                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -187,7 +187,7 @@ CREATE TABLE workflow_templates (
     name TEXT NOT NULL UNIQUE,
     description TEXT,
     agent_role TEXT NOT NULL CHECK (agent_role IN ('researcher', 'builder', 'tester', 'reviewer', 'approver', 'automation')),
-    agent_id TEXT,  -- specific agent like 'alice', 'bob'
+    agent_id TEXT,  -- specific agent like 'sam-scout', 'dana-dev'
     timeout_seconds INTEGER DEFAULT 1800,  -- Hard limit
     system_prompt TEXT,
     validation_checklist TEXT,  -- JSON array
@@ -722,22 +722,22 @@ function assembleDynamicPipeline(text: string): PipelineMatchResult {
 ### 7.2 Communication Loop
 
 ```
-Primary AI → Spawns Agent A (Step 1)
+Orchestrator → Spawns Agent A (Step 1)
     ↓
 Agent A → Works → Posts findings as comments
     ↓
-Primary AI ← Reviews deliverables
+Orchestrator ← Reviews deliverables
     ↓
-Primary AI → Asks questions (if needed) → Agent A responds
+Orchestrator → Asks questions (if needed) → Agent A responds
     ↓
-Primary AI → Satisfied? → Spawns Agent B (Step 2)
+Orchestrator → Satisfied? → Spawns Agent B (Step 2)
     ↓
 Repeat for each step...
 ```
 
 ### 7.3 Timeout Enforcement
 
-The Primary AI enforces `timeoutSeconds` when spawning agents:
+The Orchestrator enforces `timeoutSeconds` when spawning agents:
 
 ```typescript
 sessions_spawn({
@@ -755,13 +755,13 @@ sessions_spawn({
 
 | ID | Name | Agent | Timeout | Purpose |
 |----|------|-------|---------|---------|
-| wf-research | Research | alice | 1800s | Investigate and document |
-| wf-build | Build | bob | 3600s | Implement features |
-| wf-quick-fix | Quick Fix | bob | 900s | Fix bugs quickly |
-| wf-test | Test | charlie | 1200s | QA and validation |
-| wf-review | Review | aegis | 900s | Final approval |
-| wf-document | Document | alice | 1800s | Write documentation |
-| wf-automate | Automate | tron | 1800s | Create automation |
+| wf-research | Research | sam-scout | 1800s | Investigate and document |
+| wf-build | Build | dana-dev | 3600s | Implement features |
+| wf-quick-fix | Quick Fix | dana-dev | 900s | Fix bugs quickly |
+| wf-test | Test | dana-dev | 1200s | QA and validation |
+| wf-review | Review | jordan-review | 900s | Final approval |
+| wf-document | Document | sam-scout | 1800s | Write documentation |
+| wf-automate | Automate | aiden-auto | 1800s | Create automation |
 
 ### 8.2 Default Pipelines
 
@@ -778,12 +778,10 @@ sessions_spawn({
 ```json
 {
   "agents": [
-    { "id": "alice", "name": "Alice", "role": "researcher" },
-    { "id": "bob", "name": "Bob", "role": "builder" },
-    { "id": "charlie", "name": "Charlie", "role": "tester" },
-    { "id": "aegis", "name": "Aegis", "role": "reviewer" },
-    { "id": "tron", "name": "Tron", "role": "automation" },
-    { "id": "max", "name": "Max", "role": "orchestrator" }
+    { "id": "sam-scout", "name": "Sam", "role": "researcher" },
+    { "id": "dana-dev", "name": "Dana", "role": "builder" },
+    { "id": "jordan-review", "name": "Jordan", "role": "reviewer" },
+    { "id": "leo-lead", "name": "Leo", "role": "orchestrator" }
   ]
 }
 ```
@@ -954,7 +952,7 @@ curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/pipelines
 - Workflow and pipeline system
 - Dynamic pipeline assembly
 - Full CRUD for workflows and pipelines
-- Agent orchestration with Primary AI
+- Agent orchestration with Orchestrator
 
 ---
 

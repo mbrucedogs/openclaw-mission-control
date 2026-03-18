@@ -1,6 +1,6 @@
 # Pipeline Orchestration Protocol
 
-> **This document defines the mandatory workflow for Primary AIs orchestrating tasks through Mission Control.**
+> **This document defines the mandatory workflow for Orchestrators managing tasks through Mission Control.**
 
 ## Overview
 
@@ -55,7 +55,7 @@ Every task must flow through **all 5 phases** of the orchestration protocol. No 
 **Purpose:** Verify work meets requirements before completing
 
 **Orchestrator Actions:**
-1. Check evidence attached via `GET /api/tasks/{id}?include=evidence`
+1. Check evidence attached via `GET /api/tasks/{id}?include=comments,activity,evidence`
 2. Verify files exist in correct location (DOCUMENTS_ROOT)
 3. Confirm all checklist items are complete
 4. Validate deliverables match requirements
@@ -158,14 +158,14 @@ PATCH /api/tasks/{id}
 
 ---
 
-## When Tron Alerts You
+## Automated Monitoring Alerts
 
 1. **Check alerts:** `GET /api/agent-alerts?status=pending`
 2. **For each alert:** Execute the full 5-Phase Protocol
 3. **Mark alert resolved:** Update alert status via API
 4. **Report to user:** Only after task is fully complete
 
-**Remember:** Tron detects work. You complete the pipeline. That's the division of labor.
+**Remember:** Monitoring detects work. You complete the pipeline. That's the division of labor.
 
 ---
 
@@ -186,7 +186,7 @@ interface Task {
     codeRequirements?: string[];
     verificationSteps?: string[];
   };
-  assigned_agent: string;        // Who's working on it
+  owner: string;                 // Current assigned orchestrator/agent
   // ... pipeline metadata
 }
 ```
@@ -208,8 +208,8 @@ interface Task {
 ```typescript
 // Pipeline step configuration
 interface PipelineStep {
-  workflow_id: string;
-  on_failure: 'stop' | 'continue' | 'skip';
+  workflowId: string;
+  onFailure: 'stop' | 'continue' | 'skip';
 }
 ```
 
@@ -219,7 +219,7 @@ interface PipelineStep {
 - **skip** - Skip this step, continue pipeline
 
 **Orchestrator Responsibility:**
-1. Check step's `on_failure` setting
+1. Check step's `onFailure` setting
 2. If `stop` - Mark task blocked, notify user
 3. If `continue` - Log warning, proceed
 4. If `skip` - Skip and continue
@@ -240,12 +240,12 @@ const task = {
     ]
   },
   // Pipeline metadata
-  _pipeline: ["alice", "aegis"],
+  _pipeline: ["sam", "dana", "jordan", "leo"],
   _currentStep: 0
 };
 
-// Alice reads checklist item 1-3
-// Aegis reads checklist item 4 (validation)
+// Sam reads checklist item 1-3
+// Jordan reads checklist item 4 (validation)
 // Each step knows what to do from the task
 ```
 
@@ -260,7 +260,7 @@ const task = {
 curl http://localhost:4000/api/agent-alerts?status=pending
 
 # Get task with evidence
-curl http://localhost:4000/api/tasks/{id}?include=evidence
+curl http://localhost:4000/api/tasks/{id}?include=comments,activity,evidence
 
 # Mark task complete
 curl -X PATCH http://localhost:4000/api/tasks/{id} \

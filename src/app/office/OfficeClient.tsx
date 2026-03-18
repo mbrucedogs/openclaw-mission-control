@@ -31,12 +31,12 @@ const getAgentIcon = (agentOrId: any) => {
     const id = (typeof agentOrId === 'string' ? agentOrId : agentOrId?.id || '').toLowerCase();
     const role = (typeof agentOrId === 'string' ? '' : agentOrId?.role || '').toLowerCase();
     
-    if (id.includes('max')) return '🎉';
-    if (id.includes('alice') || role.includes('research')) return '🔍';
-    if (id.includes('bob') || role.includes('implement') || role.includes('code')) return '💻';
-    if (id.includes('charlie') || role.includes('test') || role.includes('qa')) return '🧪';
-    if (id.includes('aegis') || role.includes('review') || role.includes('standard')) return '🛡️';
-    if (id.includes('tron') || id.includes('heartbeat') || role.includes('auto') || role.includes('cron') || role.includes('monitor')) return '⚡';
+    if (role.includes('orchestrat') || role.includes('governance')) return '🎉';
+    if (role.includes('research') || role.includes('intelligence')) return '🔍';
+    if (role.includes('implement') || role.includes('code') || role.includes('builder')) return '💻';
+    if (role.includes('test') || role.includes('qa')) return '🧪';
+    if (role.includes('review') || role.includes('standard')) return '🛡️';
+    if (role.includes('auto') || role.includes('cron') || role.includes('monitor') || id.includes('heartbeat')) return '⚡';
     
     return '👤';
 };
@@ -44,8 +44,8 @@ const getAgentIcon = (agentOrId: any) => {
 export function OfficeClient({ agents }: { agents: any[] }) {
     // Dynamically pick the first agent or a sensible default
     const [selectedAgent, setSelectedAgent] = useState(() => {
-        const main = agents.find(a => a.id === 'main' || a.id === 'max');
-        return main?.id || agents[0]?.id || '';
+        const orchestrator = agents.find(a => a.role?.toLowerCase().includes('orchestrat') || a.role?.toLowerCase().includes('governance'));
+        return orchestrator?.id || agents[0]?.id || '';
     });
     const [liveSessions, setLiveSessions] = useState<any[]>([]);
     const [agentTasks, setAgentTasks] = useState<Record<string, any[]>>({});
@@ -78,32 +78,29 @@ export function OfficeClient({ agents }: { agents: any[] }) {
         return () => clearInterval(interval);
     }, []);
     
-    // Default Positions (Mapping both technical IDs and friendly aliases)
-    const defaultPositions: Record<string, {x: number, y: number}> = {
-        max: { x: 2, y: 1 },
-        main: { x: 2, y: 1 },
-        alice: { x: 1, y: 4 },
-        'alice-researcher': { x: 1, y: 4 },
-        bob: { x: 2, y: 4 },
-        'bob-implementer': { x: 2, y: 4 },
-        charlie: { x: 3, y: 4 },
-        'charlie-tester': { x: 3, y: 4 },
-        aegis: { x: 4, y: 4 },
-        tron: { x: 3, y: 1 },
+    // Auto-generate positions for agents based on their roles/layers
+    const getInitialPositions = () => {
+        const pos: Record<string, {x: number, y: number}> = {};
+        let pipelineIdx = 0;
+        
+        agents.forEach(agent => {
+            const role = agent.role?.toLowerCase() || '';
+            const layer = agent.layer || '';
+            
+            if (layer === 'governance' || role.includes('orchestrat')) {
+                pos[agent.id] = { x: 2, y: 1 };
+            } else if (layer === 'automation' || role.includes('auto')) {
+                pos[agent.id] = { x: 3, y: 1 };
+            } else {
+                // Pipeline agents spread across the bottom
+                pos[agent.id] = { x: (pipelineIdx % 4) + 1, y: 4 };
+                pipelineIdx++;
+            }
+        });
+        return pos;
     };
 
-    // Auto-generate positions for new agents
-    const allPositions = { ...defaultPositions };
-    let nextX = 0;
-    
-    agents.forEach(agent => {
-        if (!allPositions[agent.id]) {
-            allPositions[agent.id] = { x: nextX % 6, y: 5 };
-            nextX++;
-        }
-    });
-
-    const [positions, setPositions] = useState<Record<string, {x: number, y: number}>>(allPositions);
+    const [positions, setPositions] = useState<Record<string, {x: number, y: number}>>(getInitialPositions);
 
     useEffect(() => {
         const fetchSessions = async () => {
@@ -150,7 +147,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
 
     // Map Actions
     const handleReset = () => {
-        setPositions(allPositions);
+        setPositions(getInitialPositions());
     };
 
     const handleGather = () => {
@@ -162,11 +159,13 @@ export function OfficeClient({ agents }: { agents: any[] }) {
     };
 
     const handleWatercooler = () => {
-        setPositions({
-            ...allPositions,
-            alice: { x: 0, y: 5 },
-            bob: { x: 1, y: 5 },
-        });
+        const watercoolerPos = { ...positions };
+        const pipelineAgents = displayAgents.filter(a => a.layer === 'pipeline');
+        if (pipelineAgents.length >= 2) {
+            watercoolerPos[pipelineAgents[0].id] = { x: 0, y: 5 };
+            watercoolerPos[pipelineAgents[1].id] = { x: 1, y: 5 };
+        }
+        setPositions(watercoolerPos);
     };
 
     return (
@@ -206,7 +205,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
                             {/* Static Desks for Anchors */}
                             {(() => {
                                 const mainAgent = displayAgents.find(a => a.layer === 'governance' || a.role.toLowerCase().includes('orchestrat'));
-                                const tronAgent = displayAgents.find(a => a.layer === 'automation' || a.role.toLowerCase().includes('auto'));
+                                const automationAgent = displayAgents.find(a => a.layer === 'automation' || a.role.toLowerCase().includes('auto'));
                                 
                                 return (
                                     <>
@@ -219,13 +218,13 @@ export function OfficeClient({ agents }: { agents: any[] }) {
                                                 showAvatar={positions[mainAgent.id]?.x === 2 && positions[mainAgent.id]?.y === 1} 
                                             />
                                         )}
-                                        {tronAgent && (
+                                        {automationAgent && (
                                             <MapObject 
-                                                x={3} y={1} type="desk" agent={tronAgent.name} 
-                                                status={getAgentStatus(tronAgent.id) || "Cron"} 
-                                                selected={selectedAgent === tronAgent.id} 
-                                                onClick={() => setSelectedAgent(tronAgent.id)} 
-                                                showAvatar={positions[tronAgent.id]?.x === 3 && positions[tronAgent.id]?.y === 1} 
+                                                x={3} y={1} type="desk" agent={automationAgent.name} 
+                                                status={getAgentStatus(automationAgent.id) || "Monitoring"} 
+                                                selected={selectedAgent === automationAgent.id} 
+                                                onClick={() => setSelectedAgent(automationAgent.id)} 
+                                                showAvatar={positions[automationAgent.id]?.x === 3 && positions[automationAgent.id]?.y === 1} 
                                             />
                                         )}
                                     </>
@@ -239,10 +238,10 @@ export function OfficeClient({ agents }: { agents: any[] }) {
 
                                 // Don't render character if they are currently shown AT their desk (Governance/Automation anchors)
                                 const isMain = agent.layer === 'governance' || agent.role.toLowerCase().includes('orchestrat');
-                                const isTron = agent.layer === 'automation' || agent.role.toLowerCase().includes('auto');
+                                const isAutomation = agent.layer === 'automation' || agent.role.toLowerCase().includes('auto');
                                 
                                 if (isMain && pos.x === 2 && pos.y === 1) return null;
-                                if (isTron && pos.x === 3 && pos.y === 1) return null;
+                                if (isAutomation && pos.x === 3 && pos.y === 1) return null;
 
                                 return (
                                     <MapObject 

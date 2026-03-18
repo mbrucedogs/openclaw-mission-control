@@ -1,14 +1,13 @@
 import { Task, TaskStatus, Priority, ValidationCriteria } from '@/lib/types';
-import { randomUUID } from 'crypto';
+import { getAgents } from './domain/agents';
 
 // Agent capabilities based on role
-const AGENT_CAPABILITIES: Record<string, string[]> = {
-    alice: ['research', 'documentation', 'analysis', 'youtube', 'transcript', 'web', 'search'],
-    bob: ['build', 'implement', 'code', 'create', 'fix', 'refactor', 'develop', 'api', 'database'],
-    charlie: ['test', 'qa', 'review', 'verify', 'validate', 'check', 'audit'],
-    aegis: ['approve', 'review', 'validate', 'qa', 'final'],
-    tron: ['monitor', 'schedule', 'heartbeat', 'cron', 'automate'],
-    max: ['orchestrate', 'delegate', 'coordinate', 'assign'],
+const ROLE_CAPABILITIES: Record<string, string[]> = {
+    researcher: ['research', 'documentation', 'analysis', 'youtube', 'transcript', 'web', 'search'],
+    builder: ['build', 'implement', 'code', 'create', 'fix', 'refactor', 'develop', 'api', 'database', 'ui'],
+    tester: ['test', 'qa', 'review', 'verify', 'validate', 'check', 'audit'],
+    reviewer: ['approve', 'review', 'validate', 'qa', 'final'],
+    automation: ['monitor', 'schedule', 'heartbeat', 'cron', 'automate'],
 };
 
 // Keywords that indicate urgency
@@ -17,18 +16,29 @@ const HIGH_PRIORITY_KEYWORDS = ['today', 'needed', 'required', 'should', 'high']
 
 /**
  * Auto-infer task metadata from title and description
- * MAX's job: fill gaps before assigning to agents
  */
 export function inferTaskMetadata(title: string, description?: string) {
     const text = (title + ' ' + (description || '')).toLowerCase();
     
-    // Infer owner based on task type
-    let suggestedOwner = 'matt'; // default
-    for (const [agent, capabilities] of Object.entries(AGENT_CAPABILITIES)) {
+    // Infer role based on task type
+    let suggestedRole = 'builder'; // default
+    for (const [role, capabilities] of Object.entries(ROLE_CAPABILITIES)) {
         if (capabilities.some(cap => text.includes(cap))) {
-            suggestedOwner = agent;
+            suggestedRole = role;
             break;
         }
+    }
+    
+    // Find actual agent ID for the role
+    const agents = getAgents();
+    let suggestedOwner = 'matt'; // Default fallback
+    
+    const typeMatch = agents.find(a => a.type === suggestedRole);
+    if (typeMatch) {
+        suggestedOwner = typeMatch.id;
+    } else {
+        const roleMatch = agents.find(a => a.role.toLowerCase().includes(suggestedRole));
+        if (roleMatch) suggestedOwner = roleMatch.id;
     }
     
     // Infer priority
@@ -41,12 +51,14 @@ export function inferTaskMetadata(title: string, description?: string) {
         suggestedPriority = 'low';
     }
     
-    // Infer initial status based on owner
+    // Infer initial status based on role
     let suggestedStatus: TaskStatus = 'Backlog';
-    if (suggestedOwner === 'tron') {
+    if (suggestedRole === 'automation') {
         suggestedStatus = 'Recurring';
-    } else if (suggestedOwner !== 'matt') {
+    } else if (suggestedRole === 'researcher') {
         suggestedStatus = 'Research';
+    } else if (suggestedRole === 'builder') {
+        suggestedStatus = 'Ready for Implementation';
     }
     
     // Generate validation criteria
@@ -155,8 +167,8 @@ function generateValidationCriteria(title: string, description?: string): Valida
 }
 
 /**
- * Create a complete task with MAX's inference
- * Use this instead of raw createTask when you want MAX to fill gaps
+ * Create a complete task with automatic inference
+ * Use this instead of raw createTask to auto-fill gaps
  */
 export function createTaskWithInference(input: {
     title: string;

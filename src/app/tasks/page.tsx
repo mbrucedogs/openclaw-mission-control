@@ -49,13 +49,14 @@ function getColumnTasks(tasks: Task[], status: TaskStatus): Task[] {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const OWNER_COLORS: Record<string, string> = {
-    matt:    'bg-indigo-600',
-    max:     'bg-purple-600',
-    alice:   'bg-pink-600',
-    bob:     'bg-orange-600',
-    charlie: 'bg-sky-600',
-    aegis:   'bg-red-600',
-    tron:    'bg-cyan-600',
+    'orchestrator': 'bg-purple-600',
+    'researcher':   'bg-pink-600',
+    'builder':      'bg-blue-600',
+    'reviewer':     'bg-green-600',
+    'tester':       'bg-amber-600',
+    'automation':   'bg-slate-600',
+    'default':      'bg-slate-800'
+,
 };
 
 const PRIORITY_CONFIG: Record<Priority, { label: string; className: string }> = {
@@ -974,9 +975,9 @@ export default function TasksPage() {
         completion: tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'Complete').length / tasks.length) * 100) : 0,
     };
 
-    const WORKFLOW_ORDER = ['matt', 'max', 'alice', 'bob', 'charlie', 'aegis', 'tron'];
-    const activeOwners = WORKFLOW_ORDER.filter(id => id === 'matt' || agents.some(a => a.id === id));
-    const agentName = (id: string) => agents.find(a => a.id === id)?.name ?? (id === 'matt' ? 'Matt' : id);
+    const WORKFLOW_ORDER = ['orchestrator', 'researcher', 'builder', 'tester', 'reviewer', 'automation'];
+    const activeOwners = WORKFLOW_ORDER.filter(id => agents.some(a => a.id === id));
+    const agentName = (id: string) => agents.find(a => a.id === id)?.name ?? id;
 
     return (
         <div className="flex h-full overflow-hidden">

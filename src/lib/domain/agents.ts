@@ -7,6 +7,10 @@ export function getAgentById(id: string): Agent | null {
     return agents.find(a => a.id === id) || null;
 }
 
+export function updateAgentType(id: string, type: string) {
+    db.prepare('UPDATE agents SET type = ? WHERE id = ?').run(type, id);
+}
+
 export function getAgents(): Agent[] {
     // Discovery from OpenClaw Workspace files (New Source of Truth)
     const discovered = discoverAgents();
@@ -25,21 +29,17 @@ export function getAgents(): Agent[] {
         upsertAgent.run(agent.id, agent.name, agent.role, agent.mission);
     });
 
-    // Mapping live statuses from DB
-    const dbAgents = db.prepare('SELECT id, status FROM agents').all() as any[];
-    const statusMap = new Map(dbAgents.map(a => [a.id, a.status]));
+    // Mapping live statuses and explicit types from DB
+    const dbAgents = db.prepare('SELECT id, status, type FROM agents').all() as any[];
+    const dbDataMap = new Map(dbAgents.map(a => [a.id, { status: a.status, type: a.type }]));
 
     return discovered.map(agent => {
-        // Fallback for ID mapping if legacy statuses exist
-        let status = statusMap.get(agent.id);
-        if (!status && agent.id === 'main') status = statusMap.get('max');
-        if (!status && agent.id === 'alice-researcher') status = statusMap.get('alice');
-        if (!status && agent.id === 'bob-implementer') status = statusMap.get('bob');
-        if (!status && agent.id === 'charlie-tester') status = statusMap.get('charlie');
+        const dbData = dbDataMap.get(agent.id);
 
         return {
             ...agent,
-            status: (status as any) || 'idle'
+            status: dbData?.status || 'idle',
+            type: dbData?.type || undefined
         };
     });
 }

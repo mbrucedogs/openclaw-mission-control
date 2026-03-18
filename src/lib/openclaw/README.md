@@ -12,7 +12,7 @@ Agents in this application are **not** hardcoded. They are dynamically discovere
     - **MUST** contain a Markdown table with `Name`, `Role`, and `Folder`.
     - This is the source of truth for which agents exist.
 2.  **`TEAM_GOVERNANCE.md`**: 
-    - **MUST** contain the "Agent Orchestration Pipeline" string (e.g., `Matt -> Max -> ...`).
+    - **MUST** contain the "Agent Orchestration Pipeline" string (e.g., `Orchestrator -> Dana -> Jordan`).
     - Used to determine agent hierarchy and display order on the Team screen.
 3.  **Individual Agent Folders**:
     - Each agent folder (specified in the registry) should contain:

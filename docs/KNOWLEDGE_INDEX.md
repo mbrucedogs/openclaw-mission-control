@@ -2,7 +2,7 @@
 
 **Single source of truth for Mission Control concepts**
 
-**When you ask about these topics, the Orchestrator (Max) reads the referenced documents.**
+**When you ask about these topics, the Orchestrator reads the referenced documents.**
 
 ---
 
@@ -17,7 +17,7 @@
 | **Dynamic Workflows** | Rules for creating workflows/pipelines with API validation | [DYNAMIC_WORKFLOW_RULES.md](./DYNAMIC_WORKFLOW_RULES.md) |
 | **Fresh Install** | Database starts empty, workflows created dynamically at runtime | [ORCHESTRATION.md#part-4](./ORCHESTRATION.md) |
 | **Agent Pipeline** | Researcher → Builder → Tester → Reviewer workflow sequence | [ORCHESTRATION.md](./ORCHESTRATION.md) |
-| **Monitoring** | Tron (local model) detects issues, wakes Primary AI only when needed | [ORCHESTRATION.md#part-5](./ORCHESTRATION.md) |
+| **Monitoring** | Automation Agent detects issues, wakes Orchestrator only when needed | [ORCHESTRATION.md#part-5](./ORCHESTRATION.md) |
 | **Setup** | Installation and configuration steps | [QUICKSTART.md](./QUICKSTART.md) |
 
 ---
@@ -77,7 +77,7 @@
 
 ### Monitoring / Automation
 - "how does monitoring work"
-- "tron monitoring"
+- "automated monitoring"
 - "cron job"
 - "local model monitoring"
 
@@ -124,8 +124,8 @@ Every task MUST include:
 8. **Validation checklist** - how to verify done
 
 ### Monitoring Design
-- **Tron** (local model, ollama/qwen3.5:35b-a3b) - checks every 2 min, FREE
-- **Max** (cloud model) - only wakes when Tron finds work
+- **Automation Agent** (local model) - checks every 2 min, FREE
+- **Orchestrator** (cloud model) - only wakes when system finds work
 - **Why:** Saves tokens - no cloud cost for monitoring
 
 ### Agent Roles
@@ -133,7 +133,7 @@ Every task MUST include:
 - **Builder** - Build, implementation, coding
 - **Tester** - Test, QA, validation
 - **Reviewer** - Final approval, quality gate
-- **Monitor** - Automation, monitoring (no pipeline)
+- **Automation** - Automation, monitoring (no pipeline)
 
 ### Evidence API
 ```bash
@@ -181,14 +181,14 @@ A: Database tables exist but are empty. First task triggers dynamic workflow cre
 A: Keywords in title/description. See "Task Keywords → Pipeline Mapping" above.
 
 **Q: Why two-tier monitoring?**
-A: Tron (local) checks every 2 min for free. Max (cloud) only wakes when work detected. Saves ~90% of token cost.
+A: Automation agent (local) checks every 2 min for free. Orchestrator (cloud) only wakes when work detected. Saves ~90% of token cost.
 
 **Q: What if a task fails?**
 A: Fallback plan kicks in. If all fail, task marked blocked with error details.
 
 ---
 
-## For Orchestrators (Max)
+## For Orchestrators
 
 **When user asks about task orchestration:**
 1. Read this KNOWLEDGE_INDEX.md (quick refresh)
@@ -214,4 +214,4 @@ A: Fallback plan kicks in. If all fail, task marked blocked with error details.
 **Last Updated:** 2026-03-17
 **Version:** 1.1
 **Purpose:** Single source of truth - quick reference + trigger phrases + document map
-**Maintainer:** Primary AI Orchestrator (Max)
+**Maintainer:** Orchestrator

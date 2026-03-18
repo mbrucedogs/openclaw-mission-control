@@ -262,7 +262,7 @@ export WORKSPACE_ROOT="/Users/[user]/.openclaw/workspace"
 ```json
 {
   "title": "[Clear one-sentence description]",
-  "description": "**Task:** [Detailed description]\n\n**Input:**\n- [What the agent receives]\n\n**Required Output:**\n1. [Specific deliverable 1 with criteria]\n2. [Specific deliverable 2 with criteria]\n3. [Specific deliverable 3 with criteria]\n\n**Save Location:**\n- Primary: {DOCUMENTS_ROOT}/[Folder]/[filename.ext]\n- Secondary: {DOCUMENTS_ROOT}/[Folder]/[filename-alt.ext]\n\n**Evidence to Attach:**\n- Type: [document|code|test|screenshot|link]\n- Path: file://{DOCUMENTS_ROOT}/[path]\n- Description: "[Specific description of what was delivered]"\n\n**Tool Requirements:**\n- Primary: [tool name]\n  - Check: [command to verify]\n  - Install: [how to install if missing]\n- Fallback: [alternative tool]\n  - When to use: [condition]\n\n**Fallback Plan:**\n1. Try [primary method]\n2. If fails: Try [fallback method]\n3. If fails: Mark task blocked, post comment with error\n\n**Validation Checklist:**\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n- [ ] [Criterion 3]\n- [ ] Evidence attached via API\n- [ ] Summary comment posted\n\n**Questions?** Ask [Orchestrator name] - monitoring this task.\n\nRead your SOUL.md at: [path to agent SOUL.md]",
+  "description": "**Task:** [Detailed description]\n\n**Input:**\n- [What the agent receives]\n\n**Required Output:**\n1. [Specific deliverable 1 with criteria]\n2. [Specific deliverable 2 with criteria]\n3. [Specific deliverable 3 with criteria]\n\n**Save Location:**\n- Primary: {DOCUMENTS_ROOT}/[Folder]/[filename.ext]\n- Secondary: {DOCUMENTS_ROOT}/[Folder]/[filename-alt.ext]\n\n**Evidence to Attach:**\n- Type: [document|code|test|screenshot|link]\n- Path: file://{DOCUMENTS_ROOT}/[path]\n- Description: "[Specific description of what was delivered]"\n\n**Tool Requirements:**\n- Primary: [tool name]\n  - Check: [command to verify]\n  - Install: [how to install if missing]\n- Fallback: [alternative tool]\n  - When to use: [condition]\n\n**Fallback Plan:**\n1. Try [primary method]\n2. If fails: Try [fallback method]\n3. If fails: Mark task blocked, post comment with error\n\n**Validation Checklist:**\n- [ ] [Criterion 1]\n- [ ] [Criterion 2]\n- [ ] [Criterion 3]\n- [ ] Evidence attached via API\n- [ ] Summary comment posted\n\n**Questions?** Ask Leo-Lead - monitoring this task.\n\nRead your SOUL.md at: agents/leo-lead/SOUL.md",
   "validationCriteria": {
     "doneMeans": "[Clear statement of what completion looks like]",
     "checklist": [
@@ -331,11 +331,11 @@ curl -X POST http://localhost:4000/api/tasks \
 **Example Pipeline Steps:**
 ```
 Task: Research YouTube video
-├── Step 1: Research [PENDING] → Alice
+├── Step 1: Research [PENDING] → Sam-Scout
 │   └── Download transcript, extract key content
-├── Step 2: Document [PENDING] → Alice  
+├── Step 2: Document [PENDING] → Sam-Scout  
 │   └── Create summary, save to Mission Control
-└── Step 3: Review [PENDING] → Aegis
+└── Step 3: Review [PENDING] → Jordan-Review
     └── Validate document, approve or reject
 ```
 
@@ -471,24 +471,24 @@ POST /api/tasks/{task-id}/steps/{step-id}
 
 ### Bad vs Good Task Design
 
-**❌ BAD — Alice sees full task:**
+**❌ BAD — Sam sees full task:**
 ```
 Task: "Build a login system"
-├── Step 1: Research → Alice sees "Build a login system"
-│   └── Alice does: Research + starts coding (WRONG!)
-├── Step 2: Build → Bob sees "Build a login system"
-│   └── Bob does: Rebuilds everything Alice started (DUPLICATE!)
+├── Step 1: Research → Sam sees "Build a login system"
+│   └── Sam does: Research + starts coding (WRONG!)
+├── Step 2: Build → Dana sees "Build a login system"
+│   └── Dana does: Rebuilds everything Sam started (DUPLICATE!)
 ```
 
 **✅ GOOD — Isolated scope per step:**
 ```
 Task: "Build a login system" (Orchestrator knows full scope)
-├── Step 1: Research → Alice sees ONLY:
+├── Step 1: Research → Sam sees ONLY:
 │   "Find 3 auth libraries. Save comparison to
 │    {DOCUMENTS_ROOT}/research/auth-options.md"
 │   └── Deliverable: auth-options.md with 3 options compared
 │   └── Validation: File exists, has 3 options, has comparison matrix
-├── Step 2: Build → Bob sees ONLY:
+├── Step 2: Build → Dana sees ONLY:
 │   "Implement auth using Option A from
 │    {DOCUMENTS_ROOT}/research/auth-options.md"
 │   └── Deliverable: Working auth code in src/auth/
@@ -500,7 +500,7 @@ Task: "Build a login system" (Orchestrator knows full scope)
 ```json
 {
   "title": "Research auth options for login system",
-  "description": "Step 1 of 3. Research ONLY.\n\n**Your scope:** Find and compare 3 auth libraries.\n**Input:** None (green field).\n**Deliverable:** {DOCUMENTS_ROOT}/research/auth-options.md with comparison table.\n**Validation:** File exists, 3 options, comparison matrix, recommendation.\n\n**DO NOT:** Write code. DO NOT implement. Research only.\n**Next step:** Build (assigned to Bob, not you).",
+  "description": "Step 1 of 3. Research ONLY.\n\n**Your scope:** Find and compare 3 auth libraries.\n**Input:** None (green field).\n**Deliverable:** {DOCUMENTS_ROOT}/research/auth-options.md with comparison table.\n**Validation:** File exists, 3 options, comparison matrix, recommendation.\n\n**DO NOT:** Write code. DO NOT implement. Research only.\n**Next step:** Build (assigned to Dana, not you).",
   "workflow": "wf-research"
 }
 ```
@@ -514,9 +514,9 @@ With isolated deliverables, the Orchestrator validates:
 | Research | `auth-options.md` | File exists? Has 3 options? |
 | Build | `src/auth/` directory | Code exists? Compiles? |
 | Test | Test results | All tests pass? |
-| Review | Approval comment | Aegis approved? |
+| Review | Approval comment | Jordan approved? |
 
-**If Alice gives code instead of research doc → REJECT → Back to Alice**
+**If Sam gives code instead of research doc → REJECT → Back to Sam**
 
 ### Key Principle
 

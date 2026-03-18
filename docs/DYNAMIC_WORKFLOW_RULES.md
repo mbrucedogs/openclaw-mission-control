@@ -16,7 +16,7 @@
 ```typescript
 // WRONG - Hardcoded agent
 const workflow = {
-  agentId: "alice",  // Might not exist
+  agentId: "sam-scout",  // Might not exist
   agentRole: "researcher"
 };
 

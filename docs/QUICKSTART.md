@@ -12,10 +12,10 @@ npm install
 
 ### 2. Database Setup
 
-Database auto-initializes on first run with required tables only. **Workflows and pipelines are created dynamically** when the Primary AI (Max) processes the first task. This ensures workflows match your actual configured agents.
+Database auto-initializes on first run with required tables only. **Workflows and pipelines are created dynamically** when the Orchestrator processes the first task. This ensures workflows match your actual configured agents.
 
 **On first task:**
-- Max discovers your agents from TEAM-REGISTRY.md
+- The Orchestrator discovers your agents from TEAM-REGISTRY.md
 - Creates workflows for each agent role
 - Creates pipelines linking those workflows
 - Then matches the task to the appropriate pipeline
@@ -67,7 +67,7 @@ Access at: `http://localhost:4000`
 1. **Start webapp** - Runs independently
 2. **Agents auto-sync** - Webapp fetches from OpenClaw `/api/agents`
 3. **Identity Sync** - Webapp uses your configured `AUTH_USER` and `AUTH_PASS`
-4. **Primary AI Orchestration** - Can process existing tasks through pipelines
+4. **Orchestrator Orchestration** - Can process existing tasks through pipelines
 4. **Backward compatible** - Tasks without pipelines work as before
 
 ### Migration Path
@@ -75,11 +75,11 @@ Access at: `http://localhost:4000`
 Existing tasks can be:
 - Left as-is (no pipeline)
 - Assigned pipeline retroactively
-- Processed by the Primary AI going forward
+- Processed by the Orchestrator going forward
 
 ## First Task Test
 
-Create a task and watch the Primary AI assign pipeline:
+Create a task and watch the Orchestrator assign pipeline:
 
 ```bash
 curl -X POST http://localhost:4000/api/tasks \
@@ -89,7 +89,7 @@ curl -X POST http://localhost:4000/api/tasks \
 ```
 
 Response shows:
-- `owner: "alice"` (matched to researcher)
+- `owner: "sam-scout"` (matched to researcher)
 - `pipelineMatch` with workflows
 
 ## Troubleshooting
@@ -112,10 +112,10 @@ Response shows:
 1. Read [ORCHESTRATION.md](./ORCHESTRATION.md) for full docs
 2. Customize workflows for your use case
 3. Create custom pipelines
-4. Train the Primary AI on your patterns
+4. Train the Orchestrator on your patterns
 
 ## Support
 
 - Issues: GitHub Issues
 - Docs: `/docs` folder
-- Primary AI: Ask your primary AI orchestrator
+- Orchestrator: Ask your orchestrator

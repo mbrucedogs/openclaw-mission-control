@@ -2,7 +2,7 @@
 
 **How to onboard an AI assistant to Mission Control**
 
-**For:** Users setting up Mission Control with an AI orchestrator (like Max)
+**For:** Users setting up Mission Control with an AI orchestrator (an Orchestrator)
 **Purpose:** Teach the AI how to learn and use this system
 
 ---
@@ -21,12 +21,12 @@
 - **Pipelines:** Multiple types (standard, quick-fix, research, docs, automation)
 - **Keywords:** Task text determines which pipeline is used
 - **Requirements:** Every task needs DOCUMENTS_ROOT, deliverables, evidence format, tools, fallback
-- **Monitoring:** Tron (local) checks every 2 min, AI only wakes when work detected
+- **Monitoring:** Automation agent checks every 2 min, AI only wakes when work detected
 
 **With just these facts, the AI can:**
 - Answer basic questions about how orchestration works
 - Know that workflows are created dynamically
-- Understand the two-tier monitoring design
+- Understand the automated monitoring design
 
 ### Stage 2: Knowledge Index (First Deep Dive)
 

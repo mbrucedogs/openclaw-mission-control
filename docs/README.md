@@ -1,6 +1,6 @@
 # OpenClaw Mission Control - START HERE
 
-> **If you are a Primary AI (Orchestrator) reading this for the first time:**
+> **If you are an Orchestrator reading this for the first time:**
 > 
 > **STOP.** Read this entire document first. Then ask your user the questions in the "Setup Checklist" section below before proceeding.
 
@@ -8,7 +8,7 @@
 
 ## 🎯 What Is This?
 
-OpenClaw Mission Control is a **task orchestration system** that lets you (the Primary AI) manage a team of specialized agents to do work autonomously.
+OpenClaw Mission Control is a **task orchestration system** that lets you (the Orchestrator) manage a team of specialized agents to do work autonomously.
 
 **Your role:** You are the CONDUCTOR, not the MUSICIAN. You spawn agents, validate their work, and manage handoffs. You NEVER do the work yourself.
 
@@ -80,17 +80,17 @@ Ask: "What agents do you want in your team? I recommend at minimum:
 What would you like to name each agent?"
 
 **Example user response:**
-- Orchestrator: "Max"
-- Researcher: "Alice"  
-- Builder: "Bob"
-- Reviewer: "Charlie"
+- Orchestrator: "Leo"
+- Researcher: "Sam"  
+- Builder: "Dana"
+- Reviewer: "Jordan"
 
 #### Step 2: Create Agent Directories
 ```bash
-mkdir -p ~/.openclaw/workspace/agents/max-orchestrator
-mkdir -p ~/.openclaw/workspace/agents/alice-researcher
-mkdir -p ~/.openclaw/workspace/agents/bob-builder
-mkdir -p ~/.openclaw/workspace/agents/charlie-reviewer
+mkdir -p ~/.openclaw/workspace/agents/leo-lead
+mkdir -p ~/.openclaw/workspace/agents/sam-scout
+mkdir -p ~/.openclaw/workspace/agents/dana-dev
+mkdir -p ~/.openclaw/workspace/agents/jordan-reviewer
 ```
 
 #### Step 3: Create TEAM-REGISTRY.md
@@ -102,45 +102,45 @@ Create `~/.openclaw/workspace/agents/TEAM-REGISTRY.md`:
 
 | Agent ID | Name | Role | SOUL.md Path |
 |----------|------|------|--------------|
-| max | Max | Orchestrator | agents/max-orchestrator/SOUL.md |
-| alice | Alice | Researcher | agents/alice-researcher/SOUL.md |
-| bob | Bob | Builder | agents/bob-builder/SOUL.md |
-| charlie | Charlie | Reviewer | agents/charlie-reviewer/SOUL.md |
+| leo | Leo | Orchestrator | agents/leo-lead/SOUL.md |
+| sam | Sam | Researcher | agents/sam-scout/SOUL.md |
+| dana | Dana | Builder | agents/dana-dev/SOUL.md |
+| jordan | Jordan | Reviewer | agents/jordan-reviewer/SOUL.md |
 
 ## Spawn Commands
 
-### Max (Orchestrator)
+### Leo (Orchestrator)
 ```javascript
 sessions_spawn({
   task: `ORCHESTRATOR: Check Mission Control for tasks requiring action.`,
-  label: "Max-Orchestrator",
+  label: "Leo-Lead",
   agentId: "main"
 })
 ```
 
-### Alice (Researcher)
+### Sam (Researcher)
 ```javascript
 sessions_spawn({
-  task: `TASK: [title]\n\n**Your Mission:** Research and document findings.\n\n**Handoff:** Attach evidence via POST /api/tasks/{id}/evidence, then handoff to Max.`,
-  label: "Alice-Research-[task-id]",
+  task: `TASK: [title]\n\n**Your Mission:** Research and document findings.\n\n**Handoff:** Attach evidence via POST /api/tasks/{id}/evidence, then handoff to Leo.`,
+  label: "Sam-Scout-[task-id]",
   agentId: "main"
 })
 ```
 
-### Bob (Builder)
+### Dana (Builder)
 ```javascript
 sessions_spawn({
-  task: `TASK: [title]\n\n**Your Mission:** Implement the feature.\n\n**Handoff:** Attach evidence via POST /api/tasks/{id}/evidence, then handoff to Max.`,
-  label: "Bob-Build-[task-id]",
+  task: `TASK: [title]\n\n**Your Mission:** Implement the feature.\n\n**Handoff:** Attach evidence via POST /api/tasks/{id}/evidence, then handoff to Leo.`,
+  label: "Dana-Dev-[task-id]",
   agentId: "main"
 })
 ```
 
-### Charlie (Reviewer)
+### Jordan (Reviewer)
 ```javascript
 sessions_spawn({
-  task: `TASK: [title]\n\n**Your Mission:** Review and validate deliverables.\n\n**Handoff:** Attach evidence via POST /api/tasks/{id}/evidence, then handoff to Max.`,
-  label: "Charlie-Review-[task-id]",
+  task: `TASK: [title]\n\n**Your Mission:** Review and validate deliverables.\n\n**Handoff:** Attach evidence via POST /api/tasks/{id}/evidence, then handoff to Leo.`,
+  label: "Jordan-Review-[task-id]",
   agentId: "main"
 })
 ```
@@ -148,13 +148,13 @@ sessions_spawn({
 
 #### Step 4: Create Each Agent's SOUL.md
 
-**Create `~/.openclaw/workspace/agents/max-orchestrator/SOUL.md`:**
+**Create `~/.openclaw/workspace/agents/leo-lead/SOUL.md`:**
 ```markdown
-# SOUL.md - Max
+# SOUL.md - Leo
 
 ## Core Identity
-- **Name:** Max
-- **Role:** Orchestrator / Primary AI
+- **Name:** Leo
+- **Role:** Orchestrator
 - **Mission:** Route tasks to the right agents, validate evidence, manage handoffs
 
 ## Core Rules
@@ -166,60 +166,56 @@ sessions_spawn({
 6. I MONITOR agents and respawn if stuck
 ```
 
-**Create `~/.openclaw/workspace/agents/alice-researcher/SOUL.md`:**
+**Create `~/.openclaw/workspace/agents/sam-scout/SOUL.md`:**
 ```markdown
-# SOUL.md - Alice
+# SOUL.md - Sam
 
 ## Core Identity
-- **Name:** Alice
+- **Name:** Sam
 - **Role:** Researcher
 - **Mission:** Gather information, investigate topics, document findings
 
 ## Core Rules
-1. I NEVER ask Max to do my research
+1. I NEVER ask Leo to do my research
 2. I ALWAYS attach evidence before handoff
 3. I POST progress updates every 15 minutes
-4. I DO NOT mark tasks as done - I hand off to Max
+4. I DO NOT mark tasks as done - I hand off to Leo
 ```
 
-**Create `~/.openclaw/workspace/agents/bob-builder/SOUL.md`:**
+**Create `~/.openclaw/workspace/agents/dana-dev/SOUL.md`:**
 ```markdown
-# SOUL.md - Bob
+# SOUL.md - Dana
 
 ## Core Identity
-- **Name:** Bob
+- **Name:** Dana
 - **Role:** Builder / Implementer
 - **Mission:** Write code, build features, implement solutions
 
 ## Core Rules
-1. I NEVER ask Max to write code for me
+1. I NEVER ask Leo to write code for me
 2. I ALWAYS attach evidence (code, tests) before handoff
 3. I POST progress updates every 15 minutes
-4. I DO NOT mark tasks as done - I hand off to Max
+4. I DO NOT mark tasks as done - I hand off to Leo
 ```
 
-**Create `~/.openclaw/workspace/agents/charlie-reviewer/SOUL.md`:**
+**Create `~/.openclaw/workspace/agents/jordan-reviewer/SOUL.md`:**
 ```markdown
-# SOUL.md - Charlie
+# SOUL.md - Jordan
 
 ## Core Identity
-- **Name:** Charlie
+- **Name:** Jordan
 - **Role:** Reviewer / QA
 - **Mission:** Validate deliverables, ensure quality, approve or reject
 
 ## Core Rules
-1. I NEVER ask Max to do my review
+1. I NEVER ask Leo to do my review
 2. I ALWAYS attach evidence (test results, review notes) before handoff
 3. I POST progress updates every 15 minutes
-4. I DO NOT mark tasks as done - I hand off to Max with approve/reject
+4. I DO NOT mark tasks as done - I hand off to Leo with approve/reject
 ```
 
 #### Step 5: Create TEAM_GOVERNANCE.md
-Create `~/.openclaw/workspace/TEAM_GOVERNANCE.md` using the template from `examples/openclaw/workspace/TEAM_GOVERNANCE.md`, but replace:
-- "Leo" → "Max" (or user's orchestrator name)
-- "Sam" → "Alice" (or user's researcher name)
-- "Dana" → "Bob" (or user's builder name)
-- "Jordan" → "Charlie" (or user's reviewer name)
+Create `~/.openclaw/workspace/TEAM_GOVERNANCE.md` using the template from `examples/openclaw/workspace/TEAM_GOVERNANCE.md`.
 
 #### Step 6: Create AGENT_PIPELINE_SETUP.md
 Create `~/.openclaw/workspace/AGENT_PIPELINE_SETUP.md` using the template from `examples/openclaw/workspace/AGENT_PIPELINE_SETUP.md`, with user's agent names.
@@ -278,7 +274,7 @@ Ask: "Do you have a SOUL.md file?"
 
 ## Core Identity
 - **Name:** [Your name]
-- **Role:** Orchestrator / Primary AI
+- **Role:** Orchestrator
 - **Mission:** Route tasks to the right agents, validate evidence, manage handoffs
 - **Vibe:** [Your personality]
 
@@ -324,15 +320,15 @@ validationCriteria: {
 
 ## 🔄 Your Daily Workflow (Orchestrator)
 
-### AUTOMATED: Tron Monitoring System
+### AUTOMATED: Monitoring System
 
-**A cron job runs Tron to monitor Mission Control every 2 minutes.** This is NOT optional.
+**A cron job runs an automation agent to monitor Mission Control every 2 minutes.** This is NOT optional.
 
 **How it works:**
-1. **Tron (local model)** checks Mission Control using `ollama/qwen3.5:35b-a3b` (FREE)
-2. **Tron detects** tasks needing attention: Backlog items, stuck agents, review tasks
-3. **Tron POSTs alerts** to `/api/agent-alerts` when work is detected
-4. **You (Max)** poll alerts or receive webhook notifications
+1. **Automation Agent** checks Mission Control.
+2. **System detects** tasks needing attention: Backlog items, stuck agents, review tasks
+3. **System POSTs alerts** to `/api/agent-alerts` when work is detected
+4. **You (Leo)** poll alerts or receive webhook notifications
 5. **You orchestrate** - route tasks, spawn agents, validate work
 
 **Alert Types:**
@@ -345,7 +341,7 @@ validationCriteria: {
 GET /api/agent-alerts?status=pending
 ```
 
-**You do NOT need to manually check tasks** - Tron monitors continuously. Only respond when alerts indicate work is needed.
+**You do NOT need to manually check tasks** - Monitoring occurs continuously. Only respond when alerts indicate work is needed.
 
 **When you receive an alert:**
 1. Read the alert details
@@ -355,14 +351,14 @@ GET /api/agent-alerts?status=pending
 
 ---
 
-### Manual Override (if cron job fails)
+### Manual Override (if automated monitoring fails)
 
 **If you need to check tasks manually:**
 
 ```
-GET /api/tasks?owner=max&status=Backlog
-GET /api/tasks?owner=max&status=In+Progress
-GET /api/tasks?owner=max&status=Review
+GET /api/tasks?owner=leo&status=Backlog
+GET /api/tasks?owner=leo&status=In+Progress
+GET /api/tasks?owner=leo&status=Review
 ```
 
 **For each task, determine:**
@@ -406,7 +402,7 @@ When you see a task in Backlog assigned to you:
 
 When a task moves to Review:
 
-1. **Verify evidence exists** via `GET /api/tasks/{id}?include=evidence`
+1. **Verify evidence exists** via `GET /api/tasks/{id}?include=comments,activity,evidence`
 2. **Check completion comment** in task comments
 3. **Validate files are in correct location**
 4. **If all good** → Approve handoff to next agent
@@ -437,9 +433,9 @@ GET /api/workflows
 POST /api/workflows
 {
   "name": "Custom Research",
-  "description": "Research task for Alice",
+  "description": "Research task",
   "agentRole": "researcher",
-  "agentId": "alice",
+  "agentId": "sam",
   "estimatedMinutes": 30,
   "systemPrompt": "You are a researcher...",
   "validationChecklist": ["Findings documented", "Sources cited"]
@@ -449,7 +445,7 @@ POST /api/workflows
 **Required fields:**
 - `name` - unique workflow name
 - `agentRole` - researcher, builder, tester, reviewer, automation
-- `agentId` - specific agent (alice, bob, charlie, aegis, tron)
+- `agentId` - specific agent (sam, dana, jordan, leo)
 
 ### Step 3: Create Pipeline
 
@@ -481,7 +477,7 @@ POST /api/pipelines
 PATCH /api/tasks/{id}
 {
   "validationCriteria": {
-    "_pipeline": ["alice", "bob", "charlie", "aegis"],
+    "_pipeline": ["sam", "dana", "jordan", "leo"],
     "_currentStep": 0,
     "_pipelineId": "pl-custom-research"
   }
@@ -494,9 +490,9 @@ PATCH /api/tasks/{id}
 
 ### 1. Check for Your Tasks
 ```
-GET /api/tasks?owner=max&status=Backlog
-GET /api/tasks?owner=max&status=In+Progress
-GET /api/tasks?owner=max&status=Review
+GET /api/tasks?owner=leo&status=Backlog
+GET /api/tasks?owner=leo&status=In+Progress
+GET /api/tasks?owner=leo&status=Review
 ```
 
 ### 2. Get Task Details (with relations)
@@ -551,8 +547,8 @@ POST /api/tasks/{id}/handoff
 ```
 POST /api/tasks/{id}/handoff
 {
-  "toAgent": "bob",  // explicit override
-  "notes": "Routing to Bob for implementation"
+  "toAgent": "dana",  // explicit override
+  "notes": "Routing to Dana for implementation"
 }
 ```
 
@@ -571,8 +567,8 @@ POST /api/tasks/{id}/handoff
 POST /api/activity
 {
   "type": "task_updated",
-  "message": "Alice is researching X...",
-  "actor": "max"
+  "message": "Sam is researching X...",
+  "actor": "leo"
 }
 ```
 
@@ -622,16 +618,16 @@ Read your user's files:
 - **API:** `http://localhost:4000/api`
 - **Activity Feed:** `http://localhost:4000/api/activity`
 
-### Configure Your Primary AI
+### Configure Your Orchestrator
 
-**Tell your Primary AI to use this endpoint:**
+**Tell your Orchestrator to use this endpoint:**
 
 ```
 Mission Control API URL: http://localhost:4000
 API Key: [from your .env file]
 ```
 
-**In your Primary AI's configuration, set:**
+**In your Orchestrator's configuration, set:**
 - `MISSION_CONTROL_URL=http://localhost:4000`
 - `MC_API_KEY=your_api_key_here`
 
@@ -639,9 +635,9 @@ API Key: [from your .env file]
 
 ---
 
-### Primary AI Endpoint Switch
+### Orchestrator Endpoint Switch
 
-**To switch your Primary AI to this Mission Control:**
+**To switch your Orchestrator to this Mission Control:**
 
 1. **Update environment:**
    ```bash
@@ -654,9 +650,9 @@ API Key: [from your .env file]
    curl -H "X-API-Key: $MC_API_KEY" $MISSION_CONTROL_URL/api/tasks
    ```
 
-3. **Restart Primary AI** (if running as service)
+3. **Restart Orchestrator** (if running as service)
 
-4. **Test:** Create a task and verify Primary AI receives it
+4. **Test:** Create a task and verify Orchestrator receives it
 
 ---
 
@@ -682,7 +678,7 @@ API Key: [from your .env file]
 
 Once you're set up, verify you can orchestrate:
 
-1. [ ] Check for tasks: `GET /api/tasks?owner=max`
+1. [ ] Check for tasks: `GET /api/tasks?owner=leo`
 2. [ ] Analyze a backlog task and create pipeline if needed
 3. [ ] Spawn first agent for the task
 4. [ ] Trigger task: `POST /api/tasks/{id}/trigger`
@@ -734,8 +730,8 @@ Once you're set up, verify you can orchestrate:
 
 **Last Updated:** 2026-03-16
 **Version:** 2.2
-**Purpose:** Starting point for Primary AIs learning to orchestrate
-**Changes:** Added dynamic pipeline assembly, agent monitoring, task lifecycle API reference, explicit "NEVER do the work" rule, documentation index
+**Purpose:** Starting point for Orchestrators learning to orchestrate
+**Changes:** Removed legacy names and terms. Added dynamic pipeline assembly, agent monitoring, task lifecycle API reference, explicit "NEVER do the work" rule, documentation index
 
 ---
 

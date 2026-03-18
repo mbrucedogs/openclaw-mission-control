@@ -13,12 +13,12 @@ const getAgentIcon = (agent: Agent) => {
     const id = agent.id.toLowerCase();
     const role = (agent.role || '').toLowerCase();
     
-    if (id === 'main' || id === 'max' || role.includes('orchestrat')) return '🎉';
-    if (id.includes('alice') || role.includes('research')) return Search;
-    if (id.includes('bob') || role.includes('implement') || role.includes('code')) return Code;
-    if (id.includes('charlie') || role.includes('test') || role.includes('qa')) return TestTube;
-    if (id.includes('aegis') || role.includes('review') || role.includes('standard')) return Shield;
-    if (id.includes('tron') || role.includes('auto') || role.includes('cron') || role.includes('monitor')) return Zap;
+    if (id === 'main' || role.toLowerCase().includes('orchestrat')) return '🎉';
+    if (role.toLowerCase().includes('research')) return Search;
+    if (role.toLowerCase().includes('implement') || role.toLowerCase().includes('code') || role.toLowerCase().includes('build')) return Code;
+    if (role.toLowerCase().includes('test') || role.toLowerCase().includes('qa')) return TestTube;
+    if (role.toLowerCase().includes('review') || role.toLowerCase().includes('standard')) return Shield;
+    if (role.toLowerCase().includes('auto') || role.toLowerCase().includes('cron') || role.toLowerCase().includes('monitor')) return Zap;
     
     return User;
 };
@@ -71,7 +71,7 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl mx-auto">
                             {pipelineAgents.map(a => (
-                                <AgentCard key={a.id} agent={a} highlight={a.id === 'aegis' ? 'border-emerald-500/30' : undefined} onClick={() => setSelectedAgent(a)} />
+                                <AgentCard key={a.id} agent={a} onClick={() => setSelectedAgent(a)} />
                             ))}
                         </div>
                     </div>
@@ -246,6 +246,39 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                                 "text-xs font-bold uppercase tracking-tight",
                                 (agent.status === 'idle' || !agent.status) ? "text-emerald-500" : "text-amber-500"
                             )}>{agent.status ?? 'idle'}</span>
+                        </div>
+                        <div className="flex flex-col min-w-[140px]">
+                            <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">System Type</span>
+                            <select 
+                                value={agent.type || ''} 
+                                onChange={async (e) => {
+                                    const newType = e.target.value;
+                                    try {
+                                        const response = await fetch('/api/agents/type', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ id: agent.id, type: newType })
+                                        });
+                                        if (response.ok) {
+                                            // Ideally we would refresh the parent state here, 
+                                            // but for now we just show it updated in the DB.
+                                            // In a real app we'd use a context or state management.
+                                            window.location.reload(); 
+                                        }
+                                    } catch (err) {
+                                        console.error('Failed to update agent type', err);
+                                    }
+                                }}
+                                className="bg-[#111113] border border-[#1a1a1f] rounded-lg text-xs font-bold text-blue-400 uppercase tracking-tight px-2 py-1 outline-none hover:border-blue-500/30 transition-colors"
+                            >
+                                <option value="">UNASSIGNED</option>
+                                <option value="orchestrator">ORCHESTRATOR</option>
+                                <option value="researcher">RESEARCHER</option>
+                                <option value="builder">BUILDER</option>
+                                <option value="tester">TESTER</option>
+                                <option value="reviewer">REVIEWER</option>
+                                <option value="automation">AUTOMATION</option>
+                            </select>
                         </div>
                     </div>
                     <button 

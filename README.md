@@ -5,7 +5,7 @@ A task management and agent orchestration system for OpenClaw autonomous organiz
 ## Features
 
 - **Task Management** - Kanban board with status tracking
-- **Agent Orchestration** - Automated pipeline execution with the Primary AI
+- **Agent Orchestration** - Automated pipeline execution with the Orchestrator
 - **Workflow Templates** - Reusable work definitions for agents
 - **Dynamic Pipelines** - Hybrid model: predefined + on-the-fly assembly
 - **Activity Tracking** - Full audit trail of all changes
@@ -55,23 +55,23 @@ Ordered sequences of workflows:
 ### The Hybrid Model
 
 1. **Predefined Pipelines** - Common patterns stored in database
-2. **Dynamic Assembly** - Primary AI builds custom pipelines when no match exists
+2. **Dynamic Assembly** - Orchestrator builds custom pipelines when no match exists
 3. **Learning System** - Successful dynamic pipelines become predefined
 
 ## How It Works
 
-1. **Task Created** → Primary AI analyzes content
+1. **Task Created** → Orchestrator analyzes content
 2. **Pipeline Matched** → Predefined or dynamically assembled
-3. **Agent Spawned** → First workflow step executes
-4. **Primary AI Monitors** → Reviews deliverables, asks questions
-5. **Handoff** → Routes to next agent when satisfied
-6. **Complete** → Final review and approval
+3. **Agent Spawned** → First workflow step executes (e.g., Sam-Scout)
+4. **Orchestrator Monitors** → Reviews deliverables, asks questions
+5. **Handoff** → Routes to next agent (e.g., Dana-Dev) when satisfied
+6. **Complete** → Final review and approval (e.g., Jordan-Reviewer)
 
 ## Architecture
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Task      │────▶│  Primary AI  │────▶│  Pipeline   │
+│   Task      │────▶│  Orchestrator  │────▶│  Pipeline   │
 │  Created    │     │  (Orchestrator)│    │  Matched    │
 └─────────────┘     └──────────────┘     └─────────────┘
                               │
@@ -123,12 +123,12 @@ All API requests require an `X-API-Key` header with the value defined in your `.
 curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/tasks
 ```
 
-### Configure Your Primary AI
+### Configure Your Orchestrator
 
-**Tell your Primary AI to use this endpoint:**
+**Tell your Orchestrator to use this endpoint:**
 
 ```bash
-# In your Primary AI environment:
+# In your Orchestrator environment:
 export MISSION_CONTROL_URL=http://localhost:4000
 export MC_API_KEY=your_api_key_here
 ```

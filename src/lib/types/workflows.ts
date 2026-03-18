@@ -54,7 +54,7 @@ export interface WorkflowTemplate {
     name: string;
     description?: string;
     agentRole: AgentRole;
-    agentId?: string; // specific agent like 'alice', 'bob'
+    agentId?: string; // specific agent ID if assigned
     timeoutSeconds: number;
     model?: string; // Hard limit - workflow killed if exceeds this
     systemPrompt?: string;
@@ -115,7 +115,7 @@ export interface PipelineMatchResult {
     pipelineName?: string;
     workflowIds?: string[]; // for dynamic assembly
     isDynamic: boolean;
-    confidence: number; // 0-1, how confident MAX is in this match
+    confidence: number; // 0-1 match confidence
     reason: string; // why this pipeline was chosen
 }
 
