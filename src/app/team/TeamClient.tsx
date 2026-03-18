@@ -102,9 +102,9 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
             <div className="flex-1 overflow-y-auto px-12 pb-20 relative">
                 {/* Governance Layer */}
                 {governanceAgents.length > 0 && (
-                    <div className="flex flex-col items-center space-y-8">
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Governance Layer</div>
-                        <div className="flex flex-wrap justify-center gap-6">
+                    <div className="flex flex-col items-center space-y-12 mt-12 mb-20">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] opacity-80 border-b border-slate-800 pb-2 px-8">Governance Layer</div>
+                        <div className="flex flex-wrap justify-center gap-8">
                             {governanceAgents.map(a => (
                                 <AgentCard key={a.id} agent={a} highlight="border-blue-500/30" onClick={() => setSelectedAgent(a)} />
                             ))}
@@ -114,16 +114,16 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
 
                 {/* Pipeline Layer */}
                 {pipelineAgents.length > 0 && (
-                    <div className="space-y-12">
-                        <div className="flex items-center justify-center space-x-4">
-                            <div className="h-px w-24 bg-[#1a1a1a]" />
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center">
+                    <div className="space-y-16 mb-24">
+                        <div className="flex items-center justify-center space-x-6">
+                            <div className="h-px flex-1 max-w-[100px] bg-gradient-to-r from-transparent to-[#1a1a1a]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center opacity-80">
                                 WORKFLOW PIPELINE
                             </span>
-                            <div className="h-px w-24 bg-[#1a1a1a]" />
+                            <div className="h-px flex-1 max-w-[100px] bg-gradient-to-l from-transparent to-[#1a1a1a]" />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl mx-auto">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-7xl mx-auto">
                             {pipelineAgents.map(a => (
                                 <AgentCard key={a.id} agent={a} onClick={() => setSelectedAgent(a)} />
                             ))}
@@ -133,16 +133,16 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
 
                 {/* Automation Layer */}
                 {automationAgents.length > 0 && (
-                    <div className="space-y-12">
-                        <div className="flex items-center justify-center space-x-4">
-                            <div className="h-px w-24 bg-[#1a1a1a]" />
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] flex items-center">
+                    <div className="space-y-16 mb-24">
+                        <div className="flex items-center justify-center space-x-6">
+                            <div className="h-px flex-1 max-w-[100px] bg-gradient-to-r from-transparent to-[#222]" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] flex items-center opacity-80">
                                 AUTOMATION LAYER
                             </span>
-                            <div className="h-px w-24 bg-[#1a1a1a]" />
+                            <div className="h-px flex-1 max-w-[100px] bg-gradient-to-l from-transparent to-[#222]" />
                         </div>
 
-                        <div className="flex flex-wrap justify-center gap-6">
+                        <div className="flex flex-wrap justify-center gap-8">
                             {automationAgents.map(a => (
                                 <AgentCard key={a.id} agent={a} highlight="border-orange-500/30" onClick={() => setSelectedAgent(a)} />
                             ))}

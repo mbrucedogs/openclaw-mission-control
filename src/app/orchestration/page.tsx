@@ -925,7 +925,7 @@ function PipelineCard({
                                 <span className="truncate max-w-[120px]">
                                     {step.workflow?.name || step.workflow_id}
                                     {step.workflow?.agentName && (
-                                        <span className="text-blue-400 opacity-80 opacity-60 ml-1">
+                                        <span className="text-blue-400 opacity-70 ml-1 font-medium">
                                             ({step.workflow.agentName})
                                         </span>
                                     )}
@@ -959,8 +959,13 @@ function PipelineCard({
                                             <p className="text-xs font-bold text-white">
                                                 {step.workflow?.name || step.workflow_id}
                                             </p>
-                                            <p className="text-[10px] text-slate-500">
-                                                {step.workflow?.agentName ? `${step.workflow.agentName} (${step.workflow.agentRole})` : step.workflow?.agentRole} • {step.workflow?.timeoutSeconds}min
+                                            <p className="text-[10px] text-slate-400">
+                                                {step.workflow?.agentName ? (
+                                                    <>
+                                                        <span className="font-bold text-blue-400/80">{step.workflow.agentName}</span>
+                                                        <span className="text-slate-500 ml-1">({step.workflow.agentRole})</span>
+                                                    </>
+                                                ) : step.workflow?.agentRole} • {step.workflow?.timeoutSeconds}min
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1">
