@@ -14,6 +14,7 @@ interface Workflow {
     description?: string;
     agentRole: string;
     agentId?: string;
+    agentName?: string;
     timeoutSeconds: number;
     model: string;
     systemPrompt?: string;
@@ -507,6 +508,12 @@ function WorkflowCard({
                         <Clock className="w-3 h-3" />
                         {workflow.timeoutSeconds}min
                     </span>
+                    {workflow.agentName && (
+                        <span className="flex items-center gap-1">
+                            <User className="w-3 h-3 text-blue-400" />
+                            {workflow.agentName}
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -915,8 +922,13 @@ function PipelineCard({
                                     : 'bg-slate-800 text-slate-500'
                             )}>
                                 <span>{step.workflow ? AGENT_ICONS[step.workflow.agentRole] : '?'}</span>
-                                <span className="truncate max-w-[80px]">
+                                <span className="truncate max-w-[120px]">
                                     {step.workflow?.name || step.workflow_id}
+                                    {step.workflow?.agentName && (
+                                        <span className="text-blue-400 opacity-80 opacity-60 ml-1">
+                                            ({step.workflow.agentName})
+                                        </span>
+                                    )}
                                 </span>
                             </div>
                             {i < stepsWithData.length - 1 && (
@@ -948,7 +960,7 @@ function PipelineCard({
                                                 {step.workflow?.name || step.workflow_id}
                                             </p>
                                             <p className="text-[10px] text-slate-500">
-                                                {step.workflow?.agentRole} • {step.workflow?.timeoutSeconds}min
+                                                {step.workflow?.agentName ? `${step.workflow.agentName} (${step.workflow.agentRole})` : step.workflow?.agentRole} • {step.workflow?.timeoutSeconds}min
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-1">

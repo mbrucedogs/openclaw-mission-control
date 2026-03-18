@@ -6,15 +6,15 @@ import { WorkflowTemplate, Pipeline, PipelineStep, TaskPipeline, PipelineMatchRe
 // ============================================================================
 
 export function getWorkflowTemplates(role?: string): WorkflowTemplate[] {
-    let query = 'SELECT * FROM workflow_templates';
+    let query = 'SELECT wt.*, a.name as agent_name FROM workflow_templates wt LEFT JOIN agents a ON wt.agent_id = a.id';
     const params: any[] = [];
     
     if (role) {
-        query += ' WHERE agent_role = ?';
+        query += ' WHERE wt.agent_role = ?';
         params.push(role);
     }
     
-    query += ' ORDER BY use_count DESC, updated_at DESC';
+    query += ' ORDER BY wt.use_count DESC, wt.updated_at DESC';
     
     return db.prepare(query).all(...params).map(row => ({
         id: (row as any).id,
@@ -22,6 +22,7 @@ export function getWorkflowTemplates(role?: string): WorkflowTemplate[] {
         description: (row as any).description,
         agentRole: (row as any).agent_role,
         agentId: (row as any).agent_id,
+        agentName: (row as any).agent_name,
         timeoutSeconds: (row as any).timeout_seconds,
         systemPrompt: (row as any).system_prompt,
         validationChecklist: (row as any).validation_checklist ? JSON.parse((row as any).validation_checklist) : [],
@@ -34,7 +35,7 @@ export function getWorkflowTemplates(role?: string): WorkflowTemplate[] {
 }
 
 export function getWorkflowTemplateById(id: string): WorkflowTemplate | null {
-    const row = db.prepare('SELECT * FROM workflow_templates WHERE id = ?').get(id) as any;
+    const row = db.prepare('SELECT wt.*, a.name as agent_name FROM workflow_templates wt LEFT JOIN agents a ON wt.agent_id = a.id WHERE wt.id = ?').get(id) as any;
     if (!row) return null;
     
     return {
@@ -43,6 +44,7 @@ export function getWorkflowTemplateById(id: string): WorkflowTemplate | null {
         description: row.description,
         agentRole: row.agent_role,
         agentId: row.agent_id,
+        agentName: row.agent_name,
         timeoutSeconds: row.timeout_seconds,
         systemPrompt: row.system_prompt,
         validationChecklist: row.validation_checklist ? JSON.parse(row.validation_checklist) : [],
@@ -730,4 +732,185 @@ function hydrateTaskWorkflowStep(row: any): TaskWorkflowStep {
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     };
+}
+// ============================================================================
+// DYNAMIC SEEDING
+// ============================================================================
+
+export function seedDefaultWorkflows() {
+    // Only proceed if ALL agents have been assigned a type (Onboarding complete)
+    const allAgents = db.prepare('SELECT id, type FROM agents').all() as { id: string, type: string | null }[];
+    const unassignedCount = allAgents.filter(a => !a.type).length;
+    
+    if (unassignedCount > 0) {
+        console.log(`[Seeding] Skipping. ${unassignedCount} agents still unassigned.`);
+        return;
+    }
+
+    console.log('[Seeding] All agents assigned. Generating default workflows and pipelines...');
+    
+    const agents = allAgents as { id: string, type: string }[];
+    const getAgentForRole = (role: string) => agents.find(a => a.type === role)?.id;
+
+    const templates = [
+        {
+            id: 'wf-research',
+            name: 'Research',
+            description: 'Investigate and document findings',
+            agentRole: 'researcher',
+            estimatedMinutes: 30,
+            systemPrompt: 'You are a researcher. Investigate thoroughly and document findings with sources.',
+            validationChecklist: ['Research completed', 'Findings documented', 'Sources cited'],
+            tags: ['research', 'investigation', 'analysis']
+        },
+        {
+            id: 'wf-build',
+            name: 'Build',
+            description: 'Implement code or features',
+            agentRole: 'builder',
+            estimatedMinutes: 60,
+            systemPrompt: 'You are a builder. Implement the solution with clean, tested code.',
+            validationChecklist: ['Code implemented', 'Tests passing', 'Documentation updated'],
+            tags: ['build', 'implement', 'code', 'develop']
+        },
+        {
+            id: 'wf-quick-fix',
+            name: 'Quick Fix',
+            description: 'Fix bugs or small issues',
+            agentRole: 'builder',
+            estimatedMinutes: 15,
+            systemPrompt: 'You are fixing a bug. Identify root cause and implement minimal fix.',
+            validationChecklist: ['Bug identified', 'Fix implemented', 'Fix verified'],
+            tags: ['fix', 'bug', 'quick', 'patch']
+        },
+        {
+            id: 'wf-test',
+            name: 'Test',
+            description: 'QA and validation',
+            agentRole: 'tester',
+            estimatedMinutes: 20,
+            systemPrompt: 'You are QA. Test thoroughly and report issues clearly.',
+            validationChecklist: ['Tests executed', 'Edge cases checked', 'Results documented'],
+            tags: ['test', 'qa', 'verify', 'validate']
+        },
+        {
+            id: 'wf-review',
+            name: 'Review',
+            description: 'Final review and approval',
+            agentRole: 'reviewer',
+            estimatedMinutes: 15,
+            systemPrompt: 'You are reviewing work. Check quality and approve or reject with clear feedback.',
+            validationChecklist: ['Code reviewed', 'Requirements met', 'Decision made'],
+            tags: ['review', 'approve', 'audit']
+        },
+        {
+            id: 'wf-document',
+            name: 'Document',
+            description: 'Create documentation',
+            agentRole: 'researcher',
+            estimatedMinutes: 30,
+            systemPrompt: 'You are documenting. Create clear, comprehensive documentation.',
+            validationChecklist: ['Documentation written', 'Examples provided', 'Reviewed for clarity'],
+            tags: ['document', 'docs', 'write', 'readme']
+        },
+        {
+            id: 'wf-automate',
+            name: 'Automate',
+            description: 'Create automation/script',
+            agentRole: 'automation',
+            estimatedMinutes: 30,
+            systemPrompt: 'You are creating automation. Build reliable scripts with error handling.',
+            validationChecklist: ['Script created', 'Tested and working', 'Scheduled/configured'],
+            tags: ['automation', 'script', 'cron', 'schedule']
+        }
+    ];
+
+    const now = new Date().toISOString();
+    const upsertWf = db.prepare(`
+        INSERT INTO workflow_templates (id, name, description, agent_role, agent_id, estimated_minutes, system_prompt, validation_checklist, tags, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET 
+            agent_id = excluded.agent_id,
+            updated_at = excluded.updated_at
+    `);
+
+    templates.forEach(t => {
+        const agentId = getAgentForRole(t.agentRole);
+        if (agentId) {
+            upsertWf.run(
+                t.id, t.name, t.description, t.agentRole, agentId, t.estimatedMinutes,
+                t.systemPrompt, JSON.stringify(t.validationChecklist), JSON.stringify(t.tags),
+                now, now
+            );
+        }
+    });
+
+    // Seed Pipelines
+    const pipelines = [
+        {
+            id: 'pl-standard',
+            name: 'Standard Build',
+            description: 'Research → Build → Test → Review',
+            steps: [
+                { workflow_id: 'wf-research', on_failure: 'stop' },
+                { workflow_id: 'wf-build', on_failure: 'stop' },
+                { workflow_id: 'wf-test', on_failure: 'stop' },
+                { workflow_id: 'wf-review', on_failure: 'stop' }
+            ]
+        },
+        {
+            id: 'pl-quick-fix',
+            name: 'Quick Fix',
+            description: 'Quick Fix → Review',
+            steps: [
+                { workflow_id: 'wf-quick-fix', on_failure: 'stop' },
+                { workflow_id: 'wf-review', on_failure: 'stop' }
+            ]
+        },
+        {
+            id: 'pl-research',
+            name: 'Research Only',
+            description: 'Research → Review',
+            steps: [
+                { workflow_id: 'wf-research', on_failure: 'stop' },
+                { workflow_id: 'wf-review', on_failure: 'stop' }
+            ]
+        },
+        {
+            id: 'pl-docs',
+            name: 'Documentation',
+            description: 'Document → Review',
+            steps: [
+                { workflow_id: 'wf-document', on_failure: 'stop' },
+                { workflow_id: 'wf-review', on_failure: 'stop' }
+            ]
+        },
+        {
+            id: 'pl-automation',
+            name: 'Automation',
+            description: 'Automate → Review',
+            steps: [
+                { workflow_id: 'wf-automate', on_failure: 'stop' },
+                { workflow_id: 'wf-review', on_failure: 'stop' }
+            ]
+        }
+    ];
+
+    const upsertPl = db.prepare(`
+        INSERT INTO pipelines (id, name, description, steps, is_dynamic, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 0, ?, ?)
+        ON CONFLICT(id) DO NOTHING
+    `);
+
+    // Only seed pipelines if the required workflows exist (meaning agents were assigned)
+    pipelines.forEach(p => {
+        const allStepsExist = p.steps.every(s => {
+            const row = db.prepare('SELECT id FROM workflow_templates WHERE id = ?').get(s.workflow_id);
+            return !!row;
+        });
+
+        if (allStepsExist) {
+            upsertPl.run(p.id, p.name, p.description, JSON.stringify(p.steps), now, now);
+        }
+    });
 }

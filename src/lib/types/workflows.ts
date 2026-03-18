@@ -55,6 +55,7 @@ export interface WorkflowTemplate {
     description?: string;
     agentRole: AgentRole;
     agentId?: string; // specific agent ID if assigned
+    agentName?: string; // enriched from join
     timeoutSeconds: number;
     model?: string; // Hard limit - workflow killed if exceeds this
     systemPrompt?: string;

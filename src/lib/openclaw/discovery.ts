@@ -61,14 +61,15 @@ export function discoverAgents(): DiscoveredAgent[] {
             const technicalAgents = config.agents?.list || [];
             
             agents.forEach(agent => {
+                // Skip the main agent, it already has its ID and metadata
+                if (agent.id === 'main') return;
+
                 // Try to find a match in the technical config
                 const match = technicalAgents.find((ta: any) => {
-                    // Match by folder name comparison
-                    if (agent.folder && ta.agentDir?.toLowerCase().includes(agent.folder.toLowerCase().replace(/\/$/, ''))) return true;
-                    // Match by name
-                    if (ta.name?.toLowerCase() === agent.id.toLowerCase()) return true;
-                    // Rely on dynamic discovery via name and role
-                    return false;
+                    // Match by folder name comparison (more robust)
+                    if (agent.folder && ta.agentDir && ta.agentDir.toLowerCase().endsWith(agent.folder.toLowerCase())) return true;
+                    // Match by name as a fallback
+                    if (ta.name?.toLowerCase() === agent.id.replace(/^agent-/, '').toLowerCase()) return true;
                     return false;
                 });
 
@@ -116,9 +117,11 @@ function parseRegistryTable(content: string): DiscoveredAgent[] {
                 // Clean up technical suffixes for a friendly display name
                 name = name.replace(/-Agent|-Monitor|-Researcher|-Implementer|-Tester|-Orchestrator|-Scheduler|-Reviewer/g, '');
 
-                // Strip common titles for a cleaner ID
-                const id = name.toLowerCase()
+                // Strip common titles for a cleaner ID, but keep it unique
+                const baseId = name.toLowerCase()
                     .replace(/-agent|-monitor|-researcher|-implementer|-tester|-orchestrator|-scheduler|-reviewer/g, '');
+                
+                const id = `agent-${baseId}`;
                 
                 agents.push({
                     id,

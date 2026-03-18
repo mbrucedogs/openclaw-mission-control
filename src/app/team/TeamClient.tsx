@@ -5,7 +5,8 @@ import { Agent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { 
     X, Search, Code, TestTube, Shield, Zap, User, 
-    ChevronRight, Target, Activity, Cpu, Users 
+    ChevronRight, Target, Activity, Cpu, Users,
+    ArrowRight
 } from 'lucide-react';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 
@@ -30,21 +31,73 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
     const pipelineAgents = agents.filter(a => a.layer === 'pipeline').sort((a, b) => (a.order || 0) - (b.order || 0));
     const automationAgents = agents.filter(a => a.layer === 'automation').sort((a, b) => (a.order || 0) - (b.order || 0));
     const unassignedAgents = agents.filter(a => !a.layer || (a.layer !== 'governance' && a.layer !== 'pipeline' && a.layer !== 'automation'));
+    
+    const unassignedCount = agents.filter(a => !a.type).length;
+    const isOnboarding = unassignedCount > 0;
 
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a]">
             {/* Page Header */}
-            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
-                <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
-                        <Users className="w-6 h-6 text-emerald-400" />
+            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b]">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
+                            <Users className="w-6 h-6 text-emerald-400" />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Agent Registry</h1>
+                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Authorized autonomous agents and human coordinators</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Agent Registry</h1>
-                        <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Authorized autonomous agents and human coordinators</p>
-                    </div>
+
+                    {isOnboarding && (
+                        <div className="flex items-center space-x-6 bg-orange-500/5 border border-orange-500/20 rounded-2xl px-6 py-4 animate-in fade-in slide-in-from-top-4 duration-1000">
+                            <div className="flex flex-col items-end">
+                                <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Initialization Pending</span>
+                                <span className="text-[9px] text-orange-200/40 font-bold uppercase mt-0.5">{unassignedCount} Agents Requiring Setup</span>
+                            </div>
+                            <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center border border-orange-500/30">
+                                <Activity className="w-5 h-5 text-orange-400 animate-pulse" />
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {isOnboarding && (
+                <div className="mx-12 mt-8 p-8 bg-blue-600/5 border border-blue-500/20 rounded-[2.5rem] relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Shield className="w-32 h-32 text-white" />
+                    </div>
+                    <div className="relative z-10 max-w-2xl">
+                        <div className="flex items-center space-x-3 mb-4">
+                            <div className="px-3 py-1 bg-blue-500 text-white text-[9px] font-black uppercase tracking-widest rounded-full">Step 1: Onboarding</div>
+                            <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Foundational Setup</span>
+                        </div>
+                        <h2 className="text-2xl font-black text-white tracking-tight mb-3 italic">Welcome to Mission Control</h2>
+                        <p className="text-sm text-slate-400 font-medium leading-relaxed">
+                            To activate the orchestration engine, you must first assign a <span className="text-blue-400 font-bold uppercase tracking-wider">System Type</span> to each discovered agent. 
+                            This maps their unique capabilities to our workflow templates.
+                        </p>
+                        <div className="mt-6 flex items-center space-x-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                            <div className="flex items-center space-x-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                <span>Assign All Roles</span>
+                            </div>
+                            <ArrowRight className="w-3 h-3 text-slate-700" />
+                            <div className="flex items-center space-x-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                                <span>Unlock Workflows</span>
+                            </div>
+                            <ArrowRight className="w-3 h-3 text-slate-700" />
+                            <div className="flex items-center space-x-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
+                                <span>Begin Mission</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="flex-1 overflow-y-auto px-12 pb-20 relative">
                 {/* Governance Layer */}

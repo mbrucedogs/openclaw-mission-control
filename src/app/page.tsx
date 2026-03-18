@@ -18,24 +18,77 @@ import {
   Terminal,
   Brain,
   Link as LinkIcon,
-  Users
+  Users,
+  ShieldAlert
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 import { Task, Project } from '@/lib/types';
+import { isSystemReady } from '@/lib/domain/agents';
 
 export default function DashboardPage() {
   const tasks = getTasks();
   const projects = getProjects();
+  const ready = isSystemReady();
+
   const stats = {
     totalTasks: tasks.length,
     activeDomains: projects.length,
     stuckTasks: tasks.filter(t => t.isStuck).length
   };
 
+  if (!ready) {
+    return (
+      <div className="max-w-[1400px] p-12 space-y-12 animate-in fade-in duration-1000">
+        <div className="relative p-16 border border-orange-500/20 rounded-[4rem] bg-orange-500/[0.02] overflow-hidden shadow-2xl">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl opacity-50" />
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />
+
+          <div className="relative z-10 flex flex-col items-center text-center space-y-8 py-12">
+            <div className="bg-orange-500/20 p-4 rounded-3xl border border-orange-500/20 shadow-[0_0_30px_rgba(249,115,22,0.1)]">
+              <ShieldAlert className="w-12 h-12 text-orange-400 animate-pulse" />
+            </div>
+
+            <div className="space-y-4 max-w-2xl">
+              <h1 className="text-6xl font-black text-white tracking-tighter">
+                System <span className="text-orange-500 italic">Initialization</span>
+              </h1>
+              <p className="text-xl text-slate-400 font-medium leading-relaxed">
+                Mission Control is online, but your agent roster requires registration. 
+                Assign <span className="text-white font-bold underline decoration-orange-500/50 decoration-4 underline-offset-4">System Types</span> to your discovered agents to unlock orchestration capabilities.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-6 pt-8">
+              <Link 
+                href="/team" 
+                className="px-10 py-5 bg-orange-500 hover:bg-orange-400 text-black text-sm font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-[0_0_20px_rgba(249,115,22,0.3)] hover:scale-105 active:scale-95 flex items-center group"
+              >
+                Go to Team Registry
+                <ArrowRight className="ml-3 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center">
+                <div className="w-1.5 h-1.5 rounded-full bg-orange-500 mr-2 animate-ping" />
+                Setup Required for Orchestration
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Placeholder/Disabled Grid Preview */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 opacity-40 grayscale pointer-events-none">
+          <StatCard label="Pipeline Tasks" value="--" icon={Target} color="text-slate-500" sub="Offline" />
+          <StatCard label="Stuck Recovery" value="--" icon={AlertTriangle} color="text-slate-500" sub="Offline" />
+          <StatCard label="Uptime" value="0%" icon={Activity} color="text-slate-500" sub="Offline" />
+          <StatCard label="Agent Roster" value="!" icon={Users} color="text-orange-500" sub="Unassigned" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-[1400px] p-12 space-y-12">
+    <div className="max-w-[1400px] p-12 space-y-12 animate-in fade-in duration-700">
       {/* Command Center Header */}
       <div className="relative p-12 border border-[#1a1a1a] rounded-[3rem] bg-[#101010] overflow-hidden shadow-2xl">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />

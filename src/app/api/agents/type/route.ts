@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { updateAgentType } from '@/lib/domain/agents';
+import { seedDefaultWorkflows } from '@/lib/domain/workflows';
 
 export async function POST(request: Request) {
     try {
@@ -9,6 +10,10 @@ export async function POST(request: Request) {
         }
         
         updateAgentType(id, type);
+        
+        // Dynamically seed workflows based on the new agent configuration
+        seedDefaultWorkflows();
+        
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Failed to update agent type:', error);

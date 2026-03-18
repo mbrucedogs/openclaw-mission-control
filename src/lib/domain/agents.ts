@@ -43,3 +43,12 @@ export function getAgents(): Agent[] {
         };
     });
 }
+
+/**
+ * System is ready only when all agents have an assigned system type.
+ */
+export function isSystemReady(): boolean {
+    const agents = getAgents();
+    if (agents.length === 0) return false;
+    return agents.every(a => !!a.type);
+}
