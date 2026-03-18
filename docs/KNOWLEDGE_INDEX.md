@@ -11,6 +11,7 @@
 | Concept | One-Sentence Summary | Full Docs |
 |---------|---------------------|-----------|
 | **Task Orchestration** | Multi-agent pipeline where tasks flow through specialized agents | [ORCHESTRATION.md](./ORCHESTRATION.md) |
+| **Workflow Execution** | Complete step-by-step guide for executing multi-step pipelines | [WORKFLOW_EXECUTION_GUIDE.md](./WORKFLOW_EXECUTION_GUIDE.md) |
 | **Pipeline Protocol** | 5-phase mandatory workflow: Route → Monitor → Validate → Complete → Report | [PIPELINE_PROTOCOL.md](./PIPELINE_PROTOCOL.md) |
 | **Task Creation** | Required fields and template for creating tasks that succeed | [TASK_CREATION_REQUIREMENTS.md](./TASK_CREATION_REQUIREMENTS.md) |
 | **Task Workflow Steps** | Automatic step tracking per pipeline with evidence requirements | [TASK_WORKFLOW_STEPS.md](./TASK_WORKFLOW_STEPS.md) |
