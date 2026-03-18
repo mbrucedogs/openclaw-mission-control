@@ -86,6 +86,64 @@ export async function POST(
     }
 }
 
+// PATCH /api/tasks/{id}/steps/{stepId}
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string; stepId: string }> }
+) {
+    try {
+        const { stepId } = await params;
+        const body = await request.json();
+        const { db } = await import('@/lib/db');
+
+        const step = getTaskWorkflowStepById(stepId);
+        if (!step) {
+            return NextResponse.json({ error: 'Step not found' }, { status: 404 });
+        }
+
+        const now = new Date().toISOString();
+        const fields: string[] = [];
+        const queryParams: any[] = [];
+
+        if (body.description !== undefined) {
+            fields.push('description = ?');
+            queryParams.push(body.description);
+        }
+        if (body.requiredDeliverables !== undefined) {
+            fields.push('required_deliverables = ?');
+            queryParams.push(JSON.stringify(body.requiredDeliverables));
+        }
+        if (body.agentId !== undefined) {
+            fields.push('agent_id = ?');
+            queryParams.push(body.agentId);
+        }
+        if (body.agentName !== undefined) {
+            fields.push('agent_name = ?');
+            queryParams.push(body.agentName);
+        }
+        if (body.status !== undefined) {
+            fields.push('status = ?');
+            queryParams.push(body.status);
+        }
+
+        if (fields.length === 0) {
+            return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+        }
+
+        fields.push('updated_at = ?');
+        queryParams.push(now);
+        queryParams.push(stepId);
+
+        db.prepare(`UPDATE task_workflow_steps SET ${fields.join(', ')} WHERE id = ?`).run(...queryParams);
+
+        const updatedStep = getTaskWorkflowStepById(stepId);
+        return NextResponse.json(updatedStep);
+    } catch (error) {
+        console.error('PATCH /api/tasks/{id}/steps/{stepId} error:', error);
+        return NextResponse.json({ error: 'Failed to update step' }, { status: 500 });
+    }
+}
+
 // GET /api/tasks/{id}/steps/{stepId}
 export async function GET(
     request: Request,

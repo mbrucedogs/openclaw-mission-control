@@ -237,6 +237,17 @@ interface PipelineStep {
 }
 ```
 
+**Task-Specific Step Customization (NEW)**
+Every task instantiated from a pipeline creates individual `TaskWorkflowStep` records. You SHOULD customize these for the specific task to provide "Isolated Scope" for agents.
+
+```bash
+PATCH /api/tasks/{taskId}/steps/{stepId}
+{
+  "description": "Specific instructions for THIS agent",
+  "requiredDeliverables": ["file1.md", "file2.ts"]
+}
+```
+
 **Common Pipelines:**
 - `pl-standard` - Research → Build → Test → Review
 - `pl-quick-fix` - Quick Fix → Review
@@ -633,8 +644,8 @@ Routes/validates/orchestrates
 
 ---
 
-**Last Updated:** 2026-03-16
-**Version:** 2.2
+**Last Updated:** 2026-03-18
+**Version:** 2.3
 **Maintainer:** The Orchestrator
-**Changes:** Added Part 4 - Fresh Install workflow, Part 5 - Automated Monitoring. Clarified dynamic workflow creation based on runtime agent discovery.
-**See Also:** [examples/openclaw/workspace/](../examples/openclaw/workspace/) - Complete working example with Leo/Sam/Dana/Jordan
+**Changes:** Added task-specific step customization via PATCH API and "Isolated Scope" protocol for agent handoffs.
+**See Also:** [TASK_WORKFLOW_STEPS.md](./TASK_WORKFLOW_STEPS.md) for detailed step API.

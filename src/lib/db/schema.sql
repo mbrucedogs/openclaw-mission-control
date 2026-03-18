@@ -302,6 +302,7 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
 CREATE TABLE IF NOT EXISTS task_pipelines (
     task_id TEXT PRIMARY KEY,
     pipeline_id TEXT,
+    pipeline_name TEXT,
     workflow_ids TEXT,
     current_step INTEGER DEFAULT 0,
     is_dynamic INTEGER DEFAULT 0,
@@ -323,6 +324,8 @@ CREATE TABLE IF NOT EXISTS task_workflow_steps (
     workflow_name TEXT NOT NULL,
     agent_id TEXT NOT NULL,
     agent_name TEXT,
+    description TEXT, -- Specific instructions for this step in this task
+    required_deliverables TEXT DEFAULT '[]', -- JSON array of deliverables needed
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'complete', 'failed', 'blocked')),
     started_at TEXT,
     completed_at TEXT,
@@ -344,3 +347,26 @@ CREATE TABLE IF NOT EXISTS task_workflow_steps (
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_workflow_steps_task ON task_workflow_steps(task_id);
+
+-- ============================================================================
+-- AGENT ALERTS
+-- Alerts from monitoring agents to the orchestrator
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS agent_alerts (
+    id TEXT PRIMARY KEY,
+    alert_type TEXT NOT NULL,
+    task_id TEXT,
+    assigned_agent TEXT,
+    reason TEXT NOT NULL,
+    details TEXT,
+    status TEXT NOT NULL DEFAULT 'pending', -- pending, acknowledged, resolved, ignored
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    resolved_at TEXT,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_agent) REFERENCES agents(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_alerts_status ON agent_alerts(status);
+CREATE INDEX IF NOT EXISTS idx_agent_alerts_task ON agent_alerts(task_id);
+CREATE INDEX IF NOT EXISTS idx_agent_alerts_created ON agent_alerts(created_at DESC);

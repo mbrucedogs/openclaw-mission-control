@@ -135,10 +135,8 @@ export function incrementPipelineUse(id: string) {
 
 export function getTaskPipeline(taskId: string): TaskPipeline | null {
     const row = db.prepare(`
-        SELECT tp.*, p.name as pipeline_name 
-        FROM task_pipelines tp
-        LEFT JOIN pipelines p ON tp.pipeline_id = p.id
-        WHERE tp.task_id = ?
+        SELECT * FROM task_pipelines
+        WHERE task_id = ?
     `).get(taskId) as any;
     
     if (!row) return null;
@@ -158,11 +156,12 @@ export function setTaskPipeline(taskId: string, matchResult: PipelineMatchResult
     const now = new Date().toISOString();
     
     db.prepare(`
-        INSERT OR REPLACE INTO task_pipelines (task_id, pipeline_id, workflow_ids, current_step, is_dynamic, matched_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO task_pipelines (task_id, pipeline_id, pipeline_name, workflow_ids, current_step, is_dynamic, matched_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
         taskId,
         matchResult.pipelineId || null,
+        matchResult.pipelineName || null,
         matchResult.workflowIds ? JSON.stringify(matchResult.workflowIds) : null,
         0,
         matchResult.isDynamic ? 1 : 0,
@@ -174,28 +173,33 @@ export function setTaskPipeline(taskId: string, matchResult: PipelineMatchResult
  * Manually assigns a pipeline to a task and instantiates all workflow steps.
  * This is used for both POST and PATCH explicit pipeline assignments.
  */
-export function instantiateTaskPipeline(taskId: string, pipelineId: string) {
-    const pipeline = getPipelineById(pipelineId);
-    if (!pipeline) return;
+export function instantiateTaskPipeline(taskId: string, pipelineId?: string, workflowIds?: string[]) {
+    let pipeline = pipelineId ? getPipelineById(pipelineId) : null;
+    let finalWorkflowIds = workflowIds || [];
+
+    if (pipeline) {
+        finalWorkflowIds = pipeline.steps.map((s: any) => s.workflowId || s.workflow_id);
+    }
+
+    if (finalWorkflowIds.length === 0) return;
 
     // 1. Associate task with pipeline in database
     setTaskPipeline(taskId, {
         matched: true,
-        pipelineId: pipeline.id,
-        pipelineName: pipeline.name,
-        workflowIds: pipeline.steps.map((s: any) => s.workflowId),
-        isDynamic: false,
+        pipelineId: pipeline?.id,
+        pipelineName: pipeline?.name || 'Dynamic Pipeline',
+        workflowIds: finalWorkflowIds,
+        isDynamic: !pipeline,
         confidence: 1.0,
-        reason: 'Explicit assignment'
+        reason: pipeline ? 'Explicit assignment' : 'Dynamic assembly'
     });
 
     // 2. Clear existing steps for this task (if any) to prevent duplicates
     db.prepare('DELETE FROM task_workflow_steps WHERE task_id = ?').run(taskId);
 
     // 3. Create workflow steps for the task
-    for (let i = 0; i < pipeline.steps.length; i++) {
-        const step = pipeline.steps[i] as any;
-        const workflowId = step.workflowId || step.workflow_id;
+    for (let i = 0; i < finalWorkflowIds.length; i++) {
+        const workflowId = finalWorkflowIds[i];
         const workflow = getWorkflowTemplateById(workflowId);
         
         if (workflow) {
@@ -210,7 +214,7 @@ export function instantiateTaskPipeline(taskId: string, pipelineId: string) {
                 workflowName: workflow.name,
                 agentId: workflow.agentId || 'matt',
                 agentName: agent?.name || workflow.agentId || 'Unknown',
-                nextStepId: i < pipeline.steps.length - 1 ? `step-${taskId}-${i + 2}` : undefined
+                nextStepId: i < finalWorkflowIds.length - 1 ? `step-${taskId}-${i + 2}` : undefined
             });
         }
     }
@@ -600,6 +604,8 @@ export function createTaskWorkflowStep(input: {
     workflowName: string;
     agentId: string;
     agentName?: string;
+    description?: string;
+    requiredDeliverables?: string[];
     nextStepId?: string;
 }): TaskWorkflowStep {
     const now = new Date().toISOString();
@@ -608,8 +614,9 @@ export function createTaskWorkflowStep(input: {
     db.prepare(`
         INSERT INTO task_workflow_steps (
             id, task_id, step_number, workflow_id, workflow_name, agent_id, agent_name,
+            description, required_deliverables,
             status, evidence_ids, deliverables, next_step_id, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
         id,
         input.taskId,
@@ -618,6 +625,8 @@ export function createTaskWorkflowStep(input: {
         input.workflowName,
         input.agentId,
         input.agentName || null,
+        input.description || null,
+        JSON.stringify(input.requiredDeliverables || []),
         'pending',
         '[]',
         '[]',
@@ -768,6 +777,8 @@ function hydrateTaskWorkflowStep(row: any): TaskWorkflowStep {
         workflowName: row.workflow_name,
         agentId: row.agent_id,
         agentName: row.agent_name,
+        description: row.description,
+        requiredDeliverables: row.required_deliverables ? JSON.parse(row.required_deliverables) : [],
         status: row.status,
         startedAt: row.started_at,
         completedAt: row.completed_at,

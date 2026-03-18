@@ -26,8 +26,10 @@ interface TaskWorkflowStep {
   workflowId: string;
   workflowName: string;
   workflowDescription?: string;
+  description?: string; // Task-specific override
   workflowPrompt?: string;
   validationChecklist?: string[];
+  requiredDeliverables?: string[]; // Task-specific override
   agentId: string;
   agentName?: string;
   agentRole?: string;
@@ -131,6 +133,38 @@ export function TaskWorkflowSteps({ taskId, pipelineName, pipelineDescription }:
     } catch (err) {
       console.error('Failed to complete step:', err);
     }
+  };
+
+  const handleUpdateStep = async (stepId: string, updates: Partial<TaskWorkflowStep>) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/steps/${stepId}`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates)
+      });
+      if (res.ok) {
+        fetchSteps();
+        setEditingStep(null);
+      }
+    } catch (err) {
+      console.error('Failed to update step:', err);
+    }
+  };
+
+  const [editingStep, setEditingStep] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{ description: string; requiredDeliverables: string }>({
+    description: '',
+    requiredDeliverables: ''
+  });
+
+  const startEditing = (step: TaskWorkflowStep) => {
+    setEditingStep(step.id);
+    setEditForm({
+      description: step.description || step.workflowDescription || '',
+      requiredDeliverables: (step.requiredDeliverables?.length ? step.requiredDeliverables : (step.validationChecklist || [])).join('\n')
+    });
   };
 
   if (loading) {
@@ -356,33 +390,95 @@ export function TaskWorkflowSteps({ taskId, pipelineName, pipelineDescription }:
                     </div>
 
                     {/* Workflow Description - What this step does */}
-                    {step.workflowDescription && (
-                      <div>
-                        <h5 className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-2">
+                    <div className="group relative">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="text-xs font-bold text-blue-400 uppercase tracking-wider">
                           What This Step Does
                         </h5>
-                        <p className="text-xs text-slate-300 bg-slate-900/50 p-2 rounded border border-slate-700">
-                          {step.workflowDescription}
-                        </p>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditing(step);
+                          }}
+                          className="text-[10px] text-slate-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          Edit Specifics
+                        </button>
                       </div>
-                    )}
+                      
+                      {editingStep === step.id ? (
+                        <div className="space-y-3 bg-slate-900 p-3 rounded-lg border border-blue-500/30">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Instructions</label>
+                            <textarea 
+                              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white focus:border-blue-500 outline-none"
+                              rows={3}
+                              value={editForm.description}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder="Add specific instructions for this task..."
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Required Deliverables (one per line)</label>
+                            <textarea 
+                              className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-xs text-white focus:border-blue-500 outline-none"
+                              rows={3}
+                              value={editForm.requiredDeliverables}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, requiredDeliverables: e.target.value }))}
+                              placeholder="Enter deliverables that must be produced..."
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleUpdateStep(step.id, { 
+                                description: editForm.description,
+                                requiredDeliverables: editForm.requiredDeliverables.split('\n').filter(l => l.trim())
+                              })}
+                              className="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-3 py-1.5 rounded transition-colors"
+                            >
+                              Save Specifics
+                            </button>
+                            <button 
+                              onClick={() => setEditingStep(null)}
+                              className="bg-slate-800 hover:bg-slate-700 text-slate-400 text-[10px] font-bold px-3 py-1.5 rounded transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className={cn(
+                            "text-xs p-2 rounded border",
+                            step.description 
+                              ? "text-blue-200 bg-blue-900/10 border-blue-700/50" 
+                              : "text-slate-300 bg-slate-900/50 border-slate-700"
+                          )}>
+                            {step.description || step.workflowDescription || 'No description provided.'}
+                          </p>
 
-                    {/* Validation Checklist - What needs to be done */}
-                    {step.validationChecklist && step.validationChecklist.length > 0 && (
-                      <div>
-                        <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
-                          Required Deliverables
-                        </h5>
-                        <ul className="space-y-1">
-                          {step.validationChecklist.map((item, i) => (
-                            <li key={i} className="text-xs text-slate-300 flex items-start gap-2">
-                              <span className="text-amber-500 mt-0.5">□</span>
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                          {/* Required Deliverables - What needs to be done */}
+                          {(step.requiredDeliverables?.length ? step.requiredDeliverables : step.validationChecklist)?.length ? (
+                            <div>
+                              <h5 className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">
+                                {step.requiredDeliverables?.length ? 'Task-Specific Deliverables' : 'Standard Requirements'}
+                              </h5>
+                              <ul className="space-y-1">
+                                {(step.requiredDeliverables?.length ? step.requiredDeliverables : (step.validationChecklist || [])).map((item, i) => (
+                                  <li key={i} className="text-xs text-slate-300 flex items-start gap-2">
+                                    <span className={cn(
+                                      "mt-0.5",
+                                      step.requiredDeliverables?.length ? "text-blue-500" : "text-amber-500"
+                                    )}>□</span>
+                                    {item}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Evidence */}
                     {step.evidenceIds.length > 0 && (

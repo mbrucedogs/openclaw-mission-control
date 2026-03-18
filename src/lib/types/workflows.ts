@@ -14,6 +14,10 @@ export interface TaskWorkflowStep {
     agentId: string;
     agentName?: string;
     
+    // Task-specific overrides
+    description?: string;
+    requiredDeliverables?: string[];
+    
     // Status tracking
     status: 'pending' | 'in-progress' | 'complete' | 'failed' | 'blocked';
     startedAt?: string;

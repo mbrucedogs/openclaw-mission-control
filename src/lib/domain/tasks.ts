@@ -481,12 +481,11 @@ function hydrateTask(row: any, include?: ('comments' | 'activity' | 'evidence')[
 
     // Fetch pipeline info if it exists
     const pipelineInfo = db.prepare(`
-        SELECT tp.pipeline_id, p.name as pipeline_name 
-        FROM task_pipelines tp
-        LEFT JOIN pipelines p ON tp.pipeline_id = p.id
-        WHERE tp.task_id = ?
+        SELECT pipeline_id, pipeline_name
+        FROM task_pipelines
+        WHERE task_id = ?
     `).get(task.id) as any;
-
+    
     if (pipelineInfo) {
         task.pipelineId = pipelineInfo.pipeline_id;
         task.pipelineName = pipelineInfo.pipeline_name;

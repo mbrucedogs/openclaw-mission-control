@@ -30,6 +30,8 @@ CREATE TABLE task_workflow_steps (
     workflow_name TEXT NOT NULL,
     agent_id TEXT NOT NULL,
     agent_name TEXT,
+    description TEXT, -- Specific instructions for this task
+    required_deliverables TEXT DEFAULT '[]', -- JSON array of required outputs
     
     -- Status tracking
     status TEXT NOT NULL CHECK (status IN ('pending', 'in-progress', 'complete', 'failed', 'blocked')),
@@ -83,6 +85,18 @@ POST /api/tasks/{taskId}/steps
 GET /api/tasks/{taskId}/steps
 ```
 
+### Update Step (Customization & Reassignment)
+**Use this to customize instructions for a specific task.**
+```
+PATCH /api/tasks/{taskId}/steps/{stepId}
+{
+  "description": "Specific instructions for this step only...",
+  "requiredDeliverables": ["Deliverable A", "Deliverable B"],
+  "agentId": "new-agent-id", // optional: reassign
+  "status": "pending" // optional: reset
+}
+```
+
 ### Start Step
 ```
 POST /api/tasks/{taskId}/steps/{stepId}
@@ -122,6 +136,34 @@ POST /api/tasks/{taskId}/steps/{stepId}
 {
   "action": "block",
   "blockers": "Waiting for API key"
+}
+```
+
+---
+
+## Task-Specific Customization (Avoiding the "Nightmare")
+
+When a task is created, the system instantiates steps from a generic pipeline. To ensure agents don't step on each other's toes or do the whole task at once, the Orchestrator MUST use **Isolated Scope**.
+
+### The "Isolated Scope" Pattern
+1. **Instantiate Pipeline:** Pipeline is matched to task (or explicitly assigned).
+2. **Customize Steps:** Use `PATCH /api/tasks/{id}/steps/{stepId}` to provide specific `description` and `requiredDeliverables`.
+3. **Execute:** Agents only see the `description` for their specific step, not the full task description.
+
+### Example Customization
+```json
+// Step 1: Research (Sam)
+PATCH /api/tasks/task-123/steps/step-1
+{
+  "description": "Research ONLY 3 auth libraries. Do NOT write code.",
+  "requiredDeliverables": ["auth-comparison.md"]
+}
+
+// Step 2: Build (Dana)
+PATCH /api/tasks/task-123/steps/step-2
+{
+  "description": "Implement Option A from auth-comparison.md. Use libraries found in Step 1.",
+  "requiredDeliverables": ["src/lib/auth.ts", "src/lib/auth.test.ts"]
 }
 ```
 

@@ -44,8 +44,10 @@ export async function GET(
             workflowId: row.workflow_id,
             workflowName: row.workflow_name,
             workflowDescription: row.workflow_description,
+            description: row.description, // Task-specific override
             workflowPrompt: row.workflow_prompt,
             validationChecklist: row.validation_checklist ? JSON.parse(row.validation_checklist) : [],
+            requiredDeliverables: row.required_deliverables ? JSON.parse(row.required_deliverables) : [], // Task-specific override
             agentId: row.agent_id,
             agentName: row.agent_full_name || row.agent_name,
             agentRole: row.agent_role,
@@ -82,7 +84,7 @@ export async function POST(
     try {
         const { id } = await params;
         const body = await request.json();
-        const { workflowId, workflowName, agentId, agentName, stepNumber, nextStepId } = body;
+        const { workflowId, workflowName, agentId, agentName, stepNumber, nextStepId, description, requiredDeliverables } = body;
         
         if (!workflowId || !agentId || !stepNumber) {
             return NextResponse.json({ error: 'workflowId, agentId, and stepNumber required' }, { status: 400 });
@@ -95,6 +97,8 @@ export async function POST(
             workflowName: workflowName || workflowId,
             agentId,
             agentName,
+            description,
+            requiredDeliverables,
             nextStepId
         });
         

@@ -80,8 +80,9 @@ export async function POST(req: Request) {
         });
 
         // Instantiate pipeline if matched or explicitly provided
-        if (pipelineMatch.pipelineId) {
-            await instantiateTaskPipeline(task.id, pipelineMatch.pipelineId);
+        if (pipelineMatch.pipelineId || pipelineMatch.workflowIds) {
+            await instantiateTaskPipeline(task.id, pipelineMatch.pipelineId, pipelineMatch.workflowIds);
+            
             // Refresh pipeline match info for the response
             const instantiated = await getTaskPipeline(task.id);
             if (instantiated) {
