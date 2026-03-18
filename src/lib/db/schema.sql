@@ -100,9 +100,9 @@ CREATE TABLE IF NOT EXISTS task_comments (
     FOREIGN KEY (parent_id) REFERENCES task_comments(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_task_comments_task_id ON task_comments(task_id);
-CREATE INDEX idx_task_comments_type ON task_comments(comment_type);
-CREATE INDEX idx_task_comments_created_at ON task_comments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON task_comments(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_comments_type ON task_comments(comment_type);
+CREATE INDEX IF NOT EXISTS idx_task_comments_created_at ON task_comments(created_at DESC);
 
 CREATE TABLE IF NOT EXISTS task_activity (
     id TEXT PRIMARY KEY,
@@ -121,9 +121,9 @@ CREATE TABLE IF NOT EXISTS task_activity (
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_task_activity_task_id ON task_activity(task_id);
-CREATE INDEX idx_task_activity_created_at ON task_activity(created_at DESC);
-CREATE INDEX idx_task_activity_type ON task_activity(activity_type);
+CREATE INDEX IF NOT EXISTS idx_task_activity_task_id ON task_activity(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_activity_created_at ON task_activity(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_task_activity_type ON task_activity(activity_type);
 
 CREATE TABLE IF NOT EXISTS task_evidence (
     id TEXT PRIMARY KEY,
@@ -136,7 +136,7 @@ CREATE TABLE IF NOT EXISTS task_evidence (
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_task_evidence_task_id ON task_evidence(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_evidence_task_id ON task_evidence(task_id);
 
 -- ============================================================================
 -- OTHER TABLES
@@ -215,25 +215,25 @@ CREATE TABLE IF NOT EXISTS schedule_jobs (
 -- INDEXES
 -- ============================================================================
 
-CREATE INDEX idx_tasks_status ON tasks(status);
-CREATE INDEX idx_tasks_owner ON tasks(owner);
-CREATE INDEX idx_tasks_project ON tasks(project);
-CREATE INDEX idx_tasks_is_stuck ON tasks(isStuck);
-CREATE INDEX idx_tasks_created_at ON tasks(createdAt DESC);
-CREATE INDEX idx_tasks_updated_at ON tasks(updatedAt DESC);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner);
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);
+CREATE INDEX IF NOT EXISTS idx_tasks_is_stuck ON tasks(isStuck);
+CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(createdAt DESC);
+CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updatedAt DESC);
 
 -- ============================================================================
 -- INITIAL DATA
 -- ============================================================================
 
-INSERT INTO projects (id, name, description, status, progress) VALUES
+INSERT OR IGNORE INTO projects (id, name, description, status, progress) VALUES
     ('general', 'General', 'Default project for uncategorized tasks', 'active', 0);
 -- ============================================================================
 -- WORKFLOW TEMPLATES
 -- Reusable agent work definitions
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS workflow_templates (
+CREATE TABLE IF NOT EXISTS workflow_templates (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     description TEXT,
@@ -258,7 +258,7 @@ CREATE INDEX IF NOT EXISTS idx_workflow_templates_tags ON workflow_templates(tag
 -- Ordered sequences of workflows
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS pipelines (
+CREATE TABLE IF NOT EXISTS pipelines (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     description TEXT,
@@ -278,7 +278,7 @@ CREATE INDEX IF NOT EXISTS idx_pipelines_dynamic ON pipelines(is_dynamic);
 -- Track execution of pipelines on tasks
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS pipeline_runs (
+CREATE TABLE IF NOT EXISTS pipeline_runs (
     id TEXT PRIMARY KEY,
     pipeline_id TEXT,
     task_id TEXT NOT NULL,
@@ -299,7 +299,7 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
 -- Link tasks to their assigned pipelines
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS task_pipelines (
+CREATE TABLE IF NOT EXISTS task_pipelines (
     task_id TEXT PRIMARY KEY,
     pipeline_id TEXT,
     pipeline_name TEXT,
@@ -316,7 +316,7 @@ CREATE TABLE IF NOT EXISTS IF NOT EXISTS task_pipelines (
 -- Track individual steps within a task's pipeline
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS task_workflow_steps (
+CREATE TABLE IF NOT EXISTS task_workflow_steps (
     id TEXT PRIMARY KEY,
     task_id TEXT NOT NULL,
     step_number INTEGER NOT NULL,
@@ -353,7 +353,7 @@ CREATE INDEX IF NOT EXISTS idx_task_workflow_steps_task ON task_workflow_steps(t
 -- Alerts from monitoring agents to the orchestrator
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS IF NOT EXISTS agent_alerts (
+CREATE TABLE IF NOT EXISTS agent_alerts (
     id TEXT PRIMARY KEY,
     alert_type TEXT NOT NULL,
     task_id TEXT,
