@@ -129,6 +129,8 @@ POST /api/tasks/{taskId}/steps/{stepId}
 
 ## Pipeline Enforcement
 
+**Workflow steps are now automatically created** whenever a `pipelineId` is assigned to a task (either during initial `POST /api/tasks` or via `PATCH /api/tasks/{id}`).
+
 **Task CANNOT be marked complete until:**
 1. All steps are created for the pipeline
 2. Each step is explicitly completed with `action: "complete"`

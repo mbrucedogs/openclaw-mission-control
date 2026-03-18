@@ -94,7 +94,9 @@
 - ✅ Multiple pipelines exist: standard, quick-fix, research, docs, automation
 
 ### Task Workflow Steps (NEW)
-- ✅ Steps **auto-created** when task matches pipeline
+- ✅ Steps **auto-created** when task matches pipeline OR assigned explicitly
+- ✅ Explicitly choose pipeline with `pipelineId` in `POST /api/tasks`
+- ✅ **Manual Wire-up**: Use `PATCH /api/tasks/{id}` with `pipelineId` later
 - ✅ Each step tracks: status, agent, evidence, deliverables
 - ✅ Task **CANNOT complete** until ALL steps are `complete`
 - ✅ Steps flow: `pending` → `in-progress` → `complete` | `failed` | `blocked`

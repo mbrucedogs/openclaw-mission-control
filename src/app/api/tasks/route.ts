@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getTasks, getTaskById, createTask, updateTask, deleteTask, TaskFilters } from '@/lib/domain/tasks';
-import { matchPipelineToTask, setTaskPipeline } from '@/lib/domain/workflows';
+import { matchPipelineToTask } from '@/lib/domain/workflows';
+import { PipelineMatchResult } from '@/lib/types/workflows';
 import { TaskStatus, Priority } from '@/lib/types';
 import { randomUUID } from 'crypto';
 
@@ -44,19 +45,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Title is required' }, { status: 400 });
         }
 
-        // Orchestrator: Match task to pipeline
-        const pipelineMatch = matchPipelineToTask(body.title, body.description);
+        // Orchestrator: Match task to pipeline or use explicit assignment
+        let pipelineMatch: PipelineMatchResult = body.pipelineId 
+            ? { matched: true, pipelineId: body.pipelineId, isDynamic: false, confidence: 1.0, reason: 'Explicit assignment' } 
+            : matchPipelineToTask(body.title, body.description);
         
+        const { getPipelineById, instantiateTaskPipeline, getTaskPipeline } = await import('@/lib/domain/workflows');
+
         // Determine owner from pipeline
         let owner = body.owner;
-        if (!owner && pipelineMatch.workflowIds) {
-            // Get first workflow to determine owner
-            const { getWorkflowTemplateById } = await import('@/lib/domain/workflows');
-            const firstWorkflow = await getWorkflowTemplateById(pipelineMatch.workflowIds[0]);
-            owner = firstWorkflow?.agentId || 'matt';
-        } else if (!owner && pipelineMatch.pipelineId) {
-            // Get pipeline and first step
-            const { getPipelineById } = await import('@/lib/domain/workflows');
+        if (!owner && pipelineMatch.pipelineId) {
             const pipeline = await getPipelineById(pipelineMatch.pipelineId);
             if (pipeline?.steps[0]) {
                 const { getWorkflowTemplateById } = await import('@/lib/domain/workflows');
@@ -81,32 +79,21 @@ export async function POST(req: Request) {
             validationCriteria: body.validationCriteria,
         });
 
-        // Store pipeline match for this task
-        setTaskPipeline(task.id, pipelineMatch);
-
-        // Create workflow steps if pipeline matched
-        if (pipelineMatch.matched && pipelineMatch.workflowIds) {
-            const { getWorkflowTemplateById, createTaskWorkflowStep } = await import('@/lib/domain/workflows');
-            const { getAgentById } = await import('@/lib/domain/agents');
-            
-            for (let i = 0; i < pipelineMatch.workflowIds.length; i++) {
-                const workflowId = pipelineMatch.workflowIds[i];
-                const workflow = await getWorkflowTemplateById(workflowId);
-                
-                if (workflow) {
-                    // Look up agent to get display name
-                    const agent = workflow.agentId ? await getAgentById(workflow.agentId) : null;
-                    
-                    await createTaskWorkflowStep({
-                        taskId: task.id,
-                        stepNumber: i + 1,
-                        workflowId: workflow.id,
-                        workflowName: workflow.name,
-                        agentId: workflow.agentId || 'matt',
-                        agentName: agent?.name || workflow.agentId || 'Unknown',
-                        nextStepId: i < pipelineMatch.workflowIds.length - 1 ? `step-${task.id}-${i + 2}` : undefined
-                    });
-                }
+        // Instantiate pipeline if matched or explicitly provided
+        if (pipelineMatch.pipelineId) {
+            await instantiateTaskPipeline(task.id, pipelineMatch.pipelineId);
+            // Refresh pipeline match info for the response
+            const instantiated = await getTaskPipeline(task.id);
+            if (instantiated) {
+                pipelineMatch = {
+                    matched: true,
+                    pipelineId: instantiated.pipelineId,
+                    pipelineName: instantiated.pipelineName,
+                    workflowIds: instantiated.workflowIds,
+                    isDynamic: instantiated.isDynamic,
+                    confidence: 1.0,
+                    reason: body.pipelineId ? 'Explicit assignment' : pipelineMatch.reason
+                };
             }
         }
 

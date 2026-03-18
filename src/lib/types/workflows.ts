@@ -100,6 +100,7 @@ export interface PipelineRun {
 export interface TaskPipeline {
     taskId: string;
     pipelineId?: string;
+    pipelineName?: string; // Enriched from join
     workflowIds?: string[]; // for dynamic pipelines
     currentStep: number;
     isDynamic: boolean;

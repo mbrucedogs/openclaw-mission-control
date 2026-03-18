@@ -276,7 +276,8 @@ export WORKSPACE_ROOT="/Users/[user]/.openclaw/workspace"
   "status": "Backlog",
   "priority": "normal",
   "owner": "[agent-id]",
-  "requestedBy": "[orchestrator-name]"
+  "requestedBy": "[orchestrator-name]",
+  "pipelineId": "[optional-manual-pipeline-id]"
 }
 ```
 
@@ -314,7 +315,7 @@ curl -X POST http://localhost:4000/api/tasks \
 - [ ] Fallback plan provided
 - [ ] Validation checklist included
 - [ ] File naming follows conventions
-- [ ] Agent knows who to ask for help
+- [ ] (Optional) `pipelineId` specified if you want to skip auto-matching
 
 ---
 

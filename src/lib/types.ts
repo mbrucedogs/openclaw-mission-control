@@ -140,6 +140,8 @@ export interface Task {
     stuckSince?: string;
     
     // Pipeline
+    pipelineId?: string;
+    pipelineName?: string;
     handoverFrom?: string;
     
     // Validation

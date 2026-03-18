@@ -141,6 +141,7 @@ export interface UpdateTaskInput {
     stuckReason?: string;
     maxRetries?: number;
     validationCriteria?: ValidationCriteria;
+    pipelineId?: string;
 }
 
 export function updateTask(id: string, input: UpdateTaskInput, actor: string = 'system'): Task | null {
@@ -172,6 +173,12 @@ export function updateTask(id: string, input: UpdateTaskInput, actor: string = '
     if (input.maxRetries !== undefined) { updates.push('maxRetries = ?'); values.push(input.maxRetries); }
     if (input.validationCriteria !== undefined) { updates.push('validationCriteria = ?'); values.push(JSON.stringify(input.validationCriteria)); }
     
+    // Handle pipeline assignment
+    if (input.pipelineId !== undefined) {
+        const { instantiateTaskPipeline } = require('./workflows');
+        instantiateTaskPipeline(id, input.pipelineId);
+    }
+
     updates.push('updatedAt = ?');
     values.push(now);
     values.push(id); // for WHERE clause
@@ -471,6 +478,19 @@ function hydrateTask(row: any, include?: ('comments' | 'activity' | 'evidence')[
         handoverFrom: row.handoverFrom,
         validationCriteria: row.validationCriteria ? JSON.parse(row.validationCriteria) : undefined,
     };
+
+    // Fetch pipeline info if it exists
+    const pipelineInfo = db.prepare(`
+        SELECT tp.pipeline_id, p.name as pipeline_name 
+        FROM task_pipelines tp
+        LEFT JOIN pipelines p ON tp.pipeline_id = p.id
+        WHERE tp.task_id = ?
+    `).get(task.id) as any;
+
+    if (pipelineInfo) {
+        task.pipelineId = pipelineInfo.pipeline_id;
+        task.pipelineName = pipelineInfo.pipeline_name;
+    }
 
     if (include) {
         if (include.includes('comments')) {

@@ -270,11 +270,18 @@ interface PipelineStep {
 
 #### Tasks
 ```
-GET    /api/tasks              # List tasks
-POST   /api/tasks              # Create task
-GET    /api/tasks/:id          # Get task details
-PATCH  /api/tasks/:id          # Update task / handoff
+PATCH  /api/tasks/:id          # Update task / assign pipeline
 ```
+
+**New: Manual Pipeline Assignment**
+You can now manually wire a pipeline to an existing task:
+```bash
+PATCH /api/tasks/{id}
+{
+  "pipelineId": "pl-mqs715mi"
+}
+```
+This will automatically instantiate the workflow steps for that task.
 
 #### Activity
 ```

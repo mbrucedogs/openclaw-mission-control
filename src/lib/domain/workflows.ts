@@ -134,12 +134,19 @@ export function incrementPipelineUse(id: string) {
 // ============================================================================
 
 export function getTaskPipeline(taskId: string): TaskPipeline | null {
-    const row = db.prepare('SELECT * FROM task_pipelines WHERE task_id = ?').get(taskId) as any;
+    const row = db.prepare(`
+        SELECT tp.*, p.name as pipeline_name 
+        FROM task_pipelines tp
+        LEFT JOIN pipelines p ON tp.pipeline_id = p.id
+        WHERE tp.task_id = ?
+    `).get(taskId) as any;
+    
     if (!row) return null;
     
     return {
         taskId: row.task_id,
         pipelineId: row.pipeline_id,
+        pipelineName: row.pipeline_name,
         workflowIds: row.workflow_ids ? JSON.parse(row.workflow_ids) : undefined,
         currentStep: row.current_step,
         isDynamic: !!row.is_dynamic,
@@ -161,6 +168,51 @@ export function setTaskPipeline(taskId: string, matchResult: PipelineMatchResult
         matchResult.isDynamic ? 1 : 0,
         now
     );
+}
+
+/**
+ * Manually assigns a pipeline to a task and instantiates all workflow steps.
+ * This is used for both POST and PATCH explicit pipeline assignments.
+ */
+export function instantiateTaskPipeline(taskId: string, pipelineId: string) {
+    const pipeline = getPipelineById(pipelineId);
+    if (!pipeline) return;
+
+    // 1. Associate task with pipeline in database
+    setTaskPipeline(taskId, {
+        matched: true,
+        pipelineId: pipeline.id,
+        pipelineName: pipeline.name,
+        workflowIds: pipeline.steps.map((s: any) => s.workflowId),
+        isDynamic: false,
+        confidence: 1.0,
+        reason: 'Explicit assignment'
+    });
+
+    // 2. Clear existing steps for this task (if any) to prevent duplicates
+    db.prepare('DELETE FROM task_workflow_steps WHERE task_id = ?').run(taskId);
+
+    // 3. Create workflow steps for the task
+    for (let i = 0; i < pipeline.steps.length; i++) {
+        const step = pipeline.steps[i];
+        const workflow = getWorkflowTemplateById(step.workflowId);
+        
+        if (workflow) {
+            // Lazy load agent logic to avoid circular dependencies
+            const { getAgentById } = require('./agents');
+            const agent = workflow.agentId ? getAgentById(workflow.agentId) : null;
+            
+            createTaskWorkflowStep({
+                taskId,
+                stepNumber: i + 1,
+                workflowId: workflow.id,
+                workflowName: workflow.name,
+                agentId: workflow.agentId || 'matt',
+                agentName: agent?.name || workflow.agentId || 'Unknown',
+                nextStepId: i < pipeline.steps.length - 1 ? `step-${taskId}-${i + 2}` : undefined
+            });
+        }
+    }
 }
 
 // ============================================================================

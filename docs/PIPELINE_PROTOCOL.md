@@ -85,11 +85,17 @@ Every task must flow through **all 5 phases** of the orchestration protocol. No 
 4. **Only then** consider the task done
 
 **API Calls:**
-```
+```bash
+# Mark task complete
 PATCH /api/tasks/{id}
 {
-  "status": "Complete",
-  "completedAt": "2026-03-17T10:00:00Z"
+  "status": "Complete"
+}
+
+# OR Assign a pipeline manually (Wire-up)
+PATCH /api/tasks/{id}
+{
+  "pipelineId": "pl-standard"
 }
 ```
 
@@ -180,6 +186,8 @@ interface Task {
   title: string;
   description: string;           // Human-readable context
   status: TaskStatus;            // Current state
+  pipelineId?: string;           // The assigned pipeline (NEW)
+  pipelineName?: string;         // Human-readable pipeline name (NEW)
   validationCriteria: {          // Machine-readable requirements
     doneMeans: string;           // Completion criteria
     checklist: string[];         // Step-by-step requirements
@@ -187,7 +195,7 @@ interface Task {
     verificationSteps?: string[];
   };
   owner: string;                 // Current assigned orchestrator/agent
-  // ... pipeline metadata
+  // ... extra metadata
 }
 ```
 

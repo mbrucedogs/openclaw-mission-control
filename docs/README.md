@@ -299,7 +299,9 @@ validationCriteria: {
   checklist: string[];      // Structured checklist
   codeRequirements?: string[];
   verificationSteps?: string[];
-}
+},
+pipelineId?: string;        // (New) Manually assign a pipeline
+pipelineName?: string;      // (New) Read-only name from API
 ```
 
 **When creating tasks:**
@@ -360,6 +362,16 @@ GET /api/tasks?owner=leo&status=Backlog
 GET /api/tasks?owner=leo&status=In+Progress
 GET /api/tasks?owner=leo&status=Review
 ```
+
+**New: Manual Pipeline Wire-up**
+If a task is missing a pipeline, you can manually assign one using:
+```bash
+PATCH /api/tasks/{id}
+{
+  "pipelineId": "pl-standard"
+}
+```
+This will automatically generate the required workflow steps.
 
 **For each task, determine:**
 

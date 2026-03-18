@@ -330,6 +330,7 @@ Body: {
   project?: string
   executionMode?: 'local' | 'cloud'
   validationCriteria?: ValidationCriteria
+  pipelineId?: string  // Explicit pipeline assignment
 }
 
 Response: Task with _meta.pipelineMatch
@@ -346,6 +347,7 @@ Body: {
   owner?: string
   isStuck?: boolean
   stuckReason?: string
+  pipelineId?: string  // Manual pipeline wire-up
   actor?: string  // for activity logging
 }
 

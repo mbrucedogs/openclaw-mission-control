@@ -139,6 +139,7 @@ export async function PATCH(
             stuckReason: body.stuckReason,
             maxRetries: body.maxRetries,
             validationCriteria: body.validationCriteria,
+            pipelineId: body.pipelineId,
         }, actor);
 
         if (!task) {
