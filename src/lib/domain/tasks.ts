@@ -28,7 +28,7 @@ function normalizeStatus(status: string): TaskStatus {
 // ============================================================================
 
 export interface TaskFilters {
-    status?: TaskStatus;
+    status?: TaskStatus | TaskStatus[];
     owner?: string;
     project?: string;
     isStuck?: boolean;
@@ -40,8 +40,14 @@ export function getTasks(filters?: TaskFilters, include?: ('comments' | 'activit
     const params: any[] = [];
 
     if (filters?.status) {
-        whereClauses.push('status = ?');
-        params.push(filters.status);
+        if (Array.isArray(filters.status)) {
+            const placeholders = filters.status.map(() => '?').join(',');
+            whereClauses.push(`status IN (${placeholders})`);
+            params.push(...filters.status);
+        } else {
+            whereClauses.push('status = ?');
+            params.push(filters.status);
+        }
     }
     if (filters?.owner) {
         whereClauses.push('owner = ?');

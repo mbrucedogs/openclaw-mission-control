@@ -14,12 +14,16 @@ export async function GET(request: Request) {
         
         // Parse filters
         const filters: TaskFilters = {};
-        const status = url.searchParams.get('status') as TaskStatus | null;
+        const statusParam = url.searchParams.get('status');
         const owner = url.searchParams.get('owner');
         const project = url.searchParams.get('project');
         const isStuck = url.searchParams.get('isStuck');
         
-        if (status) filters.status = status;
+        if (statusParam) {
+            // Support comma-separated statuses: ?status=Backlog,In Progress,Review
+            const statuses = statusParam.split(',').map(s => s.trim()) as TaskStatus[];
+            filters.status = statuses.length > 1 ? statuses : statuses[0];
+        }
         if (owner) filters.owner = owner;
         if (project) filters.project = project;
         if (isStuck !== null) filters.isStuck = isStuck === 'true';
