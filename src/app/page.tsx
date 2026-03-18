@@ -40,8 +40,8 @@ export default function DashboardPage() {
 
   if (!ready) {
     return (
-      <div className="max-w-[1400px] p-12 space-y-12 animate-in fade-in duration-1000">
-        <div className="relative p-16 border border-orange-500/20 rounded-[4rem] bg-orange-500/[0.02] overflow-hidden shadow-2xl">
+      <div className="max-w-[1400px] p-4 sm:p-8 lg:p-12 space-y-8 sm:space-y-12 animate-in fade-in duration-1000">
+        <div className="relative p-8 sm:p-12 lg:p-16 border border-orange-500/20 rounded-[2rem] sm:rounded-[3rem] lg:rounded-[4rem] bg-orange-500/[0.02] overflow-hidden shadow-2xl">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl opacity-50" />
           <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />
 
@@ -50,8 +50,8 @@ export default function DashboardPage() {
               <ShieldAlert className="w-12 h-12 text-orange-400 animate-pulse" />
             </div>
 
-            <div className="space-y-4 max-w-2xl">
-              <h1 className="text-6xl font-black text-white tracking-tighter">
+            <div className="space-y-4 max-w-2xl text-center">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter">
                 System <span className="text-orange-500 italic">Initialization</span>
               </h1>
               <p className="text-xl text-slate-400 font-medium leading-relaxed">
@@ -77,7 +77,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Placeholder/Disabled Grid Preview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 opacity-40 grayscale pointer-events-none">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 opacity-40 grayscale pointer-events-none">
           <StatCard label="Pipeline Tasks" value="--" icon={Target} color="text-slate-500" sub="Offline" />
           <StatCard label="Stuck Recovery" value="--" icon={AlertTriangle} color="text-slate-500" sub="Offline" />
           <StatCard label="Uptime" value="0%" icon={Activity} color="text-slate-500" sub="Offline" />
@@ -88,46 +88,46 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-[1400px] p-12 space-y-12 animate-in fade-in duration-700">
+    <div className="max-w-[1400px] p-6 sm:p-10 lg:p-12 space-y-8 sm:space-y-12 animate-in fade-in duration-700">
       {/* Command Center Header */}
-      <div className="relative p-12 border border-[#1a1a1a] rounded-[3rem] bg-[#101010] overflow-hidden shadow-2xl">
+      <div className="relative p-8 sm:p-10 lg:p-12 border border-[#1a1a1a] rounded-[2rem] sm:rounded-[3rem] bg-[#101010] overflow-hidden shadow-2xl">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6">
             <div className="flex items-center space-x-3">
               <div className="bg-blue-600/20 p-2 rounded-xl border border-blue-500/20">
                 <Zap className="w-5 h-5 text-blue-400 animate-pulse" />
               </div>
-              <span className="text-[11px] font-black uppercase tracking-[0.4em] text-slate-500">Autonomous Orchestration Layer Active</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Autonomous Orchestration Layer Active</span>
             </div>
 
-            <h1 className="text-6xl font-black text-white tracking-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight">
               Mission <span className="text-blue-500">Control</span>
             </h1>
-            <p className="text-xl text-slate-400 font-medium max-w-2xl leading-relaxed">
+            <p className="text-lg sm:text-xl text-slate-400 font-medium max-w-2xl leading-relaxed">
               Canonical system online. Managing <span className="text-white font-black">{stats.totalTasks}</span> durable tasks across <span className="text-white font-black">{stats.activeDomains}</span> active domains.
             </p>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-6 flex flex-col items-center">
+          <div className="flex items-center md:justify-end">
+            <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-4 sm:p-6 flex flex-col items-center min-w-[120px]">
               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Status</span>
-              <span className="text-xl font-black text-emerald-500">NOMINAL</span>
+              <span className="text-lg sm:text-xl font-black text-emerald-500">NOMINAL</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Orchestration Pulse Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
         <StatCard label="Pipeline Tasks" value={stats.totalTasks} icon={Target} color="text-blue-500" sub="Durable" href="/tasks" />
         <StatCard label="Stuck Recovery" value={stats.stuckTasks} icon={AlertTriangle} color="text-red-500" sub="Alerts active" href="/tasks" />
         <StatCard label="Uptime" value="100%" icon={Activity} color="text-emerald-500" sub="Real-time" href="/office" />
         <StatCard label="Agent Roster" value="6" icon={Users} color="text-indigo-500" sub="Canonical" href="/team" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
         {/* Left: Pipeline Insight */}
         <div className="lg:col-span-2 space-y-8">
           <SectionHeader title="Active Pipeline" icon={History} link="/tasks" />

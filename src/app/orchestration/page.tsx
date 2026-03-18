@@ -83,9 +83,9 @@ export default function OrchestrationPage() {
     };
 
     return (
-        <div className="flex h-full overflow-hidden">
+        <div className="flex flex-col lg:flex-row h-full overflow-hidden">
             {/* Sidebar */}
-            <div className="w-64 border-r border-[#222] bg-[#0a0a0a] flex flex-col">
+            <div className="hidden lg:flex w-64 border-r border-[#222] bg-[#0a0a0a] flex-col">
                 <div className="px-6 py-6 border-b border-[#1a1a1a] bg-[#09090b]">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.05)]">
@@ -136,19 +136,19 @@ export default function OrchestrationPage() {
 
             {/* Main Content */}
             <div className="flex-1 overflow-hidden flex flex-col">
-                <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+                <div className="px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 sm:mb-8">
                     <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
-                            <Layers className="w-6 h-6 text-blue-400" />
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
+                            <Layers className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Orchestrator</h1>
-                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Define agent logic and pipeline execution paths</p>
+                            <h1 className="text-lg sm:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Orchestrator</h1>
+                            <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Define agent logic and pipeline execution paths</p>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-12 pb-20">
+                <div className="flex-1 overflow-y-auto px-6 sm:px-12 pb-20">
                     {loading ? (
                         <div className="flex items-center justify-center h-64">
                             <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
@@ -203,11 +203,11 @@ function WorkflowsTab({ workflows, onRefresh }: { workflows: Workflow[]; onRefre
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
                 <div>
                     <h2 className="text-lg font-black text-white">Workflow Templates</h2>
                     <p className="text-sm text-slate-500 mt-1">
-                        Reusable work definitions for agents. Each workflow defines what an agent does.
+                        Reusable work definitions for agents.
                     </p>
                 </div>
                 <button 

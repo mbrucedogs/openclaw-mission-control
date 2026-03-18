@@ -268,9 +268,9 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
     );
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
             <div 
-                className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-3xl h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+                className="bg-[#111] border border-[#222] rounded-none sm:rounded-2xl w-full max-w-3xl h-full sm:h-[85vh] flex flex-col shadow-2xl overflow-hidden"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
@@ -303,7 +303,7 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-6 mt-4">
+                    <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-4">
                         <div className="flex items-center gap-2">
                             <div className={cn('w-6 h-6 rounded flex items-center justify-center text-[10px] font-black text-white', ownerColor(task.owner))}>
                                 {ownerInitial(task.owner)}
@@ -409,7 +409,7 @@ function TaskDetailModal({ task, onClose, onDeleted, onEdit }: {
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-4 gap-4 pt-4 border-t border-[#222]">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-[#222]">
                                         <div>
                                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Created</p>
                                             <p className="text-xs text-slate-400">{formatDate(task.createdAt)}</p>
@@ -773,8 +773,8 @@ function TaskFormModal({ task, onClose, onSaved, agents, projects, pipelines }: 
     const assignees = [{ id: 'matt', name: 'Matt', role: 'Supervisor' }, ...agents];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-lg p-8 space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-[#111] border border-[#222] rounded-2xl w-full max-w-lg p-6 sm:p-8 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between">
                     <h2 className="text-base font-black text-white tracking-tight">{task ? 'Edit Task' : 'New Task'}</h2>
                     <button onClick={onClose}><X className="w-4 h-4 text-slate-500 hover:text-white" /></button>
@@ -980,24 +980,24 @@ export default function TasksPage() {
     const agentName = (id: string) => agents.find(a => a.id === id)?.name ?? id;
 
     return (
-        <div className="flex h-full overflow-hidden">
+        <div className="flex flex-col lg:flex-row h-full overflow-hidden">
             {/* Left: Kanban */}
             <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-                <div className="flex-shrink-0 px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+                <div className="flex-shrink-0 px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 sm:mb-8">
                     <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
-                            <CheckSquare className="w-6 h-6 text-blue-400" />
+                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
+                            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Task Matrix</h1>
-                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Operational objectives and agent execution logs</p>
+                            <h1 className="text-lg sm:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Task Matrix</h1>
+                            <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Operational objectives and agent execution logs</p>
                         </div>
                     </div>
                 </div>
-                <div className="px-12">
-                    <div className="flex items-center gap-10 mb-6">
+                <div className="px-6 sm:px-12">
+                    <div className="flex flex-wrap items-center gap-6 sm:gap-10 mb-6">
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-blue-500">{stats.inProgress}</span>
+                            <span className="text-2xl sm:text-3xl font-black text-blue-500">{stats.inProgress}</span>
                             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">In progress</span>
                         </div>
                         <div className="flex items-baseline gap-2">
@@ -1061,7 +1061,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Kanban columns */}
-                <div className="flex-1 overflow-x-auto overflow-y-hidden px-10 pb-8">
+                <div className="flex-1 overflow-x-auto overflow-y-hidden px-6 sm:px-10 pb-8">
                     <div className="flex gap-5 h-full" style={{ minWidth: `${COLUMNS.length * 300}px` }}>
                         {COLUMNS.map(col => {
                             const colTasks = getColumnTasks(filtered, col.status);
@@ -1096,7 +1096,7 @@ export default function TasksPage() {
             </div>
 
             {/* Right: Activity panel */}
-            <div className="flex-shrink-0 w-72 border-l border-[#141416] flex flex-col bg-[#080809]">
+            <div className="hidden lg:flex flex-shrink-0 w-72 border-l border-[#141416] flex-col bg-[#080809]">
                 <div className="px-6 pt-8 pb-4 border-b border-[#141416] flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Zap className="w-3.5 h-3.5 text-amber-500" />

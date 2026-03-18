@@ -276,9 +276,12 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex h-screen relative bg-[#09090b] text-slate-200">
+        <div className="flex flex-col md:flex-row h-screen relative bg-[#09090b] text-slate-200">
             {/* Left Sidebar */}
-            <aside className="w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20">
+            <aside className={cn(
+                "w-full md:w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20",
+                (viewerSelected || repoSelected) && !editing && !fullscreen ? "hidden md:flex" : "flex"
+            )}>
                 <div className="px-6 py-6 border-b border-[#1a1a1a] bg-[#09090b] flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -511,21 +514,27 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                 fullscreen && "fixed inset-0 z-50 bg-[#000]"
             )}>
                 {/* Header Section */}
-                <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-xl border-b border-[#1a1a1a] px-12 py-10 bg-[#09090b] mb-8">
-                    <div className="flex items-center justify-between">
+                <div className="sticky top-0 z-10 bg-black/80 backdrop-blur-xl border-b border-[#1a1a1a] px-6 md:px-12 py-8 md:py-10 bg-[#09090b] mb-4 md:mb-8">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
-                                <FileText className="w-6 h-6 text-blue-400" />
+                            <button 
+                                onClick={() => { setViewerSelected(null); setRepoSelected(null); }}
+                                className="md:hidden p-2 -ml-2 hover:bg-[#1a1a1a] rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                            <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
+                                <FileText className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Knowledge Base</h1>
-                                <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">System documentation and research logs</p>
+                                <h1 className="text-lg md:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Knowledge Base</h1>
+                                <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">System documentation and research logs</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <button 
                                 onClick={() => setFullscreen(!fullscreen)} 
-                                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white px-4 py-2 rounded-xl bg-[#101010] border border-[#1a1a1a] hover:border-slate-700 transition-all"
+                                className="flex-1 md:flex-none flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white px-4 py-2.5 rounded-xl bg-[#101010] border border-[#1a1a1a] hover:border-slate-700 transition-all"
                             >
                                 {fullscreen ? (
                                     <><Minimize2 className="w-3.5 h-3.5" /> COLLAPSE</>
@@ -537,7 +546,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                     </div>
                 </div>
 
-                <div className="max-w-5xl mx-auto p-12 lg:p-20">
+                <div className="max-w-5xl mx-auto p-6 md:p-12 lg:p-20">
                     {/* ─── Viewer View ─────────────────────────────────────────── */}
                     {mode === 'viewer' && selectedViewerFile && (
                         <div className="space-y-12 animate-in fade-in duration-700">

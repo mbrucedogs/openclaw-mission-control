@@ -92,9 +92,12 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
     }, [fullscreen]);
 
     return (
-        <div className="flex h-screen relative bg-[#09090b] text-slate-200 overflow-hidden">
+        <div className="flex flex-col md:flex-row h-screen relative bg-[#09090b] text-slate-200 overflow-hidden">
             {/* Left Sidebar */}
-            <aside className="w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20">
+            <aside className={cn(
+                "w-full md:w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20",
+                selected && !fullscreen ? "hidden md:flex" : "flex"
+            )}>
                 <div className="px-6 py-6 border-b border-[#1a1a1a] bg-[#09090b] flex-shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -217,18 +220,27 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
             </aside>
 
             {/* Main Content Area */}
-            <main className="flex-1 bg-[#000] overflow-y-auto relative custom-scrollbar p-10">
+            <main className={cn(
+                "flex-1 bg-[#000] overflow-y-auto relative custom-scrollbar p-4 sm:p-10",
+                !selected && "hidden md:block"
+            )}>
                 {selectedItem ? (
                     <div className="flex-1 flex flex-col">
-                        <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-10">
-                            <div className="flex items-center justify-between">
+                        <div className="px-6 md:px-12 py-8 md:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-6 md:mb-10">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-11 h-11 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.05)]">
-                                        <Brain className="w-6 h-6 text-purple-400" />
+                                    <button 
+                                        onClick={() => setSelected(null)}
+                                        className="md:hidden p-2 -ml-2 hover:bg-[#1a1a1a] rounded-lg transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                    <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.05)]">
+                                        <Brain className="w-5 h-5 md:w-6 md:h-6 text-purple-400" />
                                     </div>
                                     <div>
-                                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">{selectedItem.id}</h1>
-                                        <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">
+                                        <h1 className="text-lg md:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">{selectedItem.id}</h1>
+                                        <p className="text-[9px] md:text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">
                                             {new Date(selectedItem.timestamp).toLocaleDateString('en-US', {
                                                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                                             })}
@@ -237,7 +249,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
                                 </div>
                                 <button
                                     onClick={() => setFullscreen(true)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-[#101010] hover:bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
+                                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#101010] hover:bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
                                 >
                                     <Maximize2 className="w-3.5 h-3.5" />
                                     Expand View
@@ -245,7 +257,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
                             </div>
                         </div>
 
-                        <div className="px-12 max-w-4xl">
+                        <div className="px-4 md:px-12 max-w-4xl">
                             <div className="prose prose-invert max-w-none">
                                  <MarkdownRenderer 
                                     content={selectedItem.content} 

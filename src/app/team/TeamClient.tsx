@@ -38,20 +38,20 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a]">
             {/* Page Header */}
-            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b]">
+            <div className="px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b]">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                             <Users className="w-6 h-6 text-emerald-400" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Agent Registry</h1>
-                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Authorized autonomous agents and human coordinators</p>
+                            <h1 className="text-lg sm:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Agent Registry</h1>
+                            <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Authorized autonomous agents and human coordinators</p>
                         </div>
                     </div>
 
                     {isOnboarding && (
-                        <div className="flex items-center space-x-6 bg-orange-500/5 border border-orange-500/20 rounded-2xl px-6 py-4 animate-in fade-in slide-in-from-top-4 duration-1000">
+                        <div className="hidden sm:flex items-center space-x-6 bg-orange-500/5 border border-orange-500/20 rounded-2xl px-6 py-4 animate-in fade-in slide-in-from-top-4 duration-1000">
                             <div className="flex flex-col items-end">
                                 <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Initialization Pending</span>
                                 <span className="text-[9px] text-orange-200/40 font-bold uppercase mt-0.5">{unassignedCount} Agents Requiring Setup</span>
@@ -65,7 +65,7 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
             </div>
 
             {isOnboarding && (
-                <div className="mx-12 mt-8 p-8 bg-blue-600/5 border border-blue-500/20 rounded-[2.5rem] relative overflow-hidden group">
+                <div className="mx-6 sm:mx-12 mt-6 sm:mt-8 p-6 sm:p-8 bg-blue-600/5 border border-blue-500/20 rounded-[1.5rem] sm:rounded-[2.5rem] relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
                         <Shield className="w-32 h-32 text-white" />
                     </div>
@@ -99,7 +99,7 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
                 </div>
             )}
 
-            <div className="flex-1 overflow-y-auto px-12 pb-20 relative">
+            <div className="flex-1 overflow-y-auto px-6 sm:px-12 pb-20 relative">
                 {/* Governance Layer */}
                 {governanceAgents.length > 0 && (
                     <div className="flex flex-col items-center space-y-12 mt-12 mb-20">
@@ -237,9 +237,9 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
     const Icon = getAgentIcon(agent);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-6" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-6" onClick={onClose}>
             <div 
-                className="bg-[#0a0a0b] border border-[#1a1a1f] rounded-[2.5rem] w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+                className="bg-[#0a0a0b] border border-[#1a1a1f] rounded-none sm:rounded-[2.5rem] w-full max-w-3xl h-full sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Modal Header */}
@@ -250,14 +250,14 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                         </div>
                         <div>
                             <div className="flex items-center space-x-3 mb-1">
-                                <h2 className="text-3xl font-black text-white tracking-tight">{agent.name}</h2>
+                                <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight">{agent.name}</h2>
                                 <div className={cn(
                                     "w-3 h-3 rounded-full shadow-[0_0_10px_rgba(34,197,94,0.3)]",
                                     agent.status === 'busy' ? "bg-amber-500 shadow-amber-500/40 animate-pulse" : (agent.status === 'offline' ? "bg-slate-700 shadow-none" : "bg-emerald-500")
                                 )} />
                             </div>
-                            <p className="text-blue-400 font-black uppercase tracking-widest text-xs italic">{agent.role}</p>
-                            <p className="text-slate-500 text-xs font-bold mt-1 uppercase tracking-wider">{agent.folder}</p>
+                            <p className="text-blue-400 font-black uppercase tracking-widest text-[10px] sm:text-xs italic">{agent.role}</p>
+                            <p className="text-slate-500 text-[10px] sm:text-xs font-bold mt-1 uppercase tracking-wider">{agent.folder}</p>
                         </div>
                     </div>
                     <button 
@@ -269,7 +269,7 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                 </div>
 
                 {/* Modal Content */}
-                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-6 sm:p-8 pt-6 space-y-8 sm:space-y-10 custom-scrollbar">
                     {/* Mission Section */}
                     <div className={cn(
                         "p-6 border rounded-3xl",
@@ -325,8 +325,8 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                 </div>
 
                 {/* Footer Controls */}
-                <div className="p-8 border-t border-[#1a1a1f] bg-[#0d0d0f] flex justify-between items-center">
-                    <div className="flex space-x-6">
+                <div className="p-6 sm:p-8 border-t border-[#1a1a1f] bg-[#0d0d0f] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 sm:gap-0">
+                    <div className="flex flex-wrap gap-6">
                         <div className="flex flex-col">
                             <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1">Layer</span>
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-tight">{agent.layer ?? 'N/A'}</span>
@@ -384,7 +384,7 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                     </div>
                     <button 
                         onClick={onClose}
-                        className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-black text-white uppercase tracking-widest transition-all"
+                        className="w-full sm:w-auto px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-xs font-black text-white uppercase tracking-widest transition-all"
                     >
                         Close Registry
                     </button>

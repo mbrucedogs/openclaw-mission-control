@@ -57,13 +57,13 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a]">
             {/* Header Section */}
-            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+            <div className="px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 sm:mb-8">
                 <div className="flex items-center gap-4">
                     <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                         <LayoutGrid className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Active Domains</h1>
+                        <h1 className="text-lg sm:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Active Domains</h1>
                         <div className="flex items-center space-x-3 text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider">
                             <span>{projects.length} nodes</span>
                             <span className="opacity-30">•</span>
@@ -73,12 +73,12 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-12 pb-20">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 px-6 sm:px-12 pb-20">
                 {projects.map((project) => {
                     const taskCount = project.taskIds?.length || 0;
                     return (
                         <Link key={project.id} href={`/projects/${project.id}`}>
-                            <div className="bg-[#101010] border border-[#1a1a1a] rounded-3xl p-8 hover:border-emerald-500/30 transition-all cursor-pointer group flex flex-col min-h-[280px]">
+                            <div className="bg-[#101010] border border-[#1a1a1a] rounded-2xl sm:rounded-3xl p-6 sm:p-8 hover:border-emerald-500/30 transition-all cursor-pointer group flex flex-col min-h-[250px] sm:min-h-[280px]">
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex items-center space-x-3">
                                         <div className="p-2 rounded-xl bg-emerald-500/5 border border-emerald-500/10 text-emerald-500 group-hover:bg-emerald-500/10 transition-colors">
@@ -126,10 +126,9 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
                     );
                 })}
 
-                {/* Add New — opens create modal */}
                 <div
                     onClick={() => setShowCreate(true)}
-                    className="border border-dashed border-[#1a1a1a] rounded-3xl p-8 flex flex-col items-center justify-center space-y-4 hover:border-emerald-500/30 transition-all cursor-pointer group min-h-[280px]"
+                    className="border border-dashed border-[#1a1a1a] rounded-2xl sm:rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center space-y-4 hover:border-emerald-500/30 transition-all cursor-pointer group min-h-[250px] sm:min-h-[280px]"
                 >
                     <div className="w-12 h-12 rounded-full bg-[#101010] border border-[#1a1a1a] flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Plus className="w-6 h-6 text-slate-600 group-hover:text-emerald-500 transition-colors" />
@@ -140,8 +139,8 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
 
             {/* Create Project Modal */}
             {showCreate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
-                    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowCreate(false)}>
+                    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-black text-white">New Project</h2>
                             <button onClick={() => setShowCreate(false)} className="text-slate-500 hover:text-white transition-colors">

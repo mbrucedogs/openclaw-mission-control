@@ -89,15 +89,15 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
 
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a]">
-            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+            <div className="px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 sm:mb-8">
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
                         <Calendar className="w-6 h-6 text-blue-400" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Calendar</h1>
-                        <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Scheduled tasks and system routines</p>
+                        <h1 className="text-lg sm:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Calendar</h1>
+                        <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Scheduled tasks and system routines</p>
                     </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -125,9 +125,9 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
             </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-12 pb-20 relative">
+        <div className="flex-1 overflow-y-auto px-6 sm:px-12 pb-20 relative">
             {alwaysRunning.length > 0 && (
-                <div className="bg-[#0c0c0e] border border-[#1a1a1a] rounded-2xl p-6">
+                <div className="bg-[#0c0c0e] border border-[#1a1a1a] rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-8">
                     <div className="flex items-center space-x-4 mb-6">
                         <Zap className="w-4 h-4 text-blue-500" />
                         <h3 className="text-[13px] font-black uppercase tracking-widest text-white">Always Running</h3>
@@ -142,7 +142,7 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
 
             <div className={cn(
                 "grid gap-4",
-                view === 'week' ? "grid-cols-7" : "grid-cols-1 max-w-2xl"
+                view === 'week' ? "grid-cols-1 sm:grid-cols-7" : "grid-cols-1 max-w-2xl"
             )}>
                 {days.map((day, i) => {
                     const isToday = i === todayIndex;
@@ -151,7 +151,7 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
                     return (
                         <div key={day} className={cn(
                             "flex flex-col space-y-4",
-                            view === 'week' ? "min-h-[600px] opacity-80" : "w-full opacity-100",
+                            view === 'week' ? "sm:min-h-[600px] opacity-80" : "w-full opacity-100",
                             isToday && view === 'week' && "opacity-100"
                         )}>
                             <div className="mb-4">

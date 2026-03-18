@@ -171,19 +171,19 @@ export function OfficeClient({ agents }: { agents: any[] }) {
     return (
         <div className="flex flex-col h-screen relative overflow-hidden">
             {/* Unified Header */}
-            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
-                <div className="flex items-center justify-between">
+            <div className="px-6 md:px-12 py-8 md:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 md:mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
-                            <Monitor className="w-6 h-6 text-amber-500" />
+                        <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
+                            <Monitor className="w-5 h-5 md:w-6 md:h-6 text-amber-500" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Command Center</h1>
-                            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Real-time agent orchestration and HQ monitoring</p>
+                            <h1 className="text-lg md:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Command Center</h1>
+                            <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Real-time agent orchestration and HQ monitoring</p>
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
                         <ControlBtn icon={Monitor} label="Reset Desks" color="text-emerald-400" onClick={handleReset} />
                         <ControlBtn icon={Users} label="Gather" color="text-blue-400" onClick={handleGather} />
                         <ControlBtn icon={Waves} label="Watercooler" color="text-cyan-400" onClick={handleWatercooler} />
@@ -191,13 +191,13 @@ export function OfficeClient({ agents }: { agents: any[] }) {
                 </div>
             </div>
 
-            <div className="flex flex-1 min-h-0 relative px-12 pb-20">
+            <div className="flex flex-col lg:flex-row flex-1 min-h-0 relative px-6 md:px-12 pb-20 gap-6">
                 {/* Main 2D Floor Plan Area */}
-                <div className="flex-1 bg-black relative overflow-hidden flex items-center justify-center">
+                <div className="flex-1 bg-black relative overflow-visible flex items-center justify-center min-h-[400px]">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(26,26,26,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(26,26,26,0.3)_1px,transparent_1px)] bg-[size:40px_40px]" />
 
                     {/* The Map Container */}
-                    <div className="relative w-full h-full max-w-5xl max-h-[600px] border border-[#1a1a1a] rounded-3xl bg-[#09090b] shadow-2xl overflow-hidden">
+                    <div className="relative w-full h-full max-w-5xl max-h-[600px] border border-[#1a1a1a] rounded-3xl bg-[#09090b] shadow-2xl overflow-x-auto overflow-y-hidden custom-scrollbar">
                         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
 
                         {/* Rendering Agents on the Map */}
@@ -267,7 +267,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
                 </div>
 
                 {/* Right Activity / Chat Sidebar */}
-                <div className="w-80 border-l border-[#1a1a1a] bg-[#0c0c0e] flex flex-col p-6">
+                <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-[#1a1a1a] bg-[#0c0c0e] flex flex-col p-6 min-h-[300px]">
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center space-x-3">
                             <Activity className="w-4 h-4 text-blue-500" />

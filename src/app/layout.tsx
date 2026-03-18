@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/Sidebar";
+import { LayoutWrapper } from "@/components/LayoutWrapper";
 import { ensureSeeded } from "@/lib/openclaw/ingestion";
 
 // Auto-populate DB with real workspace data on first boot
 ensureSeeded();
-
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,14 +32,11 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white selection:bg-blue-500/30`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white selection:bg-blue-500/30 font-sans`}
       >
-        <div className="flex h-screen overflow-hidden">
-          <Sidebar username={username} />
-          <main className="flex-1 overflow-y-auto">
-              {children}
-          </main>
-        </div>
+        <LayoutWrapper username={username}>
+          {children}
+        </LayoutWrapper>
       </body>
     </html>
   );

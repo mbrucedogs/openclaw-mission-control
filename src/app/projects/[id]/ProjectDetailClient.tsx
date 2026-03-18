@@ -101,7 +101,7 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
     }
 
     return (
-        <div className="max-w-[1400px] p-12">
+        <div className="max-w-[1400px] p-6 lg:p-12">
             <div className="mb-8">
                 <div className="flex items-center justify-between mb-6">
                     <Link href="/projects" className="flex items-center text-sm font-bold text-slate-500 hover:text-emerald-400 group transition-colors">
@@ -145,10 +145,10 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
                         </button>
                     </div>
                 </div>
-                <div className="flex justify-between items-start">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-6 sm:gap-0">
                     <div className="flex items-center space-x-4">
-                        <div className="p-3 bg-[#101010] border border-[#1a1a1a] rounded-xl">
-                            <Layout className="w-8 h-8 text-emerald-500" />
+                        <div className="p-2 sm:p-3 bg-[#101010] border border-[#1a1a1a] rounded-xl">
+                            <Layout className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-500" />
                         </div>
                         <div>
                             {editing ? (
@@ -156,16 +156,16 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
                                     type="text"
                                     value={form.name}
                                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                                    className="text-3xl font-black text-white bg-transparent border-b border-emerald-500/30 focus:outline-none focus:border-emerald-500 pb-1 capitalize"
+                                    className="text-2xl sm:text-3xl font-black text-white bg-transparent border-b border-emerald-500/30 focus:outline-none focus:border-emerald-500 pb-1 capitalize w-full"
                                 />
                             ) : (
-                                <h1 className="text-3xl font-black text-white mb-1 capitalize">{project.name}</h1>
+                                <h1 className="text-2xl sm:text-3xl font-black text-white mb-1 capitalize leading-tight">{project.name}</h1>
                             )}
-                            <p className="text-slate-500 font-medium">Project Domain</p>
+                            <p className="text-xs sm:text-sm text-slate-500 font-medium">Project Domain</p>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <div className="text-2xl font-black text-white">{Math.round(progress)}%</div>
+                    <div className="text-left sm:text-right">
+                        <div className="text-xl sm:text-2xl font-black text-white">{Math.round(progress)}%</div>
                         <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Completion</div>
                     </div>
                 </div>

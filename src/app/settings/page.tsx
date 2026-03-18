@@ -35,19 +35,19 @@ export default function SettingsPage() {
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a]">
             {/* Header */}
-            <div className="px-12 py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-8">
+            <div className="px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 sm:mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="w-11 h-11 rounded-xl bg-slate-500/10 flex items-center justify-center border border-slate-500/20 shadow-[0_0_15px_rgba(148,163,184,0.05)]">
-                        <Settings className="w-6 h-6 text-slate-400" />
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-slate-500/10 flex items-center justify-center border border-slate-500/20 shadow-[0_0_15px_rgba(148,163,184,0.05)]">
+                        <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-black text-white uppercase tracking-[0.2em] leading-none">System Settings</h1>
-                        <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Configuration and user management system</p>
+                        <h1 className="text-lg sm:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">System Settings</h1>
+                        <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Configuration and user management system</p>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-12 pb-20">
+            <div className="flex-1 overflow-y-auto px-6 sm:px-12 pb-20">
                 {loading ? (
                     <div className="flex items-center justify-center h-64">
                         <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
