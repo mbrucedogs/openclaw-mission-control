@@ -4,8 +4,8 @@
 
 PORT=4000
 PIDFILE=/tmp/mission-control.pid
-LOGFILE=/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/logs/cron-healthcheck.log
-PROJECT_DIR=/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOGFILE="$PROJECT_DIR/logs/cron-healthcheck.log"
 
 echo "$(date): Health check starting..." >> $LOGFILE
 

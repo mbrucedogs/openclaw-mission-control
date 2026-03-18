@@ -1,7 +1,8 @@
 #!/bin/zsh
 # Mission Control startup wrapper for launchd
 
-exec >>/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/logs/launchd-debug.log 2>&1
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec >>"$SCRIPT_DIR/logs/launchd-debug.log" 2>&1
 set -x
 
 echo "=== Starting Mission Control at $(date) ==="
@@ -10,8 +11,8 @@ echo "PATH: $PATH"
 echo "HOME: $HOME"
 echo "Shell: $SHELL"
 
-cd /Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control || {
-    echo "Failed to cd to project directory"
+cd "$SCRIPT_DIR" || {
+    echo "Failed to cd to project directory: $SCRIPT_DIR"
     exit 1
 }
 

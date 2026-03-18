@@ -1,8 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { Agent } from '../types';
+import { BASE_WORKSPACE } from '../config';
 
-const WORKSPACE_ROOT = process.env.OPENCLAW_WORKSPACE || '/Volumes/Data/openclaw/workspace';
+const WORKSPACE_ROOT = BASE_WORKSPACE;
 
 export interface DiscoveredAgent extends Agent {
     folder?: string;
@@ -26,7 +28,7 @@ export function discoverAgents(): DiscoveredAgent[] {
     const agents = parseRegistryTable(registryContent);
 
     // 2. Load Global OpenClaw Config for Technical IDs
-    const globalConfigPath = '/Users/mattbruce/.openclaw/openclaw.json';
+    const globalConfigPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
     if (fs.existsSync(globalConfigPath)) {
         try {
             const config = JSON.parse(fs.readFileSync(globalConfigPath, 'utf-8'));
@@ -145,8 +147,8 @@ function enrichAgentMetadata(agent: DiscoveredAgent, dir: string) {
         if (skillsSection) {
             agent.responsibilities = skillsSection[1]
                 .split('\n')
-                .map(l => l.replace(/^-\s*/, '').trim())
-                .filter(l => l !== '' && !l.startsWith('#'));
+                .map((l: string) => l.replace(/^-\s*/, '').trim())
+                .filter((l: string) => l !== '' && !l.startsWith('#'));
         }
     }
 }

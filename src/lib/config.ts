@@ -15,9 +15,9 @@ interface ConfigValue {
 }
 
 const DEFAULTS: Record<string, string> = {
-  DOCUMENTS_ROOT: '~/.openclaw/workspace/docs',
-  RESEARCH_PATH: '~/.openclaw/workspace/docs/research',
-  PLANS_PATH: '~/.openclaw/workspace/docs/plans',
+  DOCUMENTS_ROOT: path.join(os.homedir(), '.openclaw', 'workspace', 'docs'),
+  RESEARCH_PATH: path.join(os.homedir(), '.openclaw', 'workspace', 'docs', 'research'),
+  PLANS_PATH: path.join(os.homedir(), '.openclaw', 'workspace', 'docs', 'plans'),
   API_KEY: '', // Must be set via env or database
   API_URL: 'http://localhost:4000',
   MEMORY_ROOT: '', // Fallback to BASE_WORKSPACE/memory
@@ -126,7 +126,7 @@ export const API_URL = () => getConfig('API_URL');
 // WORKSPACE CONFIGURATION
 // ============================================================================
 
-const BASE_WORKSPACE = process.env.OPENCLAW_WORKSPACE || '/Volumes/Data/openclaw/workspace';
+export const BASE_WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(os.homedir(), 'openclaw', 'workspace');
 
 export const WORKSPACE_ROOTS = [
   expandHome(getConfig('MEMORY_ROOT') || path.join(BASE_WORKSPACE, 'memory')),

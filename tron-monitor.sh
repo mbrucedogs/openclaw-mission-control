@@ -4,7 +4,7 @@
 
 set -e
 
-WORKSPACE="/Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control"
+WORKSPACE="$(cd "$(dirname "$0")" && pwd)"
 cd "$WORKSPACE"
 
 # Get API key from .env

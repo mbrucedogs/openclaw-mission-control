@@ -4,10 +4,10 @@ import os from 'os';
 import { execSync } from 'child_process';
 import { db } from '@/lib/db';
 import { Task, TaskStatus, Agent } from '@/lib/types';
-import { WORKSPACE_ROOTS } from '@/lib/config';
+import { WORKSPACE_ROOTS, BASE_WORKSPACE } from '@/lib/config';
 import { listWorkspaceFiles } from '@/lib/domain/documents';
 
-const WORKSPACE_ROOT = process.env.OPENCLAW_WORKSPACE || '/Volumes/Data/openclaw/workspace';
+const WORKSPACE_ROOT = BASE_WORKSPACE;
 
 // ─── Main entrypoint ─────────────────────────────────────────────────────────
 
