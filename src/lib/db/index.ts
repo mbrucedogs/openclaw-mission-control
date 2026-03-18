@@ -93,6 +93,15 @@ if (typeof window === 'undefined') {
         console.log(`Seeding initial admin user: ${adminUser}`);
         db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run(adminUser, adminPass, 'admin');
       }
+
+      // Check if task_workflow_steps table exists
+      const checkStepsTable = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='task_workflow_steps'"
+      ).get();
+      if (!checkStepsTable) {
+        console.log('Creating task_workflow_steps table...');
+        ensureInit(); // This will create all missing tables from schema.sql
+      }
     }
   } catch (err) {
     console.error('Database init error:', err);

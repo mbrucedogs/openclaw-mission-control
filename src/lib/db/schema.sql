@@ -309,3 +309,38 @@ CREATE TABLE IF NOT EXISTS task_pipelines (
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
     FOREIGN KEY (pipeline_id) REFERENCES pipelines(id)
 );
+
+-- ============================================================================
+-- TASK WORKFLOW STEPS
+-- Track individual steps within a task's pipeline
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS task_workflow_steps (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    step_number INTEGER NOT NULL,
+    workflow_id TEXT NOT NULL,
+    workflow_name TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    agent_name TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'complete', 'failed', 'blocked')),
+    started_at TEXT,
+    completed_at TEXT,
+    duration_minutes INTEGER,
+    evidence_ids TEXT DEFAULT '[]',
+    deliverables TEXT DEFAULT '[]',
+    completion_notes TEXT,
+    blockers TEXT,
+    questions TEXT,
+    validated_by TEXT,
+    validation_notes TEXT,
+    pass_fail TEXT CHECK (pass_fail IN ('pass', 'fail')),
+    next_step_id TEXT,
+    handoff_notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (workflow_id) REFERENCES workflow_templates(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_workflow_steps_task ON task_workflow_steps(task_id);

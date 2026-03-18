@@ -194,8 +194,9 @@ export function instantiateTaskPipeline(taskId: string, pipelineId: string) {
 
     // 3. Create workflow steps for the task
     for (let i = 0; i < pipeline.steps.length; i++) {
-        const step = pipeline.steps[i];
-        const workflow = getWorkflowTemplateById(step.workflowId);
+        const step = pipeline.steps[i] as any;
+        const workflowId = step.workflowId || step.workflow_id;
+        const workflow = getWorkflowTemplateById(workflowId);
         
         if (workflow) {
             // Lazy load agent logic to avoid circular dependencies
