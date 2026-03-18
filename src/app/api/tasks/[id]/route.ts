@@ -140,6 +140,7 @@ export async function PATCH(
             maxRetries: body.maxRetries,
             validationCriteria: body.validationCriteria,
             pipelineId: body.pipelineId,
+            stepOverrides: body.stepOverrides,
         }, actor);
 
         if (!task) {

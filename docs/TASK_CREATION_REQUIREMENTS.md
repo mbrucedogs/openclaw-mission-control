@@ -277,7 +277,11 @@ export WORKSPACE_ROOT="/Users/[user]/.openclaw/workspace"
   "priority": "normal",
   "owner": "[agent-id]",
   "requestedBy": "[orchestrator-name]",
-  "pipelineId": "[optional-manual-pipeline-id]"
+  "pipelineId": "[optional-manual-pipeline-id]",
+  "stepOverrides": {
+    "1": { "description": "Specific step 1 instructions", "requiredDeliverables": ["file1.md"] },
+    "2": { "description": "Specific step 2 instructions", "requiredDeliverables": ["file2.ts"] }
+  }
 }
 ```
 

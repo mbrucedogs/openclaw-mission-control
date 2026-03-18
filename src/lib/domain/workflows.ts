@@ -173,7 +173,12 @@ export function setTaskPipeline(taskId: string, matchResult: PipelineMatchResult
  * Manually assigns a pipeline to a task and instantiates all workflow steps.
  * This is used for both POST and PATCH explicit pipeline assignments.
  */
-export function instantiateTaskPipeline(taskId: string, pipelineId?: string, workflowIds?: string[]) {
+export function instantiateTaskPipeline(
+    taskId: string, 
+    pipelineId?: string, 
+    workflowIds?: string[], 
+    stepOverrides?: Record<number, { description?: string; requiredDeliverables?: string[]; agentId?: string }>
+) {
     let pipeline = pipelineId ? getPipelineById(pipelineId) : null;
     let finalWorkflowIds = workflowIds || [];
 
@@ -207,13 +212,18 @@ export function instantiateTaskPipeline(taskId: string, pipelineId?: string, wor
             const { getAgentById } = require('./agents');
             const agent = workflow.agentId ? getAgentById(workflow.agentId) : null;
             
+            const stepNumber = i + 1;
+            const overrides = stepOverrides?.[stepNumber];
+
             createTaskWorkflowStep({
                 taskId,
-                stepNumber: i + 1,
+                stepNumber,
                 workflowId: workflow.id,
                 workflowName: workflow.name,
-                agentId: workflow.agentId || 'matt',
-                agentName: agent?.name || workflow.agentId || 'Unknown',
+                agentId: overrides?.agentId || workflow.agentId || 'matt',
+                agentName: overrides?.agentId ? (getAgentById(overrides.agentId)?.name || overrides.agentId) : (agent?.name || workflow.agentId || 'Unknown'),
+                description: overrides?.description,
+                requiredDeliverables: overrides?.requiredDeliverables,
                 nextStepId: i < finalWorkflowIds.length - 1 ? `step-${taskId}-${i + 2}` : undefined
             });
         }

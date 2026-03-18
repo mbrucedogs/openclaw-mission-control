@@ -97,6 +97,26 @@ PATCH /api/tasks/{taskId}/steps/{stepId}
 }
 ```
 
+### One-Shot Creation & Customization (BEST PRACTICE)
+**Instead of multiple calls, you can provide step overrides during task creation.**
+```json
+// POST /api/tasks
+{
+  "title": "Build a login system",
+  "pipelineId": "pl-standard",
+  "stepOverrides": {
+    "1": {
+      "description": "Research ONLY 3 specific auth libraries (Auth.js, Passport, Clerk).",
+      "requiredDeliverables": ["auth-comparison.md"]
+    },
+    "2": {
+      "description": "Implement Option A from Step 1.",
+      "requiredDeliverables": ["src/lib/auth.ts"]
+    }
+  }
+}
+```
+
 ### Start Step
 ```
 POST /api/tasks/{taskId}/steps/{stepId}
@@ -138,6 +158,42 @@ POST /api/tasks/{taskId}/steps/{stepId}
   "blockers": "Waiting for API key"
 }
 ```
+
+---
+
+## ⚠️ Manual Step Progression (Workaround)
+
+**Use when the handoff endpoint fails to progress steps correctly** (common with same-agent consecutive steps).
+
+### Mark Step Complete
+```bash
+PATCH /api/tasks/{taskId}/steps/{stepId}
+{
+  "status": "complete",
+  "completionNotes": "Deliverable created: filename.md",
+  "deliverables": ["filename.md"],
+  "evidenceIds": ["ev-123"]
+}
+```
+
+### Start Next Step
+```bash
+PATCH /api/tasks/{taskId}/steps/{nextStepId}
+{
+  "status": "in-progress",
+  "startedAt": "2026-03-17T21:00:00Z"
+}
+```
+
+### Update Task Owner
+```bash
+PATCH /api/tasks/{taskId}
+{
+  "owner": "next-agent-id"
+}
+```
+
+**See ORCHESTRATION.md for full bug details and fix status.**
 
 ---
 

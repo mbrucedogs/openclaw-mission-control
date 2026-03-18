@@ -142,6 +142,7 @@ export interface UpdateTaskInput {
     maxRetries?: number;
     validationCriteria?: ValidationCriteria;
     pipelineId?: string;
+    stepOverrides?: Record<string, { description?: string; requiredDeliverables?: string[]; agentId?: string }>;
 }
 
 export function updateTask(id: string, input: UpdateTaskInput, actor: string = 'system'): Task | null {
@@ -176,7 +177,14 @@ export function updateTask(id: string, input: UpdateTaskInput, actor: string = '
     // Handle pipeline assignment
     if (input.pipelineId !== undefined) {
         const { instantiateTaskPipeline } = require('./workflows');
-        instantiateTaskPipeline(id, input.pipelineId);
+        // Convert string keys to numbers for instantiateTaskPipeline
+        const overrides: Record<number, any> = {};
+        if (input.stepOverrides) {
+            for (const [key, value] of Object.entries(input.stepOverrides)) {
+                overrides[parseInt(key)] = value;
+            }
+        }
+        instantiateTaskPipeline(id, input.pipelineId, undefined, Object.keys(overrides).length > 0 ? overrides : undefined);
     }
 
     updates.push('updatedAt = ?');

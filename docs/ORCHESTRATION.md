@@ -130,6 +130,131 @@ interface ValidationCriteria {
 2. Attach final summary as evidence if appropriate
 3. **Only then** report completion to user
 
+---
+
+## 🔥 Step-Level Validation Protocol (CRITICAL)
+
+**For multi-step pipelines, validate and mark EACH step immediately after agent completion.**
+
+### The Protocol
+
+```
+Spawn Step 1 → Agent completes → Validate → Mark Step 1 complete → Spawn Step 2
+                                                    ↓ FAIL
+                                              Mark Step 1 failed → STOP TASK
+```
+
+### Why This Matters
+
+| Approach | Result |
+|----------|--------|
+| **Batch at end** | All steps pending, task stuck, no visibility into progress |
+| **Validate per step** | Clear progress tracking, immediate failure detection, proper handoffs |
+
+### Correct Implementation
+
+**After Step 1 completes:**
+```bash
+# 1. Validate deliverable exists
+ls -la {DOCUMENTS_ROOT}/research/step1-deliverable.md
+
+# 2. Mark step complete (IMMEDIATELY)
+PATCH /api/tasks/{taskId}/steps/{step1Id}
+{
+  "status": "complete",
+  "completionNotes": "Deliverable validated: filename.md (X bytes)"
+}
+
+# 3. Spawn Step 2
+sessions_spawn({ task: "Step 2 ONLY..." })
+```
+
+**If Step 1 FAILS:**
+```bash
+# Mark step failed (IMMEDIATELY)
+PATCH /api/tasks/{taskId}/steps/{step1Id}
+{
+  "status": "failed",
+  "completionNotes": "Failed: [specific reason]"
+}
+
+# STOP - Do not proceed to Step 2
+# Report failure to user
+```
+
+### Critical Rules for Multi-Step Pipelines
+
+| Rule | Why |
+|------|-----|
+| **Validate immediately** | Don't wait for all steps to finish |
+| **Mark step status** | Use PATCH /steps/{id} with status: complete/failed |
+| **FAIL stops everything** | One failed step = entire pipeline stops |
+| **PASS spawns next** | Only proceed after explicit validation |
+| **Never batch updates** | Each step gets its own validation and marking |
+
+### Example: 3-Step Pipeline Flow
+
+```
+Step 1: Research
+├── Spawn Alice
+├── Alice reports: "Step 1 done, file at [path]"
+├── Validate: File exists? Content correct?
+├── PASS → PATCH step1 status: complete
+└── Spawn Step 2
+
+Step 2: Build
+├── Spawn Bob
+├── Bob reports: "Step 2 done, code at [path]"
+├── Validate: Code compiles? Tests pass?
+├── PASS → PATCH step2 status: complete
+└── Spawn Step 3
+
+Step 3: Review
+├── Spawn Aegis
+├── Aegis reports: "Step 3 done, PASS"
+├── Validate: All deliverables reviewed?
+├── PASS → PATCH step3 status: complete
+└── Mark task Complete
+```
+
+**Any step FAILS:**
+```
+Step 2: Build
+├── Spawn Bob
+├── Bob reports: "Build failed, missing dependency"
+├── Validate: FAIL
+├── PATCH step2 status: failed
+└── STOP - Report failure to user
+```
+
+### API Reference
+
+**Mark Step Complete:**
+```bash
+PATCH /api/tasks/{taskId}/steps/{stepId}
+{
+  "status": "complete",
+  "completionNotes": "Deliverable created and validated",
+  "deliverables": ["filename.md"],
+  "evidenceIds": ["ev-123"]
+}
+```
+
+**Mark Step Failed:**
+```bash
+PATCH /api/tasks/{taskId}/steps/{stepId}
+{
+  "status": "failed",
+  "completionNotes": "Failed: [specific reason]",
+  "blockers": "[what went wrong]"
+}
+```
+
+**Task Completion Blocker:**
+The API will reject `PATCH /api/tasks/{id}` with `status: Complete` if any steps are not marked `complete`. This enforces the per-step validation protocol.
+
+---
+
 ### Phase 5: Report
 **Orchestrator Actions:**
 1. Tell user: "Task [ID] is COMPLETE"
@@ -238,8 +363,24 @@ interface PipelineStep {
 ```
 
 **Task-Specific Step Customization (NEW)**
-Every task instantiated from a pipeline creates individual `TaskWorkflowStep` records. You SHOULD customize these for the specific task to provide "Isolated Scope" for agents.
+Every task instantiated from a pipeline creates individual `TaskWorkflowStep` records. 
 
+#### Method A: One-Shot (Best Practice)
+Provide overrides directly in the initial task creation.
+```json
+// POST /api/tasks
+{
+  "title": "Build logic",
+  "pipelineId": "pl-standard",
+  "stepOverrides": {
+    "1": { "description": "Custom research...", "requiredDeliverables": ["res.md"] },
+    "2": { "description": "Custom build...", "agentId": "agent-alice" }
+  }
+}
+```
+
+#### Method B: Manual (After Creation)
+Use `PATCH` to customize a specific step after the task is created.
 ```bash
 PATCH /api/tasks/{taskId}/steps/{stepId}
 {
@@ -319,8 +460,65 @@ Payload:
 #### Pipelines
 ```
 GET    /api/pipelines          # List pipelines
-POST   /api/api/pipelines          # Create new pipeline
+POST   /api/pipelines          # Create new pipeline
 ```
+
+---
+
+## ⚠️ KNOWN ISSUE: Handoff Endpoint with Same-Agent Pipelines
+
+### The Bug
+**Endpoint:** `POST /api/tasks/{id}/handoff`
+
+**When called with same-agent consecutive steps:**
+- ❌ Marks entire task as `Complete`
+- ❌ Leaves all steps as `pending`
+- ❌ Does not progress to next step
+
+**Expected:** Progress to next step, keep task `In Progress`
+
+### Root Cause
+The handoff logic treats orchestrator-initiated handoffs as "task complete" signals, failing to check for remaining steps in same-agent pipelines.
+
+### Workaround: Manual Step Progression
+
+When the handoff endpoint fails, use PATCH to manually progress steps:
+
+**1. Mark Current Step Complete**
+```bash
+PATCH /api/tasks/{taskId}/steps/{stepId}
+{
+  "status": "complete",
+  "completionNotes": "Deliverable created: filename.md",
+  "deliverables": ["filename.md"],
+  "evidenceIds": ["ev-123"]
+}
+```
+
+**2. Start Next Step**
+```bash
+PATCH /api/tasks/{taskId}/steps/{nextStepId}
+{
+  "status": "in-progress",
+  "startedAt": "2026-03-17T21:00:00Z"
+}
+```
+
+**3. Update Task Owner**
+```bash
+PATCH /api/tasks/{taskId}
+{
+  "owner": "next-agent-id"
+}
+```
+
+### When to Use Workaround
+- Same agent appears in consecutive pipeline steps
+- Handoff incorrectly completes entire task
+- Step progression fails silently
+
+### Fix Status
+Pending implementation. See GitHub issue #[TBD].
 
 ### Database Schema
 

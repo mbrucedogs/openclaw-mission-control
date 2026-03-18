@@ -102,6 +102,8 @@
 - ✅ Steps flow: `pending` → `in-progress` → `complete` | `failed` | `blocked`
 - ✅ Evidence **required** per step before completion
 - ✅ API enforces: rejects task completion if steps incomplete
+- ⚠️ **KNOWN BUG**: Handoff endpoint fails with same-agent consecutive steps. Use manual PATCH progression. See ORCHESTRATION.md.
+- 🔥 **CRITICAL**: Validate and mark EACH step immediately after agent completion. See "Step-Level Validation Protocol" in ORCHESTRATION.md.
 
 ### Task Keywords → Pipeline Mapping
 
