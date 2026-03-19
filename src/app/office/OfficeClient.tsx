@@ -405,7 +405,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+                    <div className="hidden xl:flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
                         <ControlBtn icon={Monitor} label="Reset Desks" color="text-emerald-400" onClick={handleReset} />
                         <ControlBtn icon={Users} label="Gather" color="text-blue-400" onClick={handleGather} />
                         <ControlBtn icon={Waves} label="Watercooler" color="text-cyan-400" onClick={handleWatercooler} />
@@ -413,7 +413,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
                 </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-20 md:px-12 lg:hidden space-y-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-20 md:px-12 xl:hidden space-y-6">
                 {selectedAgentSummarySection}
 
                 <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
@@ -454,7 +454,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
                 {recentSessionsSection}
             </div>
 
-            <div className="hidden lg:flex flex-col lg:flex-row flex-1 min-h-0 relative px-6 md:px-12 pb-20 gap-6">
+            <div className="hidden xl:flex flex-col xl:flex-row flex-1 min-h-0 relative px-6 md:px-12 pb-20 gap-6">
                 {/* Main 2D Floor Plan Area */}
                 <div className="flex-1 bg-black relative overflow-visible flex items-center justify-center min-h-[400px]">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(26,26,26,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(26,26,26,0.3)_1px,transparent_1px)] bg-[size:40px_40px]" />
@@ -530,7 +530,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
                 </div>
 
                 {/* Right Activity / Chat Sidebar */}
-                <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-[#1a1a1a] bg-[#0c0c0e] flex flex-col p-6 min-h-[300px]">
+                <div className="w-full xl:w-80 border-t xl:border-t-0 xl:border-l border-[#1a1a1a] bg-[#0c0c0e] flex flex-col p-6 min-h-[300px]">
                     <div className="mb-6 shrink-0">
                         {selectedAgentSummarySection}
                     </div>
@@ -591,7 +591,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
             </div>
 
             {/* Bottom Agents Bar */}
-            <div className="hidden h-48 shrink-0 border-t border-[#1a1a1a] bg-[#0c0c0e] p-6 lg:block">
+            <div className="hidden h-48 shrink-0 border-t border-[#1a1a1a] bg-[#0c0c0e] p-6 xl:block">
                 <div className="flex space-x-4 overflow-x-auto pb-2 h-full items-center">
                     {displayAgents.map((agent) => (
                         <div
