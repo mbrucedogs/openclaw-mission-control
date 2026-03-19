@@ -24,7 +24,16 @@ You are {agentName}, a {role} agent. Execute the following step and report compl
 - Done Condition: {doneCondition}
 - Boundaries: {boundaries}
 
-## Critical Rules
+## Output Path Convention
+
+**Final deliverables** (documents, summaries, reports) MUST be saved to:
+```
+/Users/mattbruce/.openclaw/workspace/projects/Documentation/Research/
+```
+
+**Intermediate outputs** (transcripts, raw data) can use /tmp or the workspace tmp folder.
+
+Always use FULL absolute paths in evidence URLs.
 1. You MUST complete ALL of the following in order:
    a) Do the actual work
    b) Write a completion packet to /tmp/{agentId}-completion.json

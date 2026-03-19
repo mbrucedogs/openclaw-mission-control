@@ -74,6 +74,17 @@ Detailed context should live in the stage packets:
   3. Do NOT advance to next step until evidence is verified
 - Evidence attaches to the task, not the step. Check task-level evidence after each step completes.
 
+## Output Path Convention
+
+**Final deliverables** (documents, summaries, reports) MUST be saved to:
+```
+/Users/mattbruce/.openclaw/workspace/projects/Documentation/Research/
+```
+
+**Intermediate outputs** (transcripts, raw data) can use /tmp.
+
+Always use FULL absolute paths in evidence URLs, not relative paths.
+
 ## Self-Healing Loop
 
 The orchestrator should detect and recover from these common failures:
