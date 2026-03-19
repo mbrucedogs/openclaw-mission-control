@@ -74,16 +74,16 @@ Detailed context should live in the stage packets:
   3. Do NOT advance to next step until evidence is verified
 - Evidence attaches to the task, not the step. Check task-level evidence after each step completes.
 
-## Output Path Convention
+## Orchestrator Dispatch Rule
 
-**Final deliverables** (documents, summaries, reports) MUST be saved to:
-```
-/Users/mattbruce/.openclaw/workspace/projects/Documentation/Research/
-```
+The orchestrator is a **dumb dispatcher**. It must:
 
-**Intermediate outputs** (transcripts, raw data) can use /tmp.
+1. Read the step definition from the DB
+2. Extract inputs, outputs, paths from the step — NOT from external knowledge
+3. Pass those exact values to the agent
+4. Do NOT substitute step values with different values
 
-Always use FULL absolute paths in evidence URLs, not relative paths.
+**Critical:** If the step says save to `/Volumes/Data/...`, use `/Volumes/Data/...`. Do not substitute with `/Users/mattbruce/.openclaw/...` or any other path. The step definition IS the source of truth.
 
 ## Self-Healing Loop
 

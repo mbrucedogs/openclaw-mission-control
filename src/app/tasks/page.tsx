@@ -358,12 +358,14 @@ function TaskWizard({
   agents,
   onClose,
   onCreated,
+  setRefreshPaused,
 }: {
   projects: Project[];
   templates: TaskTemplate[];
   agents: Agent[];
   onClose: () => void;
   onCreated: (task: Task) => void;
+  setRefreshPaused: (paused: boolean) => void;
 }) {
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [saving, setSaving] = useState(false);
@@ -378,13 +380,27 @@ function TaskWizard({
     templateId: '',
     steps: [emptyStep(1)],
   });
+  const appliedTemplateIdRef = useRef<string | null>(null);
 
   const selectedTemplate = templates.find((template) => template.id === draft.templateId);
 
   useEffect(() => {
+    setRefreshPaused(true);
+    return () => setRefreshPaused(false);
+  }, [setRefreshPaused]);
+
+  useEffect(() => {
+    if (!draft.templateId) {
+      appliedTemplateIdRef.current = null;
+      return;
+    }
     if (!selectedTemplate) {
       return;
     }
+    if (appliedTemplateIdRef.current === selectedTemplate.id) {
+      return;
+    }
+    appliedTemplateIdRef.current = selectedTemplate.id;
     setDraft((current) => ({
       ...current,
       summary: current.summary || selectedTemplate.taskDefaults?.goal || '',
@@ -394,7 +410,7 @@ function TaskWizard({
         id: `template-${index}-${Math.random().toString(36).slice(2, 8)}`,
       })),
     }));
-  }, [selectedTemplate]);
+  }, [draft.templateId, selectedTemplate]);
 
   const stepsValid = draft.steps.every((step) =>
     step.title.trim()
@@ -742,12 +758,14 @@ function TaskDetail({
   onClose,
   onDeleted,
   onRefresh,
+  setRefreshPaused,
 }: {
   data: TaskDetailData;
   agents: Agent[];
   onClose: () => void;
   onDeleted: () => Promise<void>;
   onRefresh: () => Promise<void>;
+  setRefreshPaused: (paused: boolean) => void;
 }) {
   const task = data.task;
   const [comment, setComment] = useState('');
@@ -781,6 +799,20 @@ function TaskDetail({
   const [replyTargetByIssue, setReplyTargetByIssue] = useState<Record<string, string | null>>({});
   const lastTaskIdRef = useRef<string | null>(null);
   const finalDeliverable = task?.acceptanceCriteria[0] || '';
+  const hasIssueDraft = Boolean(issueDraft.title.trim() || issueDraft.summary.trim());
+  const hasReplyDraft = Object.values(issueReplyDrafts).some((value) => value.trim().length > 0);
+  const hasReplyTarget = Object.values(replyTargetByIssue).some(Boolean);
+  const hasLocalDrafts =
+    editingTask
+    || Boolean(editingStepId)
+    || hasIssueDraft
+    || hasReplyDraft
+    || hasReplyTarget;
+
+  useEffect(() => {
+    setRefreshPaused(hasLocalDrafts);
+    return () => setRefreshPaused(false);
+  }, [hasLocalDrafts, setRefreshPaused]);
 
   useEffect(() => {
     if (!task) {
@@ -789,7 +821,7 @@ function TaskDetail({
     const taskChanged = lastTaskIdRef.current !== task.id;
     lastTaskIdRef.current = task.id;
 
-    if (!taskChanged && (editingTask || editingStepId)) {
+    if (!taskChanged && hasLocalDrafts) {
       return;
     }
 
@@ -807,7 +839,7 @@ function TaskDetail({
       project: task.project || '',
       finalDeliverable,
     });
-  }, [task, finalDeliverable, editingTask, editingStepId]);
+  }, [task, finalDeliverable, hasLocalDrafts]);
 
   if (!task) {
     return null;
@@ -1744,6 +1776,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [search, setSearch] = useState('');
+  const [refreshPaused, setRefreshPaused] = useState(false);
 
   async function loadAll() {
     setLoading(true);
@@ -1780,13 +1813,16 @@ export default function TasksPage() {
   useEffect(() => {
     loadAll();
     const timer = window.setInterval(() => {
+      if (refreshPaused) {
+        return;
+      }
       loadAll();
       if (selectedTaskId) {
         loadTaskDetail(selectedTaskId);
       }
     }, 15000);
     return () => window.clearInterval(timer);
-  }, [selectedTaskId]);
+  }, [refreshPaused, selectedTaskId]);
 
   const filteredTasks = useMemo(() => {
     if (!search.trim()) return tasks;
@@ -1930,6 +1966,7 @@ export default function TasksPage() {
           projects={projects}
           templates={templates}
           agents={agents}
+          setRefreshPaused={setRefreshPaused}
           onClose={() => setShowWizard(false)}
           onCreated={(task) => {
             void loadAll();
@@ -1942,6 +1979,7 @@ export default function TasksPage() {
         <TaskDetail
           data={detail}
           agents={agents}
+          setRefreshPaused={setRefreshPaused}
           onClose={() => {
             setSelectedTaskId(null);
             setDetail({ task: null, events: [] });
