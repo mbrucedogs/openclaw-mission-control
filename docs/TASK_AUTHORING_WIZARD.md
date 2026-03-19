@@ -15,6 +15,7 @@ The wizard payload and the primary-orchestrator payload are the same contract.
 2. `Starting Point`
    - blank task plan
    - or saved template
+   - templates can be managed from the `/tasks` screen through `Manage Templates`
 3. `Stage Design`
    - ordered structured stage packets
 4. `Review`
@@ -62,6 +63,20 @@ The wizard no longer asks the human to choose both role and agent.
 - the derived execution stage is shown as read-only context
 
 This keeps the UI aligned with the real source of truth and avoids duplicate selection.
+
+## Saved Template Management
+
+Saved templates are editable from the task screen.
+
+The template manager supports:
+
+- create blank templates
+- edit template name, description, default summary, and default final deliverable
+- edit the full stage packet sequence
+- duplicate a template into a new saved template
+- delete a template
+
+The template editor uses the same stage packet structure as task planning so there is no separate authoring model to learn.
 
 ## Editing After Creation
 

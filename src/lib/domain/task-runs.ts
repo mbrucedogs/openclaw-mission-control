@@ -16,7 +16,7 @@ import type {
   TaskStagePlan,
   TaskTemplate,
 } from '../types';
-import { createTaskRecord, getTaskById, getTaskStagePlans, logTaskActivity, touchTask } from './tasks';
+import { createTaskRecord, getTaskById, getTaskStagePlans, logTaskActivity, touchTask, addTaskEvidence } from './tasks';
 import { getAgentById } from './agents';
 import { inferStepRoleForAgent } from '../agent-matching';
 import { normalizeMultilineItems } from '../multiline-fields';
@@ -92,6 +92,11 @@ type TemplateRow = {
   steps: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type TemplateTaskDefaults = {
+  goal?: string;
+  acceptanceCriteria?: string[];
 };
 
 type StagePlanRow = {
@@ -196,6 +201,19 @@ function parseStagePlanRow(row: StagePlanRow): TaskStagePlan {
     notesForMax: row.notes_for_max || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function parseTemplateRow(row: TemplateRow): TaskTemplate {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description || undefined,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    taskDefaults: row.task_defaults ? JSON.parse(row.task_defaults) : undefined,
+    steps: row.steps ? JSON.parse(row.steps) : [],
   };
 }
 
@@ -451,6 +469,149 @@ function validateAndResolveSteps(steps: StepPacketInput[]) {
       assignedAgentName: sanitized.assignedAgentName || agent.name,
     };
   });
+}
+
+function sanitizeTemplateTaskDefaults(taskDefaults?: TemplateTaskDefaults) {
+  if (!taskDefaults) {
+    return undefined;
+  }
+
+  const goal = taskDefaults.goal?.trim();
+  const acceptanceCriteria = normalizeMultilineItems(taskDefaults.acceptanceCriteria || []);
+
+  if (!goal && acceptanceCriteria.length === 0) {
+    return undefined;
+  }
+
+  return {
+    goal: goal || undefined,
+    acceptanceCriteria,
+  };
+}
+
+function persistTemplate(input: {
+  id: string;
+  name: string;
+  description?: string;
+  actor: string;
+  taskDefaults?: TemplateTaskDefaults;
+  steps: StepPacketInput[];
+  createdAt?: string;
+  updatedAt: string;
+}) {
+  const resolvedSteps = validateAndResolveSteps(input.steps);
+  const taskDefaults = sanitizeTemplateTaskDefaults(input.taskDefaults);
+
+  db.prepare(`
+    INSERT INTO task_templates (id, name, description, created_by, task_defaults, steps, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      description = excluded.description,
+      task_defaults = excluded.task_defaults,
+      steps = excluded.steps,
+      updated_at = excluded.updated_at
+  `).run(
+    input.id,
+    input.name.trim(),
+    input.description?.trim() || null,
+    input.actor,
+    taskDefaults ? JSON.stringify(taskDefaults) : null,
+    JSON.stringify(resolvedSteps.map((step) => ({
+      title: step.title,
+      role: step.role,
+      assignedAgentId: step.assignedAgentId,
+      assignedAgentName: step.assignedAgentName,
+      goal: step.goal,
+      inputs: step.inputs,
+      requiredOutputs: step.requiredOutputs,
+      doneCondition: step.doneCondition,
+      boundaries: step.boundaries,
+      dependencies: step.dependencies,
+      notesForMax: step.notesForMax,
+    } satisfies StepPacketInput))),
+    input.createdAt || input.updatedAt,
+    input.updatedAt,
+  );
+}
+
+export function createTaskTemplate(input: {
+  actor: string;
+  name: string;
+  description?: string;
+  taskDefaults?: TemplateTaskDefaults;
+  steps: StepPacketInput[];
+}) {
+  if (!input.name.trim()) {
+    throw new Error('Template name is required');
+  }
+
+  const templateId = `tpl-${randomUUID().split('-')[0]}`;
+  const now = nowIso();
+  persistTemplate({
+    id: templateId,
+    name: input.name,
+    description: input.description,
+    actor: input.actor,
+    taskDefaults: input.taskDefaults,
+    steps: input.steps,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return getTaskTemplateById(templateId)!;
+}
+
+export function updateTaskTemplate(id: string, input: {
+  actor: string;
+  name: string;
+  description?: string;
+  taskDefaults?: TemplateTaskDefaults;
+  steps: StepPacketInput[];
+}) {
+  const existing = getTaskTemplateById(id);
+  if (!existing) {
+    throw new Error(`Unknown template ${id}`);
+  }
+  if (!input.name.trim()) {
+    throw new Error('Template name is required');
+  }
+
+  persistTemplate({
+    id,
+    name: input.name,
+    description: input.description,
+    actor: existing.createdBy || input.actor,
+    taskDefaults: input.taskDefaults,
+    steps: input.steps,
+    createdAt: existing.createdAt,
+    updatedAt: nowIso(),
+  });
+
+  return getTaskTemplateById(id)!;
+}
+
+export function duplicateTaskTemplate(id: string, input: { actor: string; name?: string; description?: string }) {
+  const existing = getTaskTemplateById(id);
+  if (!existing) {
+    throw new Error(`Unknown template ${id}`);
+  }
+
+  return createTaskTemplate({
+    actor: input.actor,
+    name: input.name?.trim() || `${existing.name} Copy`,
+    description: input.description ?? existing.description,
+    taskDefaults: existing.taskDefaults,
+    steps: existing.steps,
+  });
+}
+
+export function deleteTaskTemplate(id: string) {
+  const existing = getTaskTemplateById(id);
+  if (!existing) {
+    throw new Error(`Unknown template ${id}`);
+  }
+  db.prepare('DELETE FROM task_templates WHERE id = ?').run(id);
 }
 
 export function updateRunStep(stepId: string, input: { actor: string; packet: StepPacketInput }) {
@@ -811,6 +972,23 @@ export function submitStepCompletion(stepId: string, input: StepCompletionPacket
     },
   });
 
+  // Auto-create evidence from outputsProduced
+  if (input.outputsProduced && input.outputsProduced.length > 0) {
+    for (const output of input.outputsProduced) {
+      if (typeof output === 'string' && output.startsWith('/')) {
+        addTaskEvidence(
+          step.taskId,
+          'file',
+          output,
+          input.actor,
+          `Auto-captured from completion packet`,
+          step.runId,
+          stepId
+        );
+      }
+    }
+  }
+
   return getRunStepById(stepId);
 }
 
@@ -1030,31 +1208,13 @@ export function rerunTaskFromStep(taskId: string, fromStepNumber: number, input:
 
 export function getTaskTemplates(): TaskTemplate[] {
   const rows = db.prepare('SELECT * FROM task_templates ORDER BY updated_at DESC').all() as TemplateRow[];
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    description: row.description || undefined,
-    createdBy: row.created_by,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    taskDefaults: row.task_defaults ? JSON.parse(row.task_defaults) : undefined,
-    steps: row.steps ? JSON.parse(row.steps) : [],
-  }));
+  return rows.map(parseTemplateRow);
 }
 
 export function getTaskTemplateById(id: string): TaskTemplate | null {
   const row = db.prepare('SELECT * FROM task_templates WHERE id = ?').get(id) as TemplateRow | undefined;
   if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description || undefined,
-    createdBy: row.created_by,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    taskDefaults: row.task_defaults ? JSON.parse(row.task_defaults) : undefined,
-    steps: row.steps ? JSON.parse(row.steps) : [],
-  };
+  return parseTemplateRow(row);
 }
 
 export function saveRunAsTemplate(runId: string, input: { actor: string; name: string; description?: string }) {
@@ -1063,39 +1223,31 @@ export function saveRunAsTemplate(runId: string, input: { actor: string; name: s
   const task = getTaskById(run.taskId);
   if (!task) throw new Error(`Unknown task ${run.taskId}`);
 
-  const templateId = `tpl-${randomUUID().split('-')[0]}`;
-  const now = nowIso();
-  db.prepare(`
-    INSERT INTO task_templates (id, name, description, created_by, task_defaults, steps, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    templateId,
-    input.name,
-    input.description || null,
-    input.actor,
-    JSON.stringify({
+  const template = createTaskTemplate({
+    actor: input.actor,
+    name: input.name,
+    description: input.description,
+    taskDefaults: {
       goal: task.goal || '',
       acceptanceCriteria: task.acceptanceCriteria,
-    }),
-      JSON.stringify(run.steps.map((step) => ({
-        title: step.title,
-        role: step.role,
-        assignedAgentId: step.assignedAgentId,
-        assignedAgentName: step.assignedAgentName,
-        goal: step.goal,
+    },
+    steps: run.steps.map((step) => ({
+      title: step.title,
+      role: step.role,
+      assignedAgentId: step.assignedAgentId,
+      assignedAgentName: step.assignedAgentName,
+      goal: step.goal,
       inputs: step.inputs,
       requiredOutputs: step.requiredOutputs,
       doneCondition: step.doneCondition,
       boundaries: step.boundaries,
       dependencies: step.dependencies,
       notesForMax: step.notesForMax,
-    } satisfies StepPacketInput))),
-    now,
-    now,
-  );
+    } satisfies StepPacketInput)),
+  });
 
-  logTaskActivity(task.id, input.actor, 'user', 'template_saved', { templateId }, run.id);
-  return getTaskTemplateById(templateId);
+  logTaskActivity(task.id, input.actor, 'user', 'template_saved', { templateId: template.id }, run.id);
+  return template;
 }
 
 export function scanForRecovery(input: { now?: string; staleMinutes?: number } = {}) {

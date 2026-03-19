@@ -344,9 +344,13 @@ Example issue-thread reply:
 
 `GET /api/task-templates`
 
+Returns the saved template library.
+
 `POST /api/task-templates`
 
-Request:
+Supports three modes:
+
+1. Save a run as a template
 
 ```json
 {
@@ -357,7 +361,63 @@ Request:
 }
 ```
 
-Templates preserve exact assigned agents.
+2. Create a template directly
+
+```json
+{
+  "name": "YouTube Transcript to Markdown Summary",
+  "description": "Fetch transcript, write markdown, verify output",
+  "actor": "primary-orchestrator",
+  "taskDefaults": {
+    "goal": "Create a Markdown summary from a YouTube transcript.",
+    "acceptanceCriteria": [
+      "Markdown summary file saved to the local filesystem"
+    ]
+  },
+  "steps": [
+    {
+      "title": "Download transcript",
+      "assignedAgentId": "example-researcher",
+      "assignedAgentName": "Research Agent",
+      "goal": "Retrieve the transcript and source title.",
+      "inputs": ["YouTube URL"],
+      "requiredOutputs": ["Transcript text", "Transcript file path", "Video title"],
+      "doneCondition": "Transcript is ready for summarization.",
+      "boundaries": ["Do not summarize the transcript"]
+    }
+  ]
+}
+```
+
+3. Duplicate an existing template
+
+```json
+{
+  "sourceTemplateId": "tpl-123",
+  "name": "YouTube Transcript to Markdown Summary Copy",
+  "actor": "primary-orchestrator"
+}
+```
+
+`GET /api/task-templates/:id`
+
+Returns one saved template.
+
+`PATCH /api/task-templates/:id`
+
+Updates a saved template in place. The payload shape matches direct template creation.
+
+`DELETE /api/task-templates/:id`
+
+Deletes a saved template.
+
+Saved templates preserve exact assigned agents, and their validation rules match task stage-plan validation:
+
+- `name` is required
+- at least one stage is required
+- every stage must include an exact assigned agent
+- the assigned agent must exist
+- incomplete stage packets are rejected
 
 ## Recovery
 

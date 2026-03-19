@@ -78,6 +78,16 @@ type WizardDraft = {
 
 type EditableStepDraft = StepPacketInput & { id: string };
 
+type TemplateEditorDraft = {
+  id?: string;
+  isNew: boolean;
+  name: string;
+  description: string;
+  summaryDefault: string;
+  finalDeliverableDefault: string;
+  steps: EditableStepDraft[];
+};
+
 type TaskDetailData = {
   task: Task | null;
   events: RunStepEvent[];
@@ -97,6 +107,34 @@ const emptyStep = (index: number): StepPacketInput & { id: string } => ({
   dependencies: [],
   notesForMax: '',
 });
+
+const emptyTemplateDraft = (): TemplateEditorDraft => ({
+  isNew: true,
+  name: '',
+  description: '',
+  summaryDefault: '',
+  finalDeliverableDefault: '',
+  steps: [emptyStep(1)],
+});
+
+function toEditableSteps(steps: StepPacketInput[]) {
+  return steps.map((step, index) => ({
+    ...step,
+    id: `template-${index}-${Math.random().toString(36).slice(2, 8)}`,
+  }));
+}
+
+function templateToDraft(template: TaskTemplate): TemplateEditorDraft {
+  return {
+    id: template.id,
+    isNew: false,
+    name: template.name,
+    description: template.description || '',
+    summaryDefault: template.taskDefaults?.goal || '',
+    finalDeliverableDefault: template.taskDefaults?.acceptanceCriteria?.[0] || '',
+    steps: toEditableSteps(template.steps),
+  };
+}
 
 function splitLines(value: string) {
   return parseMultilineDraft(value);
@@ -745,6 +783,302 @@ function TaskWizard({
                 {saving ? 'Creating...' : 'Create Task'}
               </button>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TemplateManager({
+  templates,
+  agents,
+  onClose,
+  onChanged,
+  setRefreshPaused,
+}: {
+  templates: TaskTemplate[];
+  agents: Agent[];
+  onClose: () => void;
+  onChanged: (templateId?: string) => Promise<void>;
+  setRefreshPaused: (paused: boolean) => void;
+}) {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(templates[0]?.id || null);
+  const [draft, setDraft] = useState<TemplateEditorDraft>(
+    templates[0] ? templateToDraft(templates[0]) : emptyTemplateDraft(),
+  );
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId) || null;
+
+  useEffect(() => {
+    setRefreshPaused(true);
+    return () => setRefreshPaused(false);
+  }, [setRefreshPaused]);
+
+  useEffect(() => {
+    if (!selectedTemplateId) {
+      setDraft(emptyTemplateDraft());
+      return;
+    }
+    if (!selectedTemplate) {
+      return;
+    }
+    setDraft(templateToDraft(selectedTemplate));
+  }, [selectedTemplate, selectedTemplateId]);
+
+  const stepsValid = draft.steps.every((step) =>
+    step.title.trim()
+    && step.assignedAgentId?.trim()
+    && step.goal.trim()
+    && step.doneCondition.trim()
+    && hasMeaningfulMultilineContent(step.inputs)
+    && hasMeaningfulMultilineContent(step.requiredOutputs)
+    && hasMeaningfulMultilineContent(step.boundaries)
+  );
+
+  const canSave = draft.name.trim() && stepsValid;
+
+  function templatePayload(name = draft.name) {
+    return {
+      name,
+      description: draft.description.trim() || undefined,
+      taskDefaults: {
+        goal: draft.summaryDefault.trim() || undefined,
+        acceptanceCriteria: toAcceptanceCriteria(draft.finalDeliverableDefault),
+      },
+      steps: draft.steps.map((step) => {
+        const { id, ...packet } = step;
+        void id;
+        return {
+          ...packet,
+          inputs: normalizeMultilineItems(step.inputs),
+          requiredOutputs: normalizeMultilineItems(step.requiredOutputs),
+          boundaries: normalizeMultilineItems(step.boundaries),
+        };
+      }),
+    };
+  }
+
+  async function runAction(key: string, action: () => Promise<void>) {
+    setActionLoading(key);
+    setError(null);
+    try {
+      await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Template action failed');
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  async function saveTemplate() {
+    const response = await fetch(draft.isNew ? '/api/task-templates' : `/api/task-templates/${draft.id}`, {
+      method: draft.isNew ? 'POST' : 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(templatePayload()),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || 'Failed to save template');
+    }
+    setSelectedTemplateId(payload.id);
+    setDraft(templateToDraft(payload));
+    await onChanged(payload.id);
+  }
+
+  async function duplicateTemplate() {
+    const duplicateName = draft.name.trim() ? `${draft.name.trim()} Copy` : 'Template Copy';
+    const response = await fetch('/api/task-templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(templatePayload(duplicateName)),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || 'Failed to duplicate template');
+    }
+    setSelectedTemplateId(payload.id);
+    setDraft(templateToDraft(payload));
+    await onChanged(payload.id);
+  }
+
+  async function deleteTemplate() {
+    if (!draft.id) {
+      setDraft(emptyTemplateDraft());
+      setSelectedTemplateId(null);
+      return;
+    }
+    if (!window.confirm(`Delete template "${draft.name}"?`)) {
+      return;
+    }
+    const response = await fetch(`/api/task-templates/${draft.id}`, {
+      method: 'DELETE',
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || 'Failed to delete template');
+    }
+    const nextSelection = templates.find((template) => template.id !== draft.id)?.id || null;
+    setSelectedTemplateId(nextSelection);
+    if (!nextSelection) {
+      setDraft(emptyTemplateDraft());
+    }
+    await onChanged(nextSelection || undefined);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="max-h-[92vh] w-full max-w-7xl overflow-y-auto rounded-[2rem] border border-[#222] bg-[#050505] shadow-2xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#181818] bg-[#050505]/95 px-6 py-5 backdrop-blur-sm">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Saved Templates</p>
+            <h2 className="text-xl font-black text-white">Manage Template Library</h2>
+          </div>
+          <button onClick={onClose} className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-white/5 hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="space-y-4">
+            <button
+              onClick={() => {
+                setSelectedTemplateId(null);
+                setDraft(emptyTemplateDraft());
+              }}
+              className="w-full rounded-2xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-left text-xs font-black uppercase tracking-[0.18em] text-blue-200"
+            >
+              <Plus className="mr-2 inline h-4 w-4" />
+              New Blank Template
+            </button>
+
+            <div className="space-y-3">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => setSelectedTemplateId(template.id)}
+                  className={cn(
+                    'w-full rounded-2xl border p-4 text-left transition-colors',
+                    selectedTemplateId === template.id ? 'border-amber-500/40 bg-amber-500/10' : 'border-[#222] bg-[#09090b]',
+                  )}
+                >
+                  <p className="text-sm font-bold text-white">{template.name}</p>
+                  <p className="mt-2 line-clamp-2 text-xs text-slate-500">{template.description || 'No description'}</p>
+                  <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                    <span>{template.steps.length} stage{template.steps.length === 1 ? '' : 's'}</span>
+                    <span>{timeAgo(template.updatedAt)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Template Name</span>
+                <input
+                  value={draft.name}
+                  onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Description</span>
+                <input
+                  value={draft.description}
+                  onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Default Summary</span>
+                <textarea
+                  value={draft.summaryDefault}
+                  onChange={(event) => setDraft((current) => ({ ...current, summaryDefault: event.target.value }))}
+                  rows={3}
+                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Default Final Deliverable</span>
+                <textarea
+                  value={draft.finalDeliverableDefault}
+                  onChange={(event) => setDraft((current) => ({ ...current, finalDeliverableDefault: event.target.value }))}
+                  rows={3}
+                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+                />
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-white">Template Execution Flow</p>
+                <p className="text-xs text-slate-500">Templates use the same stage packet rules as tasks. Duplicate, tweak, and save without rewriting the full structure.</p>
+              </div>
+              <button
+                onClick={() => setDraft((current) => ({ ...current, steps: [...current.steps, emptyStep(current.steps.length + 1)] }))}
+                className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300"
+              >
+                Add Stage
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {draft.steps.map((step, index) => (
+                <StepDesigner
+                  key={step.id}
+                  step={step}
+                  index={index}
+                  agents={agents}
+                  onChange={(next) => setDraft((current) => ({
+                    ...current,
+                    steps: current.steps.map((candidate) => candidate.id === step.id ? next : candidate),
+                  }))}
+                  onRemove={() => setDraft((current) => ({
+                    ...current,
+                    steps: current.steps.length === 1 ? [emptyStep(1)] : current.steps.filter((candidate) => candidate.id !== step.id),
+                  }))}
+                />
+              ))}
+            </div>
+
+            {error && (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                {error}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-[#222] bg-[#09090b] p-4">
+              <div className="text-xs text-slate-500">
+                {draft.isNew ? 'New template' : `Editing ${draft.id}`}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => runAction('duplicate-template', duplicateTemplate)}
+                  disabled={!canSave || actionLoading !== null}
+                  className="rounded-xl border border-[#2a2a2a] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Duplicate
+                </button>
+                <button
+                  onClick={() => runAction('delete-template', deleteTemplate)}
+                  disabled={actionLoading !== null}
+                  className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {draft.isNew ? 'Clear' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => runAction('save-template', saveTemplate)}
+                  disabled={!canSave || actionLoading !== null}
+                  className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-black disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {actionLoading === 'save-template' ? 'Saving...' : draft.isNew ? 'Create Template' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1775,6 +2109,7 @@ export default function TasksPage() {
   const [detail, setDetail] = useState<TaskDetailData>({ task: null, events: [] });
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [search, setSearch] = useState('');
   const [refreshPaused, setRefreshPaused] = useState(false);
 
@@ -1852,6 +2187,13 @@ export default function TasksPage() {
             >
               <RefreshCcw className="mr-2 inline h-4 w-4" />
               Refresh
+            </button>
+            <button
+              onClick={() => setShowTemplateManager(true)}
+              className="rounded-xl border border-[#242424] bg-black px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-300"
+            >
+              <Sparkles className="mr-2 inline h-4 w-4" />
+              Manage Templates
             </button>
             <button
               onClick={() => setShowWizard(true)}
@@ -1971,6 +2313,21 @@ export default function TasksPage() {
           onCreated={(task) => {
             void loadAll();
             void loadTaskDetail(task.id);
+          }}
+        />
+      )}
+
+      {showTemplateManager && (
+        <TemplateManager
+          templates={templates}
+          agents={agents}
+          setRefreshPaused={setRefreshPaused}
+          onClose={() => setShowTemplateManager(false)}
+          onChanged={async (templateId) => {
+            await loadAll();
+            if (templateId) {
+              setShowTemplateManager(true);
+            }
           }}
         />
       )}
