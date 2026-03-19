@@ -947,6 +947,16 @@ export function submitStepCompletion(stepId: string, input: StepCompletionPacket
     throw new Error('Only running or blocked steps can submit completion');
   }
 
+  // Validate that outputs actually exist on disk
+  const fs = require('fs');
+  for (const output of input.outputsProduced) {
+    if (typeof output === 'string' && output.startsWith('/')) {
+      if (!fs.existsSync(output)) {
+        throw new Error(`Output file does not exist: ${output}. Agent must produce the required artifact before submitting completion.`);
+      }
+    }
+  }
+
   db.prepare(`
     UPDATE run_steps
     SET status = 'submitted',

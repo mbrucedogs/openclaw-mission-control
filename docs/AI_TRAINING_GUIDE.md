@@ -66,13 +66,15 @@ Detailed context should live in the stage packets:
 
 ## Evidence Validation Rules
 
-- Every output file produced by an agent MUST have a corresponding evidence entry on the task
-- The orchestrator is responsible for verifying evidence exists after each step
-- If evidence is missing:
-  1. POST a comment: "Evidence missing for step {N}. Agent must attach: {files}"
-  2. Re-spawn the agent with: "IMPORTANT: Evidence not attached. POST evidence for: {files}"
-  3. Do NOT advance to next step until evidence is verified
-- Evidence attaches to the task, not the step. Check task-level evidence after each step completes.
+**Auto-capture:** Evidence is automatically created from `outputsProduced` in the completion packet. Agents do NOT need a separate evidence POST. The system creates evidence records from file paths in `outputsProduced`.
+
+**File existence validation:** Completion is rejected if `outputsProduced` contains file paths that don't exist on disk. The agent must produce actual files before submitting completion.
+
+**Orchestrator verification:**
+- After agent completes, query: `GET /api/tasks/:id?include=evidence`
+- Verify evidence records were auto-created for all `outputsProduced`
+- If evidence is missing (file didn't exist), do NOT validate — agent must redo the work
+- The step's `requiredOutputs` defines what must be produced — completion must include paths to those files
 
 ## Orchestrator Dispatch Rule
 
