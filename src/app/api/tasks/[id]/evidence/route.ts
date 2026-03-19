@@ -37,7 +37,9 @@ export async function POST(
             (body.evidenceType as EvidenceType) || 'file',
             body.url,
             body.addedBy || 'system',
-            body.description
+            body.description,
+            body.runId,
+            body.stepId
         );
 
         return NextResponse.json(evidence, { status: 201 });
@@ -53,7 +55,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = await params;
+        await params;
         const url = new URL(request.url);
         const evidenceId = url.searchParams.get('evidenceId');
         const actor = url.searchParams.get('actor') || 'system';

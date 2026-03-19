@@ -8,14 +8,12 @@ import {
     CheckCircle2,
     Layout,
     PlayCircle,
-    Search,
-    Shield,
-    TestTube,
     Circle,
     Pencil,
     Trash2,
     X,
-    Save
+    Save,
+    type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -37,22 +35,20 @@ interface Project {
     taskIds?: string[];
 }
 
-const statusIcons: Record<string, any> = {
+const statusIcons: Record<string, LucideIcon> = {
     'Backlog': Circle,
-    'Research': Search,
-    'Implementation': PlayCircle,
-    'QA': TestTube,
-    'Review': Shield,
-    'Complete': CheckCircle2,
+    'In Progress': PlayCircle,
+    'In Review': Layout,
+    'Done': CheckCircle2,
+    'Blocked': X,
 };
 
 const statusColors: Record<string, string> = {
-    'Complete': 'text-emerald-500',
-    'Implementation': 'text-amber-500',
-    'QA': 'text-blue-400',
-    'Review': 'text-purple-400',
-    'Research': 'text-cyan-400',
+    'Done': 'text-emerald-500',
+    'In Progress': 'text-blue-400',
+    'In Review': 'text-emerald-400',
     'Backlog': 'text-slate-500',
+    'Blocked': 'text-red-400',
 };
 
 export default function ProjectDetailClient({ project, tasks }: { project: Project; tasks: Task[] }) {
@@ -67,7 +63,7 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
         status: project.status
     });
 
-    const doneCount = tasks.filter(t => t.status === 'Complete').length;
+    const doneCount = tasks.filter(t => t.status === 'Done').length;
     const progress = tasks.length > 0 ? (doneCount / tasks.length) * 100 : project.progress;
 
     async function handleSave() {

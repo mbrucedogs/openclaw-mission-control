@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getTaskComments, addTaskComment, updateTaskComment, deleteTaskComment } from '@/lib/domain/tasks';
+import { getTaskComments, addTaskComment } from '@/lib/domain/tasks';
 import type { CommentType, AuthorType } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -13,8 +13,9 @@ export async function GET(
         const { id } = await params;
         const url = new URL(request.url);
         const type = url.searchParams.get('type') as CommentType | null;
+        const issueId = url.searchParams.get('issueId');
         
-        const comments = getTaskComments(id, type || undefined);
+        const comments = getTaskComments(id, type || undefined, issueId || undefined);
         return NextResponse.json(comments);
     } catch (error) {
         console.error('GET /api/tasks/[id]/comments error:', error);
@@ -41,7 +42,10 @@ export async function POST(
             body.author || 'system',
             (body.authorType as AuthorType) || 'agent',
             (body.commentType as CommentType) || 'note',
-            body.parentId
+            body.parentId,
+            body.runId,
+            body.stepId,
+            body.issueId
         );
 
         return NextResponse.json(comment, { status: 201 });

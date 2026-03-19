@@ -1,61 +1,226 @@
--- ============================================================================
--- ALEX MISSION CONTROL - DATABASE SCHEMA
--- ============================================================================
-
--- Enable foreign keys
 PRAGMA foreign_keys = ON;
 
--- ============================================================================
--- STATUS VALIDATION
--- Valid task statuses (normalized to prevent inconsistencies)
--- ============================================================================
-
--- NOTE: Status values must be one of these exact strings:
--- 'Recurring', 'Backlog', 'Research', 'Ready for Implementation', 
--- 'In Progress', 'Implementation', 'Ready for QA', 'QA',
--- 'Ready for Review', 'Review', 'Changes Requested', 'Complete'
--- 
--- API layer enforces this. Invalid values will be rejected.
-
--- ============================================================================
--- CORE TABLES
--- ============================================================================
+CREATE TABLE IF NOT EXISTS app_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
+    goal TEXT,
     description TEXT,
-    status TEXT NOT NULL CHECK (status IN ('Recurring', 'Backlog', 'Research', 'Ready for Implementation', 'In Progress', 'Implementation', 'Ready for QA', 'QA', 'Ready for Review', 'Review', 'Changes Requested', 'Complete')),
+    status TEXT NOT NULL CHECK (status IN ('Backlog', 'In Progress', 'In Review', 'Blocked', 'Done')),
     priority TEXT NOT NULL DEFAULT 'normal' CHECK (priority IN ('urgent', 'high', 'normal', 'low')),
     owner TEXT NOT NULL,
-    requestedBy TEXT NOT NULL,
-    reviewer TEXT,
+    initiated_by TEXT NOT NULL,
     project TEXT,
-    executionMode TEXT NOT NULL CHECK (executionMode IN ('local', 'cloud')),
-    scheduleRef TEXT,
-    
-    -- Time tracking
-    createdAt TEXT NOT NULL,
-    updatedAt TEXT NOT NULL,
-    startedAt TEXT,
-    completedAt TEXT,
-    
-    -- Retry tracking
-    retryCount INTEGER DEFAULT 0,
-    maxRetries INTEGER DEFAULT 3,
-    lastError TEXT,
-    
-    -- Blocker tracking
-    isStuck INTEGER DEFAULT 0,
-    stuckReason TEXT,
-    stuckSince TEXT,
-    
-    -- Pipeline
-    handoverFrom TEXT,
-    
-    -- Validation criteria (JSON)
-    validationCriteria TEXT
+    acceptance_criteria TEXT NOT NULL DEFAULT '[]',
+    current_run_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    completed_at TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner);
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);
+CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS task_stage_plans (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    step_number INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('researcher', 'builder', 'tester', 'reviewer')),
+    assigned_agent_id TEXT,
+    assigned_agent_name TEXT,
+    goal TEXT NOT NULL,
+    inputs TEXT NOT NULL DEFAULT '[]',
+    required_outputs TEXT NOT NULL DEFAULT '[]',
+    done_condition TEXT NOT NULL,
+    boundaries TEXT NOT NULL DEFAULT '[]',
+    dependencies TEXT NOT NULL DEFAULT '[]',
+    notes_for_max TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_stage_plans_task ON task_stage_plans(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_stage_plans_task_step ON task_stage_plans(task_id, step_number);
+
+CREATE TABLE IF NOT EXISTS task_runs (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    run_number INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('draft', 'ready', 'running', 'blocked', 'completed', 'failed')),
+    created_by TEXT NOT NULL,
+    trigger_type TEXT NOT NULL CHECK (trigger_type IN ('initial', 'retry', 'rerun')),
+    trigger_reason TEXT,
+    template_id TEXT,
+    current_step_id TEXT,
+    created_at TEXT NOT NULL,
+    started_at TEXT,
+    completed_at TEXT,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_runs_task ON task_runs(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_runs_status ON task_runs(status);
+
+CREATE TABLE IF NOT EXISTS run_steps (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    step_number INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('researcher', 'builder', 'tester', 'reviewer')),
+    assigned_agent_id TEXT,
+    assigned_agent_name TEXT,
+    status TEXT NOT NULL CHECK (status IN ('draft', 'ready', 'running', 'submitted', 'blocked', 'complete', 'failed')),
+    goal TEXT NOT NULL,
+    inputs TEXT NOT NULL DEFAULT '[]',
+    required_outputs TEXT NOT NULL DEFAULT '[]',
+    done_condition TEXT NOT NULL,
+    boundaries TEXT NOT NULL DEFAULT '[]',
+    dependencies TEXT NOT NULL DEFAULT '[]',
+    notes_for_max TEXT,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT,
+    completed_at TEXT,
+    heartbeat_at TEXT,
+    block_reason TEXT,
+    completion_packet TEXT,
+    validation_status TEXT CHECK (validation_status IN ('pending', 'passed', 'rejected')),
+    validation_notes TEXT,
+    validated_by TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES task_runs(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_run_steps_run ON run_steps(run_id);
+CREATE INDEX IF NOT EXISTS idx_run_steps_task ON run_steps(task_id);
+CREATE INDEX IF NOT EXISTS idx_run_steps_status ON run_steps(status);
+
+CREATE TABLE IF NOT EXISTS run_step_events (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    step_id TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    actor_type TEXT NOT NULL CHECK (actor_type IN ('agent', 'user', 'system')),
+    event_type TEXT NOT NULL,
+    message TEXT NOT NULL,
+    payload TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES task_runs(id) ON DELETE CASCADE,
+    FOREIGN KEY (step_id) REFERENCES run_steps(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_run_step_events_run ON run_step_events(run_id);
+CREATE INDEX IF NOT EXISTS idx_run_step_events_step ON run_step_events(step_id);
+CREATE INDEX IF NOT EXISTS idx_run_step_events_created_at ON run_step_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS task_templates (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    created_by TEXT NOT NULL,
+    task_defaults TEXT,
+    steps TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_templates_name ON task_templates(name);
+
+CREATE TABLE IF NOT EXISTS task_issues (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    run_id TEXT,
+    step_id TEXT,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('open', 'waiting_on_orchestrator', 'waiting_on_human', 'resolved')),
+    assigned_to TEXT NOT NULL CHECK (assigned_to IN ('orchestrator', 'human')),
+    created_by TEXT NOT NULL,
+    resolved_by TEXT,
+    resolution TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    resolved_at TEXT,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES task_runs(id) ON DELETE CASCADE,
+    FOREIGN KEY (step_id) REFERENCES run_steps(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_issues_task ON task_issues(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_issues_status ON task_issues(status);
+
+CREATE TABLE IF NOT EXISTS task_comments (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    run_id TEXT,
+    step_id TEXT,
+    issue_id TEXT,
+    author TEXT NOT NULL,
+    author_type TEXT NOT NULL CHECK (author_type IN ('agent', 'user', 'system')),
+    content TEXT NOT NULL,
+    comment_type TEXT NOT NULL DEFAULT 'note',
+    parent_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES task_runs(id) ON DELETE CASCADE,
+    FOREIGN KEY (step_id) REFERENCES run_steps(id) ON DELETE CASCADE,
+    FOREIGN KEY (issue_id) REFERENCES task_issues(id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_id) REFERENCES task_comments(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON task_comments(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_comments_issue_id ON task_comments(issue_id);
+CREATE INDEX IF NOT EXISTS idx_task_comments_step_id ON task_comments(step_id);
+CREATE INDEX IF NOT EXISTS idx_task_comments_created_at ON task_comments(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS task_activity (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    run_id TEXT,
+    step_id TEXT,
+    actor TEXT NOT NULL,
+    actor_type TEXT NOT NULL CHECK (actor_type IN ('agent', 'user', 'system')),
+    activity_type TEXT NOT NULL,
+    details TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES task_runs(id) ON DELETE CASCADE,
+    FOREIGN KEY (step_id) REFERENCES run_steps(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_activity_task_id ON task_activity(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_activity_created_at ON task_activity(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS task_evidence (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    run_id TEXT,
+    step_id TEXT,
+    evidence_type TEXT NOT NULL,
+    url TEXT NOT NULL,
+    description TEXT,
+    added_by TEXT NOT NULL,
+    added_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (run_id) REFERENCES task_runs(id) ON DELETE CASCADE,
+    FOREIGN KEY (step_id) REFERENCES run_steps(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_evidence_task_id ON task_evidence(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_evidence_step_id ON task_evidence(step_id);
 
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
@@ -69,7 +234,7 @@ CREATE TABLE IF NOT EXISTS agents (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT NOT NULL,
-    type TEXT, -- researcher, builder, tester, reviewer, automation
+    type TEXT,
     mission TEXT,
     status TEXT
 );
@@ -80,67 +245,6 @@ CREATE TABLE IF NOT EXISTS responsibilities (
     description TEXT NOT NULL,
     FOREIGN KEY (agentId) REFERENCES agents(id)
 );
-
--- ============================================================================
--- TASK ENHANCEMENT TABLES
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS task_comments (
-    id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL,
-    author TEXT NOT NULL,
-    author_type TEXT NOT NULL CHECK (author_type IN ('agent', 'user', 'system')),
-    content TEXT NOT NULL,
-    comment_type TEXT NOT NULL DEFAULT 'note' 
-        CHECK (comment_type IN ('note', 'blocker', 'handover', 'qa_finding', 'evidence_ref', 'system')),
-    parent_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (parent_id) REFERENCES task_comments(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON task_comments(task_id);
-CREATE INDEX IF NOT EXISTS idx_task_comments_type ON task_comments(comment_type);
-CREATE INDEX IF NOT EXISTS idx_task_comments_created_at ON task_comments(created_at DESC);
-
-CREATE TABLE IF NOT EXISTS task_activity (
-    id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL,
-    actor TEXT NOT NULL,
-    actor_type TEXT NOT NULL CHECK (actor_type IN ('agent', 'user', 'system')),
-    activity_type TEXT NOT NULL CHECK (
-        activity_type IN (
-            'created', 'updated', 'status_changed', 'assigned',
-            'handover', 'comment_added', 'evidence_added', 'evidence_removed',
-            'blocked', 'unblocked', 'retry_attempt', 'started', 'completed'
-        )
-    ),
-    details TEXT,  -- JSON
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_task_activity_task_id ON task_activity(task_id);
-CREATE INDEX IF NOT EXISTS idx_task_activity_created_at ON task_activity(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_task_activity_type ON task_activity(activity_type);
-
-CREATE TABLE IF NOT EXISTS task_evidence (
-    id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL,
-    evidence_type TEXT NOT NULL CHECK (evidence_type IN ('file', 'url', 'document', 'screenshot', 'log')),
-    url TEXT NOT NULL,
-    description TEXT,
-    added_by TEXT NOT NULL,
-    added_at TEXT NOT NULL,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_task_evidence_task_id ON task_evidence(task_id);
-
--- ============================================================================
--- OTHER TABLES
--- ============================================================================
 
 CREATE TABLE IF NOT EXISTS activity (
     id TEXT PRIMARY KEY,
@@ -183,7 +287,7 @@ CREATE TABLE IF NOT EXISTS document_tasks (
     task_id TEXT NOT NULL,
     link_type TEXT NOT NULL DEFAULT 'related',
     FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
-    FOREIGN KEY (task_id) REFERENCES tasks(id)
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS local_documents (
@@ -211,162 +315,5 @@ CREATE TABLE IF NOT EXISTS schedule_jobs (
     agentId TEXT NOT NULL
 );
 
--- ============================================================================
--- INDEXES
--- ============================================================================
-
-CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner);
-CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project);
-CREATE INDEX IF NOT EXISTS idx_tasks_is_stuck ON tasks(isStuck);
-CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(createdAt DESC);
-CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updatedAt DESC);
-
--- ============================================================================
--- INITIAL DATA
--- ============================================================================
-
 INSERT OR IGNORE INTO projects (id, name, description, status, progress) VALUES
     ('general', 'General', 'Default project for uncategorized tasks', 'active', 0);
--- ============================================================================
--- WORKFLOW TEMPLATES
--- Reusable agent work definitions
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS workflow_templates (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    agent_role TEXT NOT NULL CHECK (agent_role IN ('researcher', 'builder', 'tester', 'reviewer', 'approver', 'automation')),
-    agent_id TEXT,
-    estimated_minutes INTEGER DEFAULT 30,
-    model TEXT DEFAULT 'gemini-2.5-flash',
-    system_prompt TEXT,
-    validation_checklist TEXT,
-    tags TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    use_count INTEGER DEFAULT 0,
-    last_used_at TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_workflow_templates_agent_role ON workflow_templates(agent_role);
-CREATE INDEX IF NOT EXISTS idx_workflow_templates_tags ON workflow_templates(tags);
-
--- ============================================================================
--- PIPELINES
--- Ordered sequences of workflows
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS pipelines (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    description TEXT,
-    steps TEXT NOT NULL,
-    is_dynamic INTEGER DEFAULT 0,
-    created_from_task_id TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    use_count INTEGER DEFAULT 0,
-    last_used_at TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_pipelines_dynamic ON pipelines(is_dynamic);
-
--- ============================================================================
--- PIPELINE RUNS
--- Track execution of pipelines on tasks
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS pipeline_runs (
-    id TEXT PRIMARY KEY,
-    pipeline_id TEXT,
-    task_id TEXT NOT NULL,
-    current_step INTEGER DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed', 'paused')),
-    started_at TEXT NOT NULL DEFAULT (datetime('now')),
-    completed_at TEXT,
-    error_message TEXT,
-    FOREIGN KEY (pipeline_id) REFERENCES pipelines(id),
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_pipeline_runs_task ON pipeline_runs(task_id);
-CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
-
--- ============================================================================
--- TASK PIPELINE MATCHES
--- Link tasks to their assigned pipelines
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS task_pipelines (
-    task_id TEXT PRIMARY KEY,
-    pipeline_id TEXT,
-    pipeline_name TEXT,
-    workflow_ids TEXT,
-    current_step INTEGER DEFAULT 0,
-    is_dynamic INTEGER DEFAULT 0,
-    matched_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (pipeline_id) REFERENCES pipelines(id)
-);
-
--- ============================================================================
--- TASK WORKFLOW STEPS
--- Track individual steps within a task's pipeline
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS task_workflow_steps (
-    id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL,
-    step_number INTEGER NOT NULL,
-    workflow_id TEXT NOT NULL,
-    workflow_name TEXT NOT NULL,
-    agent_id TEXT NOT NULL,
-    agent_name TEXT,
-    description TEXT, -- Specific instructions for this step in this task
-    required_deliverables TEXT DEFAULT '[]', -- JSON array of deliverables needed
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'complete', 'failed', 'blocked')),
-    started_at TEXT,
-    completed_at TEXT,
-    duration_minutes INTEGER,
-    evidence_ids TEXT DEFAULT '[]',
-    deliverables TEXT DEFAULT '[]',
-    completion_notes TEXT,
-    blockers TEXT,
-    questions TEXT,
-    validated_by TEXT,
-    validation_notes TEXT,
-    pass_fail TEXT CHECK (pass_fail IN ('pass', 'fail')),
-    next_step_id TEXT,
-    handoff_notes TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (workflow_id) REFERENCES workflow_templates(id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_task_workflow_steps_task ON task_workflow_steps(task_id);
-
--- ============================================================================
--- AGENT ALERTS
--- Alerts from monitoring agents to the orchestrator
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS agent_alerts (
-    id TEXT PRIMARY KEY,
-    alert_type TEXT NOT NULL,
-    task_id TEXT,
-    assigned_agent TEXT,
-    reason TEXT NOT NULL,
-    details TEXT,
-    status TEXT NOT NULL DEFAULT 'pending', -- pending, acknowledged, resolved, ignored
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    resolved_at TEXT,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
-    FOREIGN KEY (assigned_agent) REFERENCES agents(id) ON DELETE SET NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_agent_alerts_status ON agent_alerts(status);
-CREATE INDEX IF NOT EXISTS idx_agent_alerts_task ON agent_alerts(task_id);
-CREATE INDEX IF NOT EXISTS idx_agent_alerts_created ON agent_alerts(created_at DESC);

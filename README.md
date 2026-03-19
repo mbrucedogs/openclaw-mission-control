@@ -1,15 +1,29 @@
 # Mission Control
 
-A task management and agent orchestration system for OpenClaw autonomous organizations.
+Mission Control is a task orchestration system for OpenClaw organizations built around a `Task -> Plan -> Run` model.
 
-## Features
+## What It Does
 
-- **Task Management** - Kanban board with status tracking
-- **Agent Orchestration** - Automated pipeline execution with the Orchestrator
-- **Workflow Templates** - Reusable work definitions for agents
-- **Dynamic Pipelines** - Hybrid model: predefined + on-the-fly assembly
-- **Activity Tracking** - Full audit trail of all changes
-- **Evidence Management** - Structured proof of completion
+- Creates tasks through a wizard-first authoring flow
+- Saves tasks in `Backlog` first, with the execution plan attached before any run starts
+- Lets the primary orchestrator or the user edit task summary fields and planned stages from task detail before execution
+- Stores execution runs separately, with full retry and rerun history once a task starts
+- Breaks work into exact-agent stage packets for researcher, builder, tester, and reviewer work
+- Tracks live step events, comments, and evidence
+- Tracks blocker conversations through task-bound issue threads with replies
+- Surfaces stalled work to the primary orchestrator through a recovery scan instead of silently retrying
+- Uses task lifecycle statuses on the board: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`
+- Shows the current execution stage inside each task as secondary context
+
+## Current Product Model
+
+- `Task`: durable work item and history container
+- `Planned Stage`: saved execution packet attached to the task before work starts
+- `Run`: one execution attempt for the task
+- `Run Stage`: a scoped packet with one required assigned agent, plus inputs, outputs, done condition, and boundaries
+- `Run Step Event`: progress, heartbeat, validation, retry, rerun, and escalation history
+- `Issue Thread`: a blocker or decision thread assigned to the primary orchestrator or the human operator, with replies attached to the task
+- `Template`: an optional saved run that can prefill the wizard later
 
 ## Quick Start
 
@@ -18,179 +32,62 @@ npm install
 npm run dev
 ```
 
-Access at `http://localhost:4000`
+Open [http://localhost:4000](http://localhost:4000).
 
-## Documentation
+## Docs
 
-### System Documentation
-- **[docs/README.md](./docs/README.md)** - **START HERE** - Knowledge index and navigation
-- **[docs/QUICKSTART.md](./docs/QUICKSTART.md)** - Get up and running in 5 minutes
-- **[docs/ORCHESTRATION.md](./docs/ORCHESTRATION.md)** - Full orchestration system documentation
+AI training and operating docs live in [`docs/`](./docs):
 
-### Your Team Setup (in workspace)
-- **AGENT_PIPELINE_SETUP.md** (workspace root) - Your specific agent configuration
-- **TEAM_GOVERNANCE.md** (workspace root) - Handoff rules and validation
-- **TEAM-REGISTRY.md** (workspace root) - Agent registry and spawn commands
+- [`docs/README.md`](./docs/README.md)
+- [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md)
+- [`docs/ORCHESTRATOR_OPERATING_MODEL.md`](./docs/ORCHESTRATOR_OPERATING_MODEL.md)
+- [`docs/TASK_AUTHORING_WIZARD.md`](./docs/TASK_AUTHORING_WIZARD.md)
+- [`docs/STEP_EXECUTION.md`](./docs/STEP_EXECUTION.md)
+- [`docs/RECOVERY_AND_MONITORING.md`](./docs/RECOVERY_AND_MONITORING.md)
+- [`docs/AI_TRAINING_GUIDE.md`](./docs/AI_TRAINING_GUIDE.md)
 
-### For New Teams
-- **[examples/openclaw-workspace/](./examples/openclaw-workspace/)** - Complete generic template
+## API Highlights
 
-## Core Concepts
-
-### Workflows
-
-Reusable work templates for agents:
-- `wf-research` - Research and analysis
-- `wf-build` - Code implementation
-- `wf-document` - Documentation creation
-- `wf-review` - Final approval
-
-### Pipelines
-
-Ordered sequences of workflows:
-- `pl-standard` - Research → Build → Test → Review
-- `pl-research` - Research → Document → Review
-- `pl-quick-fix` - Quick Fix → Review
-
-### The Hybrid Model
-
-1. **Predefined Pipelines** - Common patterns stored in database
-2. **Dynamic Assembly** - Orchestrator builds custom pipelines when no match exists
-3. **Learning System** - Successful dynamic pipelines become predefined
-
-## How It Works
-
-1. **Task Created** → Orchestrator analyzes content
-2. **Pipeline Matched** → Predefined or dynamically assembled
-3. **Agent Spawned** → First workflow step executes (e.g., Sam-Scout)
-4. **Orchestrator Monitors** → Reviews deliverables, asks questions
-5. **Handoff** → Routes to next agent (e.g., Dana-Dev) when satisfied
-6. **Complete** → Final review and approval (e.g., Jordan-Reviewer)
-
-## Architecture
-
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Task      │────▶│  Orchestrator  │────▶│  Pipeline   │
-│  Created    │     │  (Orchestrator)│    │  Matched    │
-└─────────────┘     └──────────────┘     └─────────────┘
-                              │
-                              ▼
-                    ┌──────────────────┐
-                    │  Agent Spawning  │
-                    │  (Step-by-step)  │
-                    └──────────────────┘
+```text
+GET    /api/tasks
+POST   /api/tasks
+GET    /api/tasks/:id
+PATCH  /api/tasks/:id
+DELETE /api/tasks/:id
+POST   /api/tasks/:id/start
+GET    /api/tasks/:id/steps
+POST   /api/tasks/:id/steps/:stepId
+PATCH  /api/tasks/:id/steps/:stepId
+POST   /api/tasks/:id/steps/:stepId/completion
+POST   /api/tasks/:id/steps/:stepId/events
+GET    /api/tasks/:id/issues
+POST   /api/tasks/:id/issues
+PATCH  /api/tasks/:id/issues/:issueId
+POST   /api/tasks/:id/rerun
+GET    /api/task-templates
+POST   /api/task-templates
+GET    /api/recovery/scan
 ```
 
-## Database
+`POST /api/tasks` is the canonical one-shot creation interface for both the primary orchestrator and the wizard UI. It saves the task and planned stages only. `POST /api/tasks/:id/start` instantiates the first run later when the task is ready to execute. Each execution packet in the payload must include `assignedAgentId` and `assignedAgentName`, and the internal role is derived from that agent.
 
-SQLite with tables:
-- `tasks` - Task data with validation criteria
-- `workflow_templates` - Reusable work definitions
-- `pipelines` - Workflow sequences
-- `task_pipelines` - Pipeline assignments
-- `task_comments` - Structured comments
-- `task_activity` - Audit log
-- `task_evidence` - Proof of completion
+Full request details live in [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md).
 
-## API Endpoints
-
-**Default:** `http://localhost:4000`
-
-### Tasks & Workflows
-```
-GET    /api/tasks              # List tasks
-POST   /api/tasks              # Create task (auto-matches pipeline)
-GET    /api/workflows          # List workflows
-POST   /api/workflows          # Create workflow
-GET    /api/pipelines          # List pipelines
-POST   /api/pipelines          # Create pipeline
-```
-
-### Agent Alerts
-```
-GET    /api/agent-alerts       # List pending alerts
-POST   /api/agent-alerts       # Create alert from monitoring agents
-```
-
-Monitoring agents (like Tron) POST alerts here when tasks need orchestrator attention. The orchestrator polls or receives webhook notifications to route tasks appropriately.
-
-### Authentication
-
-All API requests require an `X-API-Key` header with the value defined in your `.env` file.
-
-```bash
-curl -H "X-API-Key: your_api_key_here" http://localhost:4000/api/tasks
-```
-
-### Configure Your Orchestrator
-
-**Tell your Orchestrator to use this endpoint:**
-
-```bash
-# In your Orchestrator environment:
-export MISSION_CONTROL_URL=http://localhost:4000
-export MC_API_KEY=your_api_key_here
-```
-
-**Or in your workspace config:**
-```json
-{
-  "missionControl": {
-    "url": "http://localhost:4000",
-    "apiKey": "your_api_key_here"
-  }
-}
-```
-
-## Configuration
-
-### Required Agents
-
-Configure in OpenClaw `openclaw.json`:
-
-```json
-{
-  "agents": [
-    { "id": "leo-lead", "name": "Leo", "agentDir": "agents/leo-lead" },
-    { "id": "sam-scout", "name": "Sam", "agentDir": "agents/sam-scout" },
-    { "id": "dana-dev", "name": "Dana", "agentDir": "agents/dana-dev" },
-    { "id": "jordan-review", "name": "Jordan", "agentDir": "agents/jordan-review" }
-  ]
-}
-```
-
-See `examples/openclaw/` for a complete working template with agent SOUL.md and AGENTS.md files.
-```
-
-### Environment
-
-```bash
-# Database
-DATABASE_URL=./mission-control.db
-
-# OpenClaw
-OPENCLAW_WORKSPACE=/path/to/workspace
-
-# Authentication
-AUTH_USER=admin
-AUTH_PASS=your_secure_password_here
-API_KEY=your_secure_api_key
-```
+All API requests require the `X-API-Key` header when made outside the authenticated UI session.
 
 ## Development
 
 ```bash
-# Run dev server
 npm run dev
-
-# Build for production
 npm run build
-
-# Run tests
-npm test
+npm run lint
+node --import tsx --test tests/task-runs.test.ts
 ```
 
-## License
+## Recovery Monitor
 
-MIT
+Use [`tron-monitor.sh`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/tron-monitor.sh) as the default scheduled monitor for stalled stages and actionable orchestrator wakeups.
+
+Run it every 10 minutes.
+
+[`scripts/orchestrator.ts`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/scripts/orchestrator.ts) remains available as a manual/local polling helper, but it is not the preferred default monitor path.

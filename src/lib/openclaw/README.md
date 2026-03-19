@@ -12,8 +12,8 @@ Agents in this application are **not** hardcoded. They are dynamically discovere
     - **MUST** contain a Markdown table with `Name`, `Role`, and `Folder`.
     - This is the source of truth for which agents exist.
 2.  **`TEAM_GOVERNANCE.md`**: 
-    - **MUST** contain the "Agent Orchestration Pipeline" string (e.g., `Orchestrator -> Dana -> Jordan`).
-    - Used to determine agent hierarchy and display order on the Team screen.
+    - Used to determine governance and team display order.
+    - The runtime task system uses task, run, and step records in this app.
 3.  **Individual Agent Folders**:
     - Each agent folder (specified in the registry) should contain:
         - `SOUL.md`: Personality and "Core Identity" (extracted as the agent's Mission).
@@ -24,6 +24,6 @@ Agents in this application are **not** hardcoded. They are dynamically discovere
 If you add a new agent to OpenClaw:
 - Add them to `TEAM-REGISTRY.md`.
 - Create their folder with `SOUL.md` and `AGENTS.md`.
-- Update the pipeline in `TEAM_GOVERNANCE.md` if they participate in the main workflow.
+- Update `TEAM_GOVERNANCE.md` if they participate in the main delivery flow.
 
 The Mission Control UI will automatically pick up these changes on the next refresh.

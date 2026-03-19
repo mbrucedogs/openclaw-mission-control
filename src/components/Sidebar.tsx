@@ -7,27 +7,15 @@ import { useEffect, useState } from 'react';
 import {
     CheckSquare,
     Users,
-    FileCode,
-    ShieldCheck,
-    Users2,
     Calendar,
     FolderKanban,
     Brain,
     FileText,
-    User,
     Monitor,
     LayoutGrid,
-    Search,
-    Factory,
-    GitBranch,
-    MessageSquare,
     Command,
-    SearchCode,
-    Activity,
-    SearchIcon,
     LogOut,
     Settings,
-    AlertCircle,
     ShieldAlert
 } from 'lucide-react';
 
@@ -36,7 +24,6 @@ const navigation = [
     { name: 'Tasks', href: '/tasks', icon: CheckSquare },
     { name: 'Calendar', href: '/calendar', icon: Calendar },
     { name: 'Projects', href: '/projects', icon: FolderKanban },
-    { name: 'Orchestration', href: '/orchestration', icon: Settings },
     { name: 'Memory', href: '/memories', icon: Brain },
     { name: 'Docs', href: '/docs', icon: FileText },
     { name: 'Office', href: '/office', icon: Monitor },
@@ -68,7 +55,7 @@ export function Sidebar({
         if (isOpen && onClose) {
             onClose();
         }
-    }, [pathname]);
+    }, [pathname, isOpen, onClose]);
 
     const initials = username.slice(0, 2).toUpperCase();
 

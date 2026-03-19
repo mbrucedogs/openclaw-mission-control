@@ -1,98 +1,93 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
+// Manual development poller.
+// Preferred production-style monitor path is `./tron-monitor.sh` on a 10-minute schedule.
+// Keep this script as a lightweight helper for local debugging only.
+
 const execAsync = promisify(exec);
 
-const API_URL = 'http://127.0.0.1:4000/api/tasks';
-const ACTIVITY_URL = 'http://127.0.0.1:4000/api/activity';
+const BASE_URL = 'http://127.0.0.1:4000';
+const API_KEY = process.env.API_KEY || '';
 const POLL_INTERVAL_MS = 15000;
-const API_KEY = process.env.API_KEY || 'ab7b2a5c2d931b9092784ce71e879138d92108c90fd8e6899a4c5e3fc0d89429';
 
-// Keep track of the last time we processed a task to avoid spamming
-const processedTasks = new Map<string, string>();
+const seen = new Map<string, string>();
 
-async function fetchTasks() {
-    try {
-        const res = await fetch(API_URL, {
-            headers: { 'X-API-Key': API_KEY }
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.json() as any[];
-    } catch (err) {
-        console.error(`[Orchestrator] Failed to fetch tasks: ${err}`);
-        return [];
-    }
+type RunStep = {
+  id: string;
+  stepNumber: number;
+  title: string;
+  role: string;
+  status: string;
+  blockReason?: string;
+};
+
+type Task = {
+  id: string;
+  title: string;
+  goal?: string;
+  status: string;
+  updatedAt: string;
+  currentRun?: {
+    id: string;
+    runNumber: number;
+    currentStepId?: string;
+    steps: RunStep[];
+  };
+};
+
+async function fetchJson<T>(url: string) {
+  const response = await fetch(url, {
+    headers: {
+      'X-API-Key': API_KEY,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
-async function logActivity(message: string, actor: string) {
-    try {
-        await fetch(ACTIVITY_URL, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'X-API-Key': API_KEY
-            },
-            body: JSON.stringify({ message, actor, type: 'trigger' })
-        });
-    } catch (err) {
-        console.error(`[Orchestrator] Failed to log activity: ${err}`);
-    }
+function getCurrentStep(task: Task) {
+  return task.currentRun?.steps.find((step) => step.id === task.currentRun?.currentStepId)
+    || task.currentRun?.steps.find((step) => ['ready', 'running', 'submitted', 'blocked'].includes(step.status))
+    || null;
 }
 
-async function wakeMax(task: any) {
-    const rawMessage = `ORCHESTRATOR TASK: Task "${task.title}" (ID: ${task.id}) needs pipeline analysis and execution. Status: ${task.status}, Owner: ${task.owner || 'unassigned'}. Analyze task, determine pipeline (predefined or create dynamic), and manage full execution per ORCHESTRATION.md. Answer agent questions, validate evidence at each handoff, and only assign back to matt if you cannot resolve (with detailed comments).`;
-    const safeMessage = rawMessage.replace(/"/g, '\\"').replace(/`/g, '\\`');
-    
-    console.log(`[Orchestrator] 🚀 Waking Max for task: ${task.title} (${task.id})`);
-    await logActivity(`Waking Max to orchestrate task "${task.title}"`, 'system');
-    
-    try {
-        // Wake Max (main agent) to handle orchestration
-        const cmd = `openclaw agent --agent main --message "${safeMessage}"`;
-        execAsync(cmd).catch(err => {
-            console.error(`[Orchestrator] Failed to wake Max:`, err);
-        });
-    } catch (err) {
-        console.error(`[Orchestrator] Failed to exec:`, err);
-    }
+async function wakeOrchestrator(task: Task) {
+  const step = getCurrentStep(task);
+  const message = [
+    `ORCHESTRATOR TASK: Task "${task.title}" (${task.id}) requires action.`,
+    `Board status: ${task.status}.`,
+    task.goal ? `Goal: ${task.goal}.` : null,
+    task.currentRun ? `Run: #${task.currentRun.runNumber} (${task.currentRun.id}).` : null,
+    step ? `Current step: ${step.stepNumber} "${step.title}" (${step.role}) status=${step.status}.` : 'No current step found.',
+    step?.blockReason ? `Block reason: ${step.blockReason}.` : null,
+    'Use the task/run/step API and validate the structured completion packet before advancing.',
+  ].filter(Boolean).join(' ');
+
+  console.log(`[orchestrator] waking primary orchestrator for ${task.id}`);
+  await execAsync(`openclaw agent --agent main --message ${JSON.stringify(message)}`);
 }
 
 async function poll() {
-    console.log(`[Orchestrator] Polling Mission Control (${new Date().toLocaleTimeString()})...`);
-    
-    const tasks = await fetchTasks();
-    if (!Array.isArray(tasks)) return;
-
+  try {
+    const tasks = await fetchJson<Task[]>(`${BASE_URL}/api/tasks?queue=max&include=currentRun`);
     for (const task of tasks) {
-        // Only wake Max for:
-        // 1. Tasks in Backlog (need pipeline analysis)
-        // 2. Tasks assigned to Max (need orchestration)
-        // 3. Tasks in Review where Max needs to validate and route next
-        const needsMax = 
-            task.status === 'Backlog' ||
-            task.owner === 'max' ||
-            (task.status === 'Review' && task.handoverFrom);
-
-        if (!needsMax) continue;
-
-        const lastProcessedAt = processedTasks.get(task.id);
-        const taskUpdatedAt = task.updatedAt || task.createdAt;
-        
-        // Only wake Max if task is new or has been updated since last check
-        if (!lastProcessedAt || new Date(taskUpdatedAt) > new Date(lastProcessedAt)) {
-            processedTasks.set(task.id, taskUpdatedAt);
-            await wakeMax(task);
-        }
+      const currentFingerprint = `${task.updatedAt}:${task.status}:${task.currentRun?.currentStepId || 'none'}`;
+      if (seen.get(task.id) === currentFingerprint) {
+        continue;
+      }
+      seen.set(task.id, currentFingerprint);
+      await wakeOrchestrator(task);
     }
+  } catch (error) {
+    console.error('[orchestrator] poll failed', error);
+  }
 }
 
-console.log('===================================================');
-console.log('🤖 OpenClaw Orchestrator Worker Pool Started');
-console.log(`🔗 Polling: ${API_URL}`);
-console.log(`⏱️  Interval: ${POLL_INTERVAL_MS / 1000} seconds`);
-console.log('🎯 Max (Orchestrator) manages all pipeline execution');
-console.log('===================================================');
-
-// Run immediately, then interval
+console.warn('[orchestrator] manual poller started. Preferred scheduled monitor path is ./tron-monitor.sh');
 poll();
 setInterval(poll, POLL_INTERVAL_MS);

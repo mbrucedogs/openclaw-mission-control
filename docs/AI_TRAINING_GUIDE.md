@@ -1,217 +1,104 @@
 # AI Training Guide
 
-**How to onboard an AI assistant to Mission Control**
+Use this guide to train the primary orchestrator on the rebuilt Mission Control system.
 
-**For:** Users setting up Mission Control with an AI orchestrator (an Orchestrator)
-**Purpose:** Teach the AI how to learn and use this system
+## What The Primary Orchestrator Should Always Know
 
----
+- Mission Control uses `Task -> Plan -> Run`.
+- Tasks are durable; planned stages are saved before execution; runs preserve retries and reruns.
+- Stages are scoped packets with one exact assigned agent.
+- The selected agent is the source of truth; the internal role is derived from that agent's configured type.
+- Task board status uses lifecycle state: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`.
+- Planning, Build, QA, and Review are execution stages, not task statuses.
+- Completion requires primary-orchestrator validation.
+- Recovery scan blocks stale running steps and wakes the primary orchestrator.
+- If the primary orchestrator cannot resolve a blocker, the problem belongs in a task-bound issue thread with replies.
 
-## The Learning Process
+## What The Primary Orchestrator Should Do When Asked To Create Work
 
-**AI assistants learn Mission Control in stages:**
+1. Collect the task intake fields.
+2. Choose blank or saved template.
+3. Define ordered stage packets with clear boundaries and one exact assigned agent per stage.
+4. Create the task and saved plan in one API call.
+5. Start the task later only when it should move from backlog into active execution.
 
-### Stage 1: Critical Facts (Always Loaded)
+## What The Primary Orchestrator Should Do When Asked To Edit Work
 
-**These facts are in the AI's MEMORY.md and available on every startup:**
+1. Edit task-level summary fields through `PATCH /api/tasks/:id` when the task framing changes.
+2. Edit a stage packet through `PATCH /api/tasks/:id/steps/:stepId`.
+3. Planned stages can be edited before the task starts.
+4. Started stages can only be edited while they are `draft`, `ready`, or `blocked`.
+5. Do not mutate `running`, `submitted`, or `complete` stages in place.
+6. If a started stage is materially wrong, block it, retry it, or rerun from the correct stage instead of rewriting history.
 
-- **What:** Multi-agent pipeline (Researcher → Builder → Tester → Reviewer)
-- **Workflows:** NOT pre-seeded, created dynamically at runtime
-- **Discovery:** Agents discovered from TEAM-REGISTRY.md
-- **Pipelines:** Multiple types (standard, quick-fix, research, docs, automation)
-- **Keywords:** Task text determines which pipeline is used
-- **Requirements:** Every task needs DOCUMENTS_ROOT, deliverables, evidence format, tools, fallback
-- **Monitoring:** Automation agent checks every 2 min, AI only wakes when work detected
+## What Belongs In Task Intake vs Stages
 
-**With just these facts, the AI can:**
-- Answer basic questions about how orchestration works
-- Know that workflows are created dynamically
-- Understand the automated monitoring design
+Task intake should stay high-level:
 
-### Stage 2: Knowledge Index (First Deep Dive)
+- title
+- summary
+- priority
+- project
+- optional final deliverable
 
-**When user asks about task orchestration, the AI reads:**
+Detailed context should live in the stage packets:
 
-1. **KNOWLEDGE_INDEX.md** - Quick reference, trigger phrases, critical facts
-2. Then specific docs based on the topic:
-   - ORCHESTRATION.md - Full system documentation
-   - TASK_CREATION_REQUIREMENTS.md - Task template
-   - QUICKSTART.md - Setup guide
+- source URLs
+- files
+- APIs
+- execution instructions
+- stage-specific inputs and outputs
 
-**This gives the AI:**
-- Complete understanding of the system
-- Document map for future reference
-- Trigger phrases to recognize user intent
-- All critical facts in one place
+## What The Primary Orchestrator Should Do During Execution
 
-### Stage 3: Specific Topics (On Demand)
+1. Start the task when it should leave backlog.
+2. Start the ready stage.
+3. Spawn the assigned agent with complete instructions (see STANDARD_AGENT_INSTRUCTIONS.md).
+4. Watch for heartbeats and progress notes.
+5. Review the structured completion packet.
+6. **Validate evidence was attached:**
+   - After agent completes, query: `GET /api/tasks/:id?include=evidence`
+   - Verify all `outputsProduced` from the completion packet have corresponding evidence entries
+   - If evidence is missing: do NOT validate the step. Spawn the agent back with fix instructions and POST a comment explaining what needs to be attached.
+7. Pass or reject validation.
+8. Retry or rerun only when needed.
+9. If blocked and unresolved, open or update an issue thread on the task instead of using unrelated main-chat context.
 
-**When user asks specific questions, the AI reads:**
+## Evidence Validation Rules
 
-| User Asks | AI Reads |
-|-----------|----------|
-| "How do I create a task?" | TASK_CREATION_REQUIREMENTS.md |
-| "What pipeline will this use?" | ORCHESTRATION.md (Dynamic Assembly section) |
-| "How does monitoring work?" | ORCHESTRATION.md (Part 5) |
-| "Fresh install, what happens?" | ORCHESTRATION.md (Part 4) |
+- Every output file produced by an agent MUST have a corresponding evidence entry on the task
+- The orchestrator is responsible for verifying evidence exists after each step
+- If evidence is missing:
+  1. POST a comment: "Evidence missing for step {N}. Agent must attach: {files}"
+  2. Re-spawn the agent with: "IMPORTANT: Evidence not attached. POST evidence for: {files}"
+  3. Do NOT advance to next step until evidence is verified
+- Evidence attaches to the task, not the step. Check task-level evidence after each step completes.
 
----
+## Self-Healing Loop
 
-## How to Train Your AI
+The orchestrator should detect and recover from these common failures:
 
-### Day 1: Initial Setup
+| Problem | Detection | Recovery |
+|---------|----------|----------|
+| Agent didn't attach evidence | Evidence missing after step `submitted` | Re-spawn agent to attach evidence |
+| Agent silently failed | Step stuck at `running` > threshold | Recovery scan blocks, orchestrator decides |
+| Agent posted incomplete outputs | `outputsProduced` doesn't match `requiredOutputs` | Reject validation, specify what's missing |
+| Agent hit a blocker | Step `blocked` with reason | Decide: retry, rerun, or open issue thread |
 
-**You:** "What do you know about task orchestration?"
+## Questions That Should Trigger A Docs Refresh
 
-**AI should:**
-1. Answer with critical facts from MEMORY.md
-2. Mention that detailed docs exist
-3. Ask if you want the full details
+- "How do tasks work now?"
+- "How does the primary orchestrator validate a stage?"
+- "What should the recovery scan do?"
+- "How do I create a task in one shot?"
+- "How do reruns work?"
 
-**You:** "Yes, give me the full picture"
+## Failure Modes The Primary Orchestrator Must Avoid
 
-**AI should:**
-1. Read KNOWLEDGE_INDEX.md
-2. Read ORCHESTRATION.md
-3. Read TASK_CREATION_REQUIREMENTS.md
-4. Answer with complete knowledge
-
-### Day 2-3: Practice Tasks
-
-**Create test tasks and verify the AI:**
-- Creates tasks with all required fields
-- Uses proper DOCUMENTS_ROOT paths
-- Includes evidence attachment format
-- Provides fallback plans
-- Spawns agents correctly
-
-**If the AI misses something:**
-- Point out what was missing
-- Reference the specific document
-- Have it re-read that section
-
-### Day 4+: Gap Analysis
-
-**Ask the AI:**
-- "Explain the full task pipeline"
-- "What happens on fresh install?"
-- "How do you determine which pipeline to use?"
-- "What are the required task fields?"
-
-**Check for:**
-- Complete answers
-- Correct understanding
-- References to specific docs
-- Proper use of templates
-
-**If gaps found:**
-- Update KNOWLEDGE_INDEX.md with missing info
-- Add to critical facts in MEMORY.md
-- Clarify in specific documents
-
----
-
-## The Knowledge Index Pattern
-
-**Why this works:**
-
-1. **Startup is fast** - Only critical facts loaded
-2. **Deep knowledge available** - Full docs on demand
-3. **Clear trigger phrases** - AI knows when to load what
-4. **Single source of truth** - KNOWLEDGE_INDEX.md has everything
-5. **Easy to update** - Change one file, all AIs get updated
-
-**For the AI:**
-- Knows basics immediately
-- Loads details when needed
-- Never has stale information
-- Can answer "I know the basics, want me to read the full docs?"
-
-**For you:**
-- Don't have to manage huge context
-- AI learns incrementally
-- Can verify understanding step by step
-- Easy to correct gaps
-
----
-
-## Common Training Issues
-
-### Issue: AI Doesn't Know Critical Facts
-
-**Symptom:** "What's task orchestration?" → "I don't know"
-
-**Fix:** 
-- Check MEMORY.md has Task Orchestration section
-- Ensure critical facts are listed
-- Restart AI session
-
-### Issue: AI Can't Find Documents
-
-**Symptom:** "I can't find ORCHESTRATION.md"
-
-**Fix:**
-- Verify docs are in `alex-mission-control/docs/`
-- Check KNOWLEDGE_INDEX.md has correct paths
-- Ensure AI has file system access
-
-### Issue: AI Doesn't Load Full Docs
-
-**Symptom:** Asks about orchestration → gives 1-sentence answer
-
-**Fix:**
-- Tell AI: "Read the full documentation"
-- Check KNOWLEDGE_INDEX.md is referenced in MEMORY.md
-- Verify trigger phrases are recognized
-
-### Issue: AI Creates Tasks Wrong
-
-**Symptom:** Tasks missing required fields
-
-**Fix:**
-- Have AI re-read TASK_CREATION_REQUIREMENTS.md
-- Point out specific missing fields
-- Reference the task template
-- Practice with example tasks
-
----
-
-## Verification Checklist
-
-**After training, your AI should be able to:**
-
-- [ ] Explain task orchestration with critical facts
-- [ ] Load full documentation when asked
-- [ ] Create tasks with all 8 required fields
-- [ ] Know which pipeline a task will use based on keywords
-- [ ] Understand fresh install behavior
-- [ ] Explain the two-tier monitoring design
-- [ ] Reference specific documents by name
-- [ ] Use the task template correctly
-
----
-
-## Quick Reference for Training
-
-**To check if AI knows basics:**
-"What do you know about task orchestration?"
-
-**To load full knowledge:**
-"Read the full documentation on task orchestration"
-
-**To verify task creation:**
-"Create a task to [do something]"
-
-**To check understanding:**
-"Explain how you determine which pipeline to use"
-
-**To find gaps:**
-"What happens on a fresh install of Mission Control?"
-
----
-
-**Document Location:** `alex-mission-control/docs/AI_TRAINING_GUIDE.md`
-**Last Updated:** 2026-03-16
-**Version:** 1.0
-**Purpose:** Guide users through training their AI on Mission Control
-**See Also:** KNOWLEDGE_INDEX.md (what the AI reads), README.md (getting started)
+- letting agents work without clear boundaries
+- advancing steps without a structured completion packet
+- creating role-only stage packets without exact assigned agents
+- editing active or completed steps in place
+- treating board state as a manual process
+- silently restarting stuck work
+- inventing state outside the task/run/step records

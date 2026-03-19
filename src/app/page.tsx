@@ -1,30 +1,20 @@
-
-
-import { db } from '@/lib/db';
 import { getTasks } from '@/lib/domain/tasks';
 import { getProjects } from '@/lib/domain/projects';
 import {
   Zap,
   Target,
   Activity,
-  CheckSquare,
-  Calendar,
-  FolderKanban,
   Cpu,
   ArrowRight,
-  ShieldCheck,
   AlertTriangle,
   History,
-  Terminal,
-  Brain,
   Link as LinkIcon,
   Users,
-  ShieldAlert
+  ShieldAlert,
+  type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-
-import { Task, Project } from '@/lib/types';
 import { isSystemReady } from '@/lib/domain/agents';
 
 export default function DashboardPage() {
@@ -137,7 +127,7 @@ export default function DashboardPage() {
                 <div className="flex items-center space-x-6">
                   <div className={cn(
                     "w-3 h-3 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.3)]",
-                    task.status === 'Complete' ? "bg-emerald-500" : task.isStuck ? "bg-red-500 shadow-red-500/40 animate-pulse" : "bg-blue-500 shadow-blue-500/40"
+                    task.status === 'Done' ? "bg-emerald-500" : task.isStuck ? "bg-red-500 shadow-red-500/40 animate-pulse" : "bg-blue-500 shadow-blue-500/40"
                   )} />
                   <div>
                     <h3 className="font-black text-white text-base group-hover:text-blue-400 transition-colors uppercase tracking-tight">{task.title}</h3>
@@ -185,7 +175,16 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, icon: Icon, color, sub, href }: any) {
+type StatCardProps = {
+  label: string;
+  value: string | number;
+  icon: LucideIcon;
+  color: string;
+  sub: string;
+  href?: string;
+};
+
+function StatCard({ label, value, icon: Icon, color, sub, href }: StatCardProps) {
   const content = (
     <>
       <div className="absolute -bottom-4 -right-4 opacity-[0.02] group-hover:opacity-10 transition-opacity text-white">
@@ -218,7 +217,13 @@ function StatCard({ label, value, icon: Icon, color, sub, href }: any) {
   );
 }
 
-function SectionHeader({ title, icon: Icon, link }: any) {
+type SectionHeaderProps = {
+  title: string;
+  icon: LucideIcon;
+  link?: string;
+};
+
+function SectionHeader({ title, icon: Icon, link }: SectionHeaderProps) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center space-x-3">

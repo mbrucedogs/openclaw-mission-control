@@ -1,163 +1,100 @@
 import { NextResponse } from 'next/server';
-import { 
-    startTaskWorkflowStep,
-    completeTaskWorkflowStep,
-    failTaskWorkflowStep,
-    blockTaskWorkflowStep,
-    getTaskWorkflowStepById
-} from '@/lib/domain/workflows';
+import { blockRunStep, getRunStepById, getTaskStagePlanById, retryRunStep, startRunStep, updateRunStep, updateTaskStagePlan, validateRunStep } from '@/lib/domain/task-runs';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/tasks/{id}/steps/{stepId}/start
-export async function POST(
-    request: Request,
-    { params }: { params: Promise<{ id: string; stepId: string }> }
-) {
-    try {
-        const { id: taskId, stepId } = await params;
-        const body = await request.json();
-        const { action } = body;
-
-        // BLOCKER: For "complete" action, check if previous steps are done
-        if (action === 'complete') {
-            const { getTaskWorkflowSteps } = await import('@/lib/domain/workflows');
-            const steps = getTaskWorkflowSteps(taskId);
-            const currentStep = steps.find(s => s.id === stepId);
-
-            if (currentStep) {
-                // Find all steps with lower stepNumber that are NOT complete
-                const incompletePriorSteps = steps.filter(s =>
-                    s.stepNumber < currentStep.stepNumber &&
-                    s.status !== 'complete'
-                );
-
-                if (incompletePriorSteps.length > 0) {
-                    return NextResponse.json({
-                        error: 'Cannot complete step with incomplete prior steps',
-                        incompletePriorSteps: incompletePriorSteps.map(s => ({
-                            stepNumber: s.stepNumber,
-                            workflowName: s.workflowName,
-                            status: s.status
-                        })),
-                        message: `Step ${currentStep.stepNumber} cannot be completed until prior steps are done.`
-                    }, { status: 400 });
-                }
-            }
-        }
-
-        let step;
-        switch (action) {
-            case 'start':
-                step = startTaskWorkflowStep(stepId);
-                break;
-            case 'complete':
-                step = completeTaskWorkflowStep(stepId, {
-                    evidenceIds: body.evidenceIds,
-                    deliverables: body.deliverables,
-                    completionNotes: body.completionNotes,
-                    passFail: body.passFail,
-                    validatedBy: body.validatedBy,
-                    validationNotes: body.validationNotes,
-                    handoffNotes: body.handoffNotes
-                });
-                break;
-            case 'fail':
-                step = failTaskWorkflowStep(stepId, {
-                    blockers: body.blockers,
-                    questions: body.questions
-                });
-                break;
-            case 'block':
-                step = blockTaskWorkflowStep(stepId, body.blockers);
-                break;
-            default:
-                return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-        }
-
-        if (!step) {
-            return NextResponse.json({ error: 'Step not found' }, { status: 404 });
-        }
-
-        return NextResponse.json(step);
-    } catch (error) {
-        console.error('POST /api/tasks/{id}/steps/{stepId} error:', error);
-        return NextResponse.json({ error: 'Failed to update step' }, { status: 500 });
-    }
-}
-
-// PATCH /api/tasks/{id}/steps/{stepId}
-export async function PATCH(
-    request: Request,
-    { params }: { params: Promise<{ id: string; stepId: string }> }
-) {
-    try {
-        const { stepId } = await params;
-        const body = await request.json();
-        const { db } = await import('@/lib/db');
-
-        const step = getTaskWorkflowStepById(stepId);
-        if (!step) {
-            return NextResponse.json({ error: 'Step not found' }, { status: 404 });
-        }
-
-        const now = new Date().toISOString();
-        const fields: string[] = [];
-        const queryParams: any[] = [];
-
-        if (body.description !== undefined) {
-            fields.push('description = ?');
-            queryParams.push(body.description);
-        }
-        if (body.requiredDeliverables !== undefined) {
-            fields.push('required_deliverables = ?');
-            queryParams.push(JSON.stringify(body.requiredDeliverables));
-        }
-        if (body.agentId !== undefined) {
-            fields.push('agent_id = ?');
-            queryParams.push(body.agentId);
-        }
-        if (body.agentName !== undefined) {
-            fields.push('agent_name = ?');
-            queryParams.push(body.agentName);
-        }
-        if (body.status !== undefined) {
-            fields.push('status = ?');
-            queryParams.push(body.status);
-        }
-
-        if (fields.length === 0) {
-            return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
-        }
-
-        fields.push('updated_at = ?');
-        queryParams.push(now);
-        queryParams.push(stepId);
-
-        db.prepare(`UPDATE task_workflow_steps SET ${fields.join(', ')} WHERE id = ?`).run(...queryParams);
-
-        const updatedStep = getTaskWorkflowStepById(stepId);
-        return NextResponse.json(updatedStep);
-    } catch (error) {
-        console.error('PATCH /api/tasks/{id}/steps/{stepId} error:', error);
-        return NextResponse.json({ error: 'Failed to update step' }, { status: 500 });
-    }
-}
-
-// GET /api/tasks/{id}/steps/{stepId}
 export async function GET(
-    request: Request,
-    { params }: { params: Promise<{ id: string; stepId: string }> }
+  request: Request,
+  { params }: { params: Promise<{ id: string; stepId: string }> },
 ) {
-    try {
-        const { stepId } = await params;
-        const step = getTaskWorkflowStepById(stepId);
-        if (!step) {
-            return NextResponse.json({ error: 'Step not found' }, { status: 404 });
-        }
-        return NextResponse.json(step);
-    } catch (error) {
-        console.error('GET /api/tasks/{id}/steps/{stepId} error:', error);
-        return NextResponse.json({ error: 'Failed to fetch step' }, { status: 500 });
+  try {
+    const { stepId } = await params;
+    const step = getRunStepById(stepId) || getTaskStagePlanById(stepId);
+    if (!step) {
+      return NextResponse.json({ error: 'Step not found' }, { status: 404 });
     }
+    return NextResponse.json(step);
+  } catch (error) {
+    console.error('GET /api/tasks/[id]/steps/[stepId] error:', error);
+    return NextResponse.json({ error: 'Failed to fetch step' }, { status: 500 });
+  }
+}
+
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string; stepId: string }> },
+) {
+  try {
+    const { stepId } = await params;
+    const body = await request.json();
+    const runStep = getRunStepById(stepId);
+    if (!runStep) {
+      return NextResponse.json({ error: 'Only active run stages support runtime actions' }, { status: 400 });
+    }
+    const action = body.action;
+
+    switch (action) {
+      case 'start':
+        return NextResponse.json(startRunStep(stepId, {
+          actor: body.actor || 'max',
+          assignedAgentId: body.assignedAgentId,
+          assignedAgentName: body.assignedAgentName,
+          heartbeatAt: body.heartbeatAt,
+        }));
+      case 'block':
+        return NextResponse.json(blockRunStep(stepId, {
+          actor: body.actor || 'max',
+          reason: body.reason || 'Blocked by operator',
+        }));
+      case 'retry':
+        return NextResponse.json(retryRunStep(stepId, {
+          actor: body.actor || 'max',
+          reason: body.reason || 'Retry requested',
+        }));
+      case 'validate':
+        return NextResponse.json(validateRunStep(stepId, {
+          actor: body.actor || 'max',
+          decision: body.decision,
+          notes: body.notes,
+        }));
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
+  } catch (error) {
+    console.error('POST /api/tasks/[id]/steps/[stepId] error:', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to update step' }, { status: 400 });
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string; stepId: string }> },
+) {
+  try {
+    const { stepId } = await params;
+    const body = await request.json();
+    const packet = {
+      title: body.title,
+      role: body.role,
+      assignedAgentId: body.assignedAgentId,
+      assignedAgentName: body.assignedAgentName,
+      goal: body.goal,
+      inputs: body.inputs,
+      requiredOutputs: body.requiredOutputs,
+      doneCondition: body.doneCondition,
+      boundaries: body.boundaries,
+      dependencies: body.dependencies,
+      notesForMax: body.notesForMax ?? body.notesForOrchestrator,
+      notesForOrchestrator: body.notesForOrchestrator,
+    };
+
+    const updated = getRunStepById(stepId)
+      ? updateRunStep(stepId, { actor: body.actor || 'max', packet })
+      : updateTaskStagePlan(stepId, { actor: body.actor || 'max', packet });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('PATCH /api/tasks/[id]/steps/[stepId] error:', error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to edit step' }, { status: 400 });
+  }
 }
