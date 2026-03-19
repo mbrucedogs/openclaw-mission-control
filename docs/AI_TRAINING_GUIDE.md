@@ -76,14 +76,9 @@ Detailed context should live in the stage packets:
 
 ## Orchestrator Dispatch Rule
 
-The orchestrator is a **dumb dispatcher**. It must:
+The orchestrator reads the step from the DB and passes it to the agent. All instructions, paths, and boundaries are in the step. The orchestrator does not add external instructions.
 
-1. Read the step definition from the DB
-2. Extract inputs, outputs, paths from the step — NOT from external knowledge
-3. Pass those exact values to the agent
-4. Do NOT substitute step values with different values
-
-**Critical:** If the step says save to `/Volumes/Data/...`, use `/Volumes/Data/...`. Do not substitute with `/Users/mattbruce/.openclaw/...` or any other path. The step definition IS the source of truth.
+If something is missing or wrong in the step, open an issue thread. The orchestrator does not improvise.
 
 ## Self-Healing Loop
 

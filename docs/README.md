@@ -19,8 +19,7 @@ Mission Control now uses a `Task -> Plan -> Run` model.
 4. `TASK_AUTHORING_WIZARD.md` - How one-shot creation works
 5. `STEP_EXECUTION.md` - How steps move through start, submission, validation, and retry
 6. `RECOVERY_AND_MONITORING.md` - 10-minute recovery scan behavior
-7. `STANDARD_AGENT_INSTRUCTIONS.md` - How to spawn agents with evidence attachment
-8. `AI_TRAINING_GUIDE.md` - How to train the primary orchestrator on the rebuilt system
+7. `AI_TRAINING_GUIDE.md` - How to train the primary orchestrator on the rebuilt system
 
 ## Critical Rules
 
