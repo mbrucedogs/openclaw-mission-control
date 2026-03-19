@@ -561,3 +561,50 @@ test('issue threads block the task, support replies, and clear back to backlog w
   assert.equal(blockedTask?.status, 'Backlog');
   assert.equal(blockedTask?.issues?.[0].status, 'resolved');
 });
+
+test('getRecentTaskActivity returns latest task-native activity with task context', async () => {
+  const {
+    createTaskWithPlan,
+    createTaskIssue,
+    getRecentTaskActivity,
+    getAgents,
+    updateAgentType,
+  } = await loadFreshModules();
+
+  const assigned = configureStepAgents({ getAgents, updateAgentType }, ['researcher']);
+
+  const created = createTaskWithPlan({
+    title: 'Activity feed task',
+    goal: 'Surface live task updates in the tasks screen',
+    initiatedBy: 'orchestrator',
+    acceptanceCriteria: ['Activity should be visible'],
+    steps: [
+      {
+        title: 'Research scope',
+        assignedAgentId: assigned.researcher.id,
+        assignedAgentName: assigned.researcher.name,
+        goal: 'Capture the scope',
+        inputs: ['Task summary'],
+        requiredOutputs: ['Research notes'],
+        doneCondition: 'Research notes are saved',
+        boundaries: ['Do not implement anything'],
+      },
+    ],
+  });
+
+  createTaskIssue({
+    taskId: created.id,
+    title: 'Need clarification',
+    summary: 'Waiting on a decision before starting',
+    assignedTo: 'human',
+    createdBy: 'orchestrator',
+  });
+
+  const feed = getRecentTaskActivity(5);
+  assert.ok(feed.length >= 2);
+  assert.equal(feed[0].taskId, created.id);
+  assert.equal(feed[0].taskTitle, 'Activity feed task');
+  assert.equal(feed[0].taskStatus, 'Blocked');
+  assert.equal(feed.some((entry) => entry.activityType === 'issue_opened'), true);
+  assert.equal(feed.some((entry) => entry.activityType === 'stage_plan_saved'), true);
+});

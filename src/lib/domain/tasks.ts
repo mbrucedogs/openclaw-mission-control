@@ -9,6 +9,7 @@ import type {
   Priority,
   Task,
   TaskActivity,
+  TaskActivityFeedItem,
   TaskComment,
   TaskEvidence,
   TaskIssue,
@@ -87,6 +88,13 @@ type ActivityRow = {
   activity_type: string;
   details: string | null;
   created_at: string;
+};
+
+type ActivityFeedRow = ActivityRow & {
+  task_title: string;
+  task_status: TaskStatus;
+  task_priority: Priority;
+  step_title: string | null;
 };
 
 type CommentRow = {
@@ -485,6 +493,38 @@ export function getTaskActivity(taskId: string, limit = 100): TaskActivity[] {
     activityType: row.activity_type,
     details: row.details ? JSON.parse(row.details) : undefined,
     createdAt: row.created_at,
+  }));
+}
+
+export function getRecentTaskActivity(limit = 50): TaskActivityFeedItem[] {
+  const rows = db.prepare(`
+    SELECT
+      task_activity.*,
+      tasks.title as task_title,
+      tasks.status as task_status,
+      tasks.priority as task_priority,
+      run_steps.title as step_title
+    FROM task_activity
+    INNER JOIN tasks ON tasks.id = task_activity.task_id
+    LEFT JOIN run_steps ON run_steps.id = task_activity.step_id
+    ORDER BY task_activity.created_at DESC
+    LIMIT ?
+  `).all(limit) as ActivityFeedRow[];
+
+  return rows.map((row) => ({
+    id: row.id,
+    taskId: row.task_id,
+    runId: row.run_id || undefined,
+    stepId: row.step_id || undefined,
+    actor: row.actor,
+    actorType: row.actor_type,
+    activityType: row.activity_type,
+    details: row.details ? JSON.parse(row.details) : undefined,
+    createdAt: row.created_at,
+    taskTitle: row.task_title,
+    taskStatus: row.task_status,
+    taskPriority: row.task_priority,
+    stepTitle: row.step_title || undefined,
   }));
 }
 

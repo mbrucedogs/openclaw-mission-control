@@ -78,6 +78,13 @@ export interface TaskActivity {
   createdAt: string;
 }
 
+export interface TaskActivityFeedItem extends TaskActivity {
+  taskTitle: string;
+  taskStatus: TaskStatus;
+  taskPriority: Priority;
+  stepTitle?: string;
+}
+
 export interface TaskEvidence {
   id: string;
   taskId: string;

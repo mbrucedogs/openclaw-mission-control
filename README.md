@@ -64,6 +64,7 @@ GET    /api/tasks/:id/issues
 POST   /api/tasks/:id/issues
 PATCH  /api/tasks/:id/issues/:issueId
 POST   /api/tasks/:id/rerun
+GET    /api/tasks/activity
 GET    /api/task-templates
 POST   /api/task-templates
 GET    /api/task-templates/:id
@@ -75,6 +76,8 @@ GET    /api/recovery/scan
 `POST /api/tasks` is the canonical one-shot creation interface for both the primary orchestrator and the wizard UI. It saves the task and planned stages only. `POST /api/tasks/:id/start` instantiates the first run later when the task is ready to execute. Each execution packet in the payload must include `assignedAgentId` and `assignedAgentName`, and the internal role is derived from that agent.
 
 Saved templates can be managed directly from `/tasks` through `Manage Templates`, including edit, duplicate, and delete.
+
+The `/tasks` screen also includes a show/hide live activity panel backed by the task-native activity feed.
 
 Full request details live in [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md).
 

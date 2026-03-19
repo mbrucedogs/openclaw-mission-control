@@ -31,6 +31,7 @@ import type {
   RunStepEvent,
   StepPacketInput,
   Task,
+  TaskActivityFeedItem,
   TaskComment,
   TaskEvidence,
   TaskIssue,
@@ -205,6 +206,53 @@ function stageLabelForTask(task: Task) {
 function agentOptionLabel(agent: Agent) {
   const roleLabel = agent.role?.trim() || agent.type?.trim() || 'Unassigned role';
   return `${agent.name} (${roleLabel})`;
+}
+
+function activityMessage(activity: TaskActivityFeedItem) {
+  switch (activity.activityType) {
+    case 'created':
+      return 'Task created';
+    case 'updated':
+      return 'Task updated';
+    case 'status_changed':
+      return activity.details?.newStatus ? `Status changed to ${activity.details.newStatus}` : 'Status changed';
+    case 'stage_plan_saved':
+      return 'Execution flow saved';
+    case 'stage_plan_updated':
+      return activity.stepTitle ? `Stage updated: ${activity.stepTitle}` : 'Stage updated';
+    case 'run_started':
+      return 'Task started';
+    case 'run_step_started':
+      return activity.stepTitle ? `Started ${activity.stepTitle}` : 'Stage started';
+    case 'run_step_progress_note':
+      return activity.stepTitle ? `Progress on ${activity.stepTitle}` : 'Progress update';
+    case 'run_step_completion_submitted':
+      return activity.stepTitle ? `Completion submitted for ${activity.stepTitle}` : 'Completion submitted';
+    case 'run_step_validation_passed':
+      return activity.stepTitle ? `Validated ${activity.stepTitle}` : 'Validation passed';
+    case 'run_step_validation_rejected':
+      return activity.stepTitle ? `Rejected ${activity.stepTitle}` : 'Validation rejected';
+    case 'run_step_blocked':
+      return activity.stepTitle ? `Blocked ${activity.stepTitle}` : 'Stage blocked';
+    case 'run_step_retry_requested':
+      return activity.stepTitle ? `Retry requested for ${activity.stepTitle}` : 'Retry requested';
+    case 'issue_opened':
+      return activity.details?.reason ? `Issue opened: ${activity.details.reason}` : 'Issue opened';
+    case 'issue_updated':
+      return activity.details?.reason ? `Issue updated: ${activity.details.reason}` : 'Issue updated';
+    case 'issue_resolved':
+      return activity.details?.reason ? `Issue resolved: ${activity.details.reason}` : 'Issue resolved';
+    case 'comment_added':
+      return activity.details?.stepId ? 'Stage conversation updated' : 'Comment added';
+    case 'evidence_added':
+      return 'Evidence added';
+    case 'evidence_removed':
+      return 'Evidence removed';
+    case 'template_saved':
+      return 'Run saved as template';
+    default:
+      return activity.activityType.replaceAll('_', ' ');
+  }
 }
 
 function StepDesigner({
@@ -2105,11 +2153,14 @@ export default function TasksPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [activityFeed, setActivityFeed] = useState<TaskActivityFeedItem[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [detail, setDetail] = useState<TaskDetailData>({ task: null, events: [] });
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showActivityPanel, setShowActivityPanel] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [refreshPaused, setRefreshPaused] = useState(false);
 
@@ -2145,6 +2196,16 @@ export default function TasksPage() {
     setSelectedTaskId(taskId);
   }
 
+  async function loadActivity() {
+    setActivityLoading(true);
+    try {
+      const response = await fetch('/api/tasks/activity?limit=40');
+      setActivityFeed(await response.json());
+    } finally {
+      setActivityLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadAll();
     const timer = window.setInterval(() => {
@@ -2158,6 +2219,27 @@ export default function TasksPage() {
     }, 15000);
     return () => window.clearInterval(timer);
   }, [refreshPaused, selectedTaskId]);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('tasks.activity-panel.open');
+    if (stored === 'true') {
+      setShowActivityPanel(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('tasks.activity-panel.open', showActivityPanel ? 'true' : 'false');
+    if (!showActivityPanel) {
+      return;
+    }
+
+    void loadActivity();
+    const timer = window.setInterval(() => {
+      void loadActivity();
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [showActivityPanel]);
 
   const filteredTasks = useMemo(() => {
     if (!search.trim()) return tasks;
@@ -2187,6 +2269,13 @@ export default function TasksPage() {
             >
               <RefreshCcw className="mr-2 inline h-4 w-4" />
               Refresh
+            </button>
+            <button
+              onClick={() => setShowActivityPanel((current) => !current)}
+              className="rounded-xl border border-[#242424] bg-black px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-slate-300"
+            >
+              <Clock3 className="mr-2 inline h-4 w-4" />
+              {showActivityPanel ? 'Hide Activity' : 'Show Activity'}
             </button>
             <button
               onClick={() => setShowTemplateManager(true)}
@@ -2241,65 +2330,117 @@ export default function TasksPage() {
           <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
         </div>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-5">
-          {COLUMNS.map((column) => {
-            const tasksInColumn = filteredTasks.filter((task) => task.status === column);
-            return (
-              <div key={column} className={cn('rounded-[1.75rem] border p-4', COLUMN_COPY[column].tone)}>
-                <div className="mb-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className={cn('h-2.5 w-2.5 rounded-full', COLUMN_COPY[column].dot)} />
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-white">{COLUMN_COPY[column].label}</p>
-                  </div>
-                  <span className="rounded-full border border-[#2a2a2a] bg-black/60 px-2 py-1 text-[10px] font-black text-slate-400">
-                    {tasksInColumn.length}
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {tasksInColumn.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
-                      No tasks
+        <div className={cn('grid gap-4', showActivityPanel ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : 'grid-cols-1')}>
+          <div className="grid gap-4 xl:grid-cols-5">
+            {COLUMNS.map((column) => {
+              const tasksInColumn = filteredTasks.filter((task) => task.status === column);
+              return (
+                <div key={column} className={cn('rounded-[1.75rem] border p-4', COLUMN_COPY[column].tone)}>
+                  <div className="mb-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('h-2.5 w-2.5 rounded-full', COLUMN_COPY[column].dot)} />
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-white">{COLUMN_COPY[column].label}</p>
                     </div>
-                  ) : (
-                    tasksInColumn.map((task) => {
-                      const step = currentStep(task);
-                      return (
-                        <button
-                          key={task.id}
-                          onClick={() => loadTaskDetail(task.id)}
-                          className="w-full rounded-2xl border border-[#242424] bg-black/80 p-4 text-left transition-colors hover:border-slate-600"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <p className="text-sm font-bold text-white">{task.title}</p>
-                            {task.isStuck ? <ShieldAlert className="h-4 w-4 text-red-400" /> : <ChevronsRight className="h-4 w-4 text-slate-600" />}
-                          </div>
-                          <p className="mt-2 line-clamp-2 text-xs text-slate-500">{task.goal || task.description}</p>
-                          <div className="mt-4 flex flex-wrap items-center gap-2">
-                            <span className={cn('rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em]', PRIORITY_STYLES[task.priority])}>
-                              {task.priority}
-                            </span>
-                            <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200">
-                              {stageLabelForTask(task)}
-                            </span>
-                            {step && (
-                              <span className="rounded-full border border-[#333] bg-[#111] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
-                                {step.assignedAgentName || step.assignedAgentId || 'unassigned'}
+                    <span className="rounded-full border border-[#2a2a2a] bg-black/60 px-2 py-1 text-[10px] font-black text-slate-400">
+                      {tasksInColumn.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {tasksInColumn.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
+                        No tasks
+                      </div>
+                    ) : (
+                      tasksInColumn.map((task) => {
+                        const step = currentStep(task);
+                        return (
+                          <button
+                            key={task.id}
+                            onClick={() => loadTaskDetail(task.id)}
+                            className="w-full rounded-2xl border border-[#242424] bg-black/80 p-4 text-left transition-colors hover:border-slate-600"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-sm font-bold text-white">{task.title}</p>
+                              {task.isStuck ? <ShieldAlert className="h-4 w-4 text-red-400" /> : <ChevronsRight className="h-4 w-4 text-slate-600" />}
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-xs text-slate-500">{task.goal || task.description}</p>
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                              <span className={cn('rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em]', PRIORITY_STYLES[task.priority])}>
+                                {task.priority}
                               </span>
-                            )}
-                          </div>
-                          <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                            <span>{task.owner}</span>
-                            <span>{timeAgo(task.updatedAt)}</span>
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
+                              <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200">
+                                {stageLabelForTask(task)}
+                              </span>
+                              {step && (
+                                <span className="rounded-full border border-[#333] bg-[#111] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
+                                  {step.assignedAgentName || step.assignedAgentId || 'unassigned'}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                              <span>{task.owner}</span>
+                              <span>{timeAgo(task.updatedAt)}</span>
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+
+          {showActivityPanel && (
+            <aside className="rounded-[1.75rem] border border-[#1f1f1f] bg-[#0b0b0d] p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Clock3 className="h-4 w-4 text-blue-400" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Live Activity</p>
+                    <p className="text-xs text-slate-500">Latest task updates across the board.</p>
+                  </div>
+                </div>
+                {activityLoading && <Loader2 className="h-4 w-4 animate-spin text-slate-500" />}
               </div>
-            );
-          })}
+
+              <div className="mt-4 space-y-3">
+                {activityFeed.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
+                    No recent task activity
+                  </div>
+                ) : (
+                  activityFeed.map((activity) => (
+                    <button
+                      key={activity.id}
+                      onClick={() => loadTaskDetail(activity.taskId)}
+                      className="w-full rounded-2xl border border-[#202020] bg-black/70 p-4 text-left transition-colors hover:border-slate-600"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-bold text-white">{activity.taskTitle}</p>
+                        <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">{timeAgo(activity.createdAt)}</span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-300">{activityMessage(activity)}</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="rounded-full border border-[#333] bg-[#111] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
+                          {activity.taskStatus}
+                        </span>
+                        {activity.stepTitle && (
+                          <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200">
+                            {activity.stepTitle}
+                          </span>
+                        )}
+                        <span className="rounded-full border border-[#2a2a2a] bg-black px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                          {activity.actor}
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </aside>
+          )}
         </div>
       )}
 

@@ -129,6 +129,14 @@ Query params:
 
 - `include=currentRun,comments,activity,evidence,plan,issues`
 
+`GET /api/tasks/activity`
+
+Returns the latest task-native activity across all tasks for the live activity panel.
+
+Query params:
+
+- `limit`
+
 `DELETE /api/tasks/:id`
 
 Deletes the task and its dependent orchestration records.
