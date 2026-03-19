@@ -4,13 +4,6 @@ import { useState } from 'react';
 import { ScheduleJob } from '@/lib/types';
 import {
     Zap,
-    RefreshCcw,
-    ChevronLeft,
-    ChevronRight,
-    Maximize2,
-    Clock,
-    LayoutGrid,
-    CalendarDays,
     Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -82,7 +75,7 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
                     dayJobs[d].push({ time: displayTime, name: job.name, color });
                 }
             }
-        } catch (e) {
+        } catch {
             alwaysRunning.push({ name: job.name, interval: 'Invalid Cron' });
         }
     });
@@ -90,7 +83,7 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a]">
             <div className="px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 sm:mb-8">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                     <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
                         <Calendar className="w-6 h-6 text-blue-400" />
@@ -132,7 +125,7 @@ export default function CalendarClient({ schedules }: { schedules: ScheduleJob[]
                         <Zap className="w-4 h-4 text-blue-500" />
                         <h3 className="text-[13px] font-black uppercase tracking-widest text-white">Always Running</h3>
                     </div>
-                    <div className="flex items-center space-x-3 flex-wrap gap-y-3">
+                    <div className="flex flex-wrap items-center gap-3">
                         {alwaysRunning.map((job, idx) => (
                             <RunningTag key={idx} name={job.name} interval={job.interval} active={job.active} />
                         ))}

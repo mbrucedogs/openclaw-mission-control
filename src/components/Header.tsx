@@ -1,7 +1,6 @@
 'use client';
 
 import { Command, Menu, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface HeaderProps {
     isSidebarOpen: boolean;
@@ -10,7 +9,7 @@ interface HeaderProps {
 
 export function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
     return (
-        <header className="md:hidden flex items-center justify-between h-16 px-4 border-b border-[#1a1a1a] bg-[#09090b] sticky top-0 z-30">
+        <header className="sticky top-0 z-[70] flex min-h-16 shrink-0 items-center justify-between border-b border-[#1a1a1a] bg-[#09090b] px-4 pt-[max(env(safe-area-inset-top),0px)] md:hidden">
             <div className="flex items-center">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center mr-3 bg-[#1a1a1a]">
                     <Command className="w-5 h-5 text-white" />
@@ -20,8 +19,11 @@ export function Header({ isSidebarOpen, toggleSidebar }: HeaderProps) {
 
             <button
                 onClick={toggleSidebar}
-                className="p-2 text-slate-400 hover:text-white transition-colors"
+                type="button"
+                className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
                 aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+                aria-expanded={isSidebarOpen}
+                aria-controls="mobile-sidebar"
             >
                 {isSidebarOpen ? (
                     <X className="w-6 h-6" />

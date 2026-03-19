@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import {
     FileText,
     SearchIcon,
-    ChevronRight,
     Sparkles,
     Plus,
     FolderOpen,
@@ -80,8 +79,6 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
     const [editForm, setEditForm] = useState({ title: '', summary: '', content: '', source_url: '', document_type: 'note', folder_id: 0, tags: '' });
     const [newFolderName, setNewFolderName] = useState('');
     const [taskLinkId, setTaskLinkId] = useState('');
-    const [saving, setSaving] = useState(false);
-
     // Load viewer roots on mount
     useEffect(() => {
         fetch('/api/memory?action=list').then(r => r.json()).then(data => {
@@ -113,7 +110,6 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
 
     useEffect(() => {
         if (mode !== 'viewer' || !selectedViewerFile?.path) return;
-        setViewerContent('Loading...');
         fetch(`/api/memory?action=content&path=${encodeURIComponent(selectedViewerFile.path)}`)
             .then(r => r.json())
             .then(d => setViewerContent(d.content || 'Empty file'))
@@ -276,11 +272,11 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
     // ─── Render ───────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col md:flex-row h-screen relative bg-[#09090b] text-slate-200">
+        <div className="relative flex h-[100dvh] flex-col bg-[#09090b] text-slate-200 md:flex-row">
             {/* Left Sidebar */}
             <aside className={cn(
                 "w-full md:w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20",
-                (viewerSelected || repoSelected) && !editing && !fullscreen ? "hidden md:flex" : "flex"
+                (viewerSelected || repoSelected || editing) && !fullscreen ? "hidden md:flex" : "flex"
             )}>
                 <div className="px-6 py-6 border-b border-[#1a1a1a] bg-[#09090b] flex-shrink-0">
                     <div className="flex items-center justify-between">
@@ -546,7 +542,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                     </div>
                 </div>
 
-                <div className="max-w-5xl mx-auto p-6 md:p-12 lg:p-20">
+                <div className="mx-auto max-w-5xl p-4 sm:p-6 md:p-10 lg:p-16">
                     {/* ─── Viewer View ─────────────────────────────────────────── */}
                     {mode === 'viewer' && selectedViewerFile && (
                         <div className="space-y-12 animate-in fade-in duration-700">
@@ -586,15 +582,15 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
 
                     {/* ─── Repo View ───────────────────────────────────────────── */}
                     {mode === 'repo' && editing && (
-                        <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500 px-12 pb-20">
-                            <div className="flex items-center justify-between border-b border-[#1a1a1a] pb-8">
+                        <div className="animate-in slide-in-from-bottom-4 space-y-10 px-0 pb-12 sm:pb-16 md:px-8 lg:px-12 duration-500">
+                            <div className="flex flex-col gap-4 border-b border-[#1a1a1a] pb-6 sm:flex-row sm:items-center sm:justify-between sm:pb-8">
                                 <div>
                                     <h2 className="text-3xl font-black text-white tracking-tighter italic">
                                         {repoSelected ? 'EDIT DOCUMENT' : 'NEW DOCUMENT'}
                                     </h2>
                                     <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mt-2 px-1 border-l-2 border-indigo-600">Enter document details below</p>
                                 </div>
-                                <div className="flex gap-3">
+                                <div className="flex flex-col gap-3 sm:flex-row">
                                     <button onClick={() => setEditing(false)} className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-white px-5 py-2.5 rounded-2xl bg-[#101010] border border-[#1a1a1a] transition-all">DISCARD</button>
                                     <button onClick={saveRepoDoc} className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-white px-6 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20">
                                         <Save className="w-4 h-4" /> COMMIT
@@ -613,7 +609,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                                     />
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-8">
+                                <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Document Type</label>
                                         <select
@@ -683,9 +679,9 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                     )}
 
                     {mode === 'repo' && !editing && repoDetail && (
-                        <div className="space-y-16 animate-in fade-in duration-700 px-12 pb-20">
+                        <div className="animate-in fade-in space-y-16 px-0 pb-12 sm:pb-16 md:px-8 lg:px-12 duration-700">
                             <div className="space-y-8">
-                                <div className="flex items-start justify-between">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="space-y-6 flex-1">
                                         <div className="flex flex-wrap items-center gap-3">
                                             <span className={cn("text-[10px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-xl border-2", docTypeColors[repoDetail.document_type] || docTypeColors.note)}>
@@ -705,7 +701,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                                             {repoDetail.folder_id && <span className="flex items-center gap-2"><FolderOpen className="w-4 h-4" /> {folders.find(f => f.id === repoDetail.folder_id)?.name}</span>}
                                         </div>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-2 self-start">
                                         <button onClick={startEditDoc} className="text-[11px] font-black uppercase tracking-[0.2em] text-white px-6 py-2.5 rounded-2xl bg-[#1a1a1a] border border-[#222] hover:bg-[#222] transition-all">EDIT</button>
                                         <button onClick={deleteRepoDoc} className="p-3 rounded-2xl bg-[#101010] border border-[#1a1a1a] hover:bg-red-500/10 text-slate-600 hover:text-red-500 transition-all border-dashed"><Trash2 className="w-5 h-5" /></button>
                                     </div>
@@ -713,7 +709,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
 
                                 {repoDetail.summary && (
                                     <div className="bg-indigo-600/5 border-l-4 border-indigo-600 rounded-r-3xl p-8 shadow-2xl shadow-indigo-600/5">
-                                        <p className="text-slate-300 text-lg leading-relaxed font-medium italic">"{repoDetail.summary}"</p>
+                                        <p className="text-slate-300 text-lg leading-relaxed font-medium italic">&ldquo;{repoDetail.summary}&rdquo;</p>
                                     </div>
                                 )}
 
@@ -741,7 +737,7 @@ export function DocsClient({ docs: initialLocalDocs }: { docs: LocalFileEntry[] 
                                         </h3>
                                         <p className="text-[11px] font-bold text-slate-600 uppercase tracking-widest mt-2">{repoDetail.linkedTasks?.length || 0} COORDINATED ACTIONS</p>
                                     </div>
-                                    <div className="flex gap-2 min-w-[300px]">
+                                    <div className="flex w-full flex-col gap-2 sm:min-w-[300px] sm:flex-row">
                                         <input 
                                             value={taskLinkId} 
                                             onChange={(e) => setTaskLinkId(e.target.value)} 

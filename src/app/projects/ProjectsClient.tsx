@@ -27,9 +27,6 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
     const [form, setForm] = useState({ id: '', name: '', description: '' });
 
     const activeCount = projects.filter(p => p.status === 'active').length;
-    const holdCount = projects.filter(p => p.status === 'on-hold').length;
-    const completedCount = projects.filter(p => p.status === 'completed').length;
-
     async function handleCreate(e: React.FormEvent) {
         e.preventDefault();
         setCreating(true);
@@ -139,8 +136,8 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
 
             {/* Create Project Modal */}
             {showCreate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowCreate(false)}>
-                    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setShowCreate(false)}>
+                    <div className="w-full max-w-md rounded-t-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-6 shadow-2xl sm:rounded-2xl sm:p-8" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-lg font-black text-white">New Project</h2>
                             <button onClick={() => setShowCreate(false)} className="text-slate-500 hover:text-white transition-colors">

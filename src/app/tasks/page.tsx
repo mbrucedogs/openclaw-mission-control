@@ -556,9 +556,9 @@ function TaskWizard({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-[2rem] border border-[#222] bg-[#050505] shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#181818] bg-[#050505]/95 px-6 py-5 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[90] flex items-stretch justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="h-[100dvh] w-full max-w-6xl overflow-y-auto rounded-none border border-[#222] bg-[#050505] shadow-2xl sm:max-h-[92vh] sm:h-auto sm:rounded-[2rem]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#181818] bg-[#050505]/95 px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-5">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Wizard-First Task Authoring</p>
             <h2 className="text-xl font-black text-white">Create Task + Saved Execution Plan</h2>
@@ -568,7 +568,7 @@ function TaskWizard({
           </button>
         </div>
 
-        <div className="border-b border-[#181818] px-6 py-4">
+        <div className="border-b border-[#181818] px-4 py-4 sm:px-6">
           <div className="grid gap-3 md:grid-cols-4">
             {[
               { step: 1, title: 'Task Intake' },
@@ -591,7 +591,7 @@ function TaskWizard({
           </div>
         </div>
 
-        <div className="px-6 py-6">
+        <div className="px-4 py-5 sm:px-6 sm:py-6">
           {wizardStep === 1 && (
             <div className="grid gap-4 md:grid-cols-2">
               <label className="space-y-1 md:col-span-2">
@@ -805,7 +805,7 @@ function TaskWizard({
           )}
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-between border-t border-[#181818] bg-[#050505]/95 px-6 py-4 backdrop-blur-sm">
+        <div className="sticky bottom-0 flex items-center justify-between border-t border-[#181818] bg-[#050505]/95 px-4 py-4 backdrop-blur-sm sm:px-6">
           <button
             onClick={() => setWizardStep((current) => Math.max(1, current - 1) as WizardStep)}
             className="rounded-xl border border-[#222] bg-[#09090b] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-300"
@@ -855,6 +855,7 @@ function TemplateManager({
   const [draft, setDraft] = useState<TemplateEditorDraft>(
     templates[0] ? templateToDraft(templates[0]) : emptyTemplateDraft(),
   );
+  const [mobileView, setMobileView] = useState<'library' | 'editor'>(templates[0] ? 'library' : 'editor');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -976,157 +977,188 @@ function TemplateManager({
     await onChanged(nextSelection || undefined);
   }
 
+  const templateLibrary = (
+    <div className="space-y-4">
+      <button
+        onClick={() => {
+          setSelectedTemplateId(null);
+          setDraft(emptyTemplateDraft());
+          setMobileView('editor');
+        }}
+        className="w-full rounded-2xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-left text-xs font-black uppercase tracking-[0.18em] text-blue-200"
+      >
+        <Plus className="mr-2 inline h-4 w-4" />
+        New Blank Template
+      </button>
+
+      <div className="space-y-3">
+        {templates.map((template) => (
+          <button
+            key={template.id}
+            onClick={() => {
+              setSelectedTemplateId(template.id);
+              setMobileView('editor');
+            }}
+            className={cn(
+              'w-full rounded-2xl border p-4 text-left transition-colors',
+              selectedTemplateId === template.id ? 'border-amber-500/40 bg-amber-500/10' : 'border-[#222] bg-[#09090b]',
+            )}
+          >
+            <p className="text-sm font-bold text-white">{template.name}</p>
+            <p className="mt-2 line-clamp-2 text-xs text-slate-500">{template.description || 'No description'}</p>
+            <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
+              <span>{template.steps.length} stage{template.steps.length === 1 ? '' : 's'}</span>
+              <span>{timeAgo(template.updatedAt)}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const templateEditor = (
+    <div className="space-y-5">
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="space-y-1">
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Template Name</span>
+          <input
+            value={draft.name}
+            onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+            className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Description</span>
+          <input
+            value={draft.description}
+            onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+            className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Default Summary</span>
+          <textarea
+            value={draft.summaryDefault}
+            onChange={(event) => setDraft((current) => ({ ...current, summaryDefault: event.target.value }))}
+            rows={3}
+            className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Default Final Deliverable</span>
+          <textarea
+            value={draft.finalDeliverableDefault}
+            onChange={(event) => setDraft((current) => ({ ...current, finalDeliverableDefault: event.target.value }))}
+            rows={3}
+            className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
+          />
+        </label>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-bold text-white">Template Execution Flow</p>
+          <p className="text-xs text-slate-500">Templates use the same stage packet rules as tasks. Duplicate, tweak, and save without rewriting the full structure.</p>
+        </div>
+        <button
+          onClick={() => setDraft((current) => ({ ...current, steps: [...current.steps, emptyStep(current.steps.length + 1)] }))}
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300"
+        >
+          Add Stage
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        {draft.steps.map((step, index) => (
+          <StepDesigner
+            key={step.id}
+            step={step}
+            index={index}
+            agents={agents}
+            onChange={(next) => setDraft((current) => ({
+              ...current,
+              steps: current.steps.map((candidate) => candidate.id === step.id ? next : candidate),
+            }))}
+            onRemove={() => setDraft((current) => ({
+              ...current,
+              steps: current.steps.length === 1 ? [emptyStep(1)] : current.steps.filter((candidate) => candidate.id !== step.id),
+            }))}
+          />
+        ))}
+      </div>
+
+      {error && (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-[#222] bg-[#09090b] p-4">
+        <div className="text-xs text-slate-500">
+          {draft.isNew ? 'New template' : `Editing ${draft.id}`}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => runAction('duplicate-template', duplicateTemplate)}
+            disabled={!canSave || actionLoading !== null}
+            className="rounded-xl border border-[#2a2a2a] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Duplicate
+          </button>
+          <button
+            onClick={() => runAction('delete-template', deleteTemplate)}
+            disabled={actionLoading !== null}
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {draft.isNew ? 'Clear' : 'Delete'}
+          </button>
+          <button
+            onClick={() => runAction('save-template', saveTemplate)}
+            disabled={!canSave || actionLoading !== null}
+            className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-black disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {actionLoading === 'save-template' ? 'Saving...' : draft.isNew ? 'Create Template' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-7xl overflow-y-auto rounded-[2rem] border border-[#222] bg-[#050505] shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#181818] bg-[#050505]/95 px-6 py-5 backdrop-blur-sm">
-          <div>
+    <div className="fixed inset-0 z-[90] flex items-stretch justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="h-[100dvh] w-full max-w-7xl overflow-y-auto rounded-none border border-[#222] bg-[#050505] shadow-2xl sm:max-h-[92vh] sm:h-auto sm:rounded-[2rem]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#181818] bg-[#050505]/95 px-4 py-4 backdrop-blur-sm sm:px-6 sm:py-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={() => setMobileView('library')}
+              className={cn(
+                'rounded-xl border border-[#2a2a2a] bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300 lg:hidden',
+                mobileView === 'library' && 'invisible pointer-events-none'
+              )}
+            >
+              Back
+            </button>
+            <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-400">Saved Templates</p>
             <h2 className="text-xl font-black text-white">Manage Template Library</h2>
+            </div>
           </div>
           <button onClick={onClose} className="rounded-xl p-2 text-slate-500 transition-colors hover:bg-white/5 hover:text-white">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="grid gap-6 px-6 py-6 lg:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="space-y-4">
-            <button
-              onClick={() => {
-                setSelectedTemplateId(null);
-                setDraft(emptyTemplateDraft());
-              }}
-              className="w-full rounded-2xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 text-left text-xs font-black uppercase tracking-[0.18em] text-blue-200"
-            >
-              <Plus className="mr-2 inline h-4 w-4" />
-              New Blank Template
-            </button>
-
-            <div className="space-y-3">
-              {templates.map((template) => (
-                <button
-                  key={template.id}
-                  onClick={() => setSelectedTemplateId(template.id)}
-                  className={cn(
-                    'w-full rounded-2xl border p-4 text-left transition-colors',
-                    selectedTemplateId === template.id ? 'border-amber-500/40 bg-amber-500/10' : 'border-[#222] bg-[#09090b]',
-                  )}
-                >
-                  <p className="text-sm font-bold text-white">{template.name}</p>
-                  <p className="mt-2 line-clamp-2 text-xs text-slate-500">{template.description || 'No description'}</p>
-                  <div className="mt-3 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                    <span>{template.steps.length} stage{template.steps.length === 1 ? '' : 's'}</span>
-                    <span>{timeAgo(template.updatedAt)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+        <div className="px-4 py-5 sm:px-6 sm:py-6">
+          <div className={cn('lg:hidden', mobileView === 'library' ? 'block' : 'hidden')}>
+            {templateLibrary}
+          </div>
+          <div className={cn('lg:hidden', mobileView === 'editor' ? 'block' : 'hidden')}>
+            {templateEditor}
           </div>
 
-          <div className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Template Name</span>
-                <input
-                  value={draft.name}
-                  onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Description</span>
-                <input
-                  value={draft.description}
-                  onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Default Summary</span>
-                <textarea
-                  value={draft.summaryDefault}
-                  onChange={(event) => setDraft((current) => ({ ...current, summaryDefault: event.target.value }))}
-                  rows={3}
-                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Default Final Deliverable</span>
-                <textarea
-                  value={draft.finalDeliverableDefault}
-                  onChange={(event) => setDraft((current) => ({ ...current, finalDeliverableDefault: event.target.value }))}
-                  rows={3}
-                  className="w-full rounded-xl border border-[#252525] bg-black px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50"
-                />
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-white">Template Execution Flow</p>
-                <p className="text-xs text-slate-500">Templates use the same stage packet rules as tasks. Duplicate, tweak, and save without rewriting the full structure.</p>
-              </div>
-              <button
-                onClick={() => setDraft((current) => ({ ...current, steps: [...current.steps, emptyStep(current.steps.length + 1)] }))}
-                className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300"
-              >
-                Add Stage
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {draft.steps.map((step, index) => (
-                <StepDesigner
-                  key={step.id}
-                  step={step}
-                  index={index}
-                  agents={agents}
-                  onChange={(next) => setDraft((current) => ({
-                    ...current,
-                    steps: current.steps.map((candidate) => candidate.id === step.id ? next : candidate),
-                  }))}
-                  onRemove={() => setDraft((current) => ({
-                    ...current,
-                    steps: current.steps.length === 1 ? [emptyStep(1)] : current.steps.filter((candidate) => candidate.id !== step.id),
-                  }))}
-                />
-              ))}
-            </div>
-
-            {error && (
-              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-                {error}
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[1.5rem] border border-[#222] bg-[#09090b] p-4">
-              <div className="text-xs text-slate-500">
-                {draft.isNew ? 'New template' : `Editing ${draft.id}`}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => runAction('duplicate-template', duplicateTemplate)}
-                  disabled={!canSave || actionLoading !== null}
-                  className="rounded-xl border border-[#2a2a2a] bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Duplicate
-                </button>
-                <button
-                  onClick={() => runAction('delete-template', deleteTemplate)}
-                  disabled={actionLoading !== null}
-                  className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {draft.isNew ? 'Clear' : 'Delete'}
-                </button>
-                <button
-                  onClick={() => runAction('save-template', saveTemplate)}
-                  disabled={!canSave || actionLoading !== null}
-                  className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-black disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {actionLoading === 'save-template' ? 'Saving...' : draft.isNew ? 'Create Template' : 'Save Changes'}
-                </button>
-              </div>
-            </div>
+          <div className="hidden gap-6 lg:grid lg:grid-cols-[320px_minmax(0,1fr)]">
+            {templateLibrary}
+            {templateEditor}
           </div>
         </div>
       </div>
@@ -1417,9 +1449,9 @@ function TaskDetail({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="h-[calc(100vh-2rem)] w-full max-w-[min(1700px,96vw)] overflow-y-auto rounded-[2rem] border border-[#222] bg-[#050505] p-6 shadow-2xl">
-        <div className="mb-6 flex items-start justify-between">
+    <div className="fixed inset-0 z-[90] flex items-stretch justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="h-[100dvh] w-full max-w-[min(1700px,96vw)] overflow-y-auto rounded-none border border-[#222] bg-[#050505] p-4 shadow-2xl sm:h-[calc(100vh-2rem)] sm:rounded-[2rem] sm:p-6">
+        <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{task.status}</p>
             <h2 className="mt-2 text-3xl font-black text-white">{task.title}</h2>
@@ -2251,9 +2283,72 @@ export default function TasksPage() {
     ));
   }, [search, tasks]);
 
+  function renderTaskCard(task: Task) {
+    const step = currentStep(task);
+
+    return (
+      <button
+        key={task.id}
+        onClick={() => loadTaskDetail(task.id)}
+        className="w-full rounded-2xl border border-[#242424] bg-black/80 p-4 text-left transition-colors hover:border-slate-600"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-bold text-white">{task.title}</p>
+          {task.isStuck ? <ShieldAlert className="h-4 w-4 text-red-400" /> : <ChevronsRight className="h-4 w-4 text-slate-600" />}
+        </div>
+        <p className="mt-2 line-clamp-2 text-xs text-slate-500">{task.goal || task.description}</p>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className={cn('rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em]', PRIORITY_STYLES[task.priority])}>
+            {task.priority}
+          </span>
+          <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200">
+            {stageLabelForTask(task)}
+          </span>
+          {step && (
+            <span className="rounded-full border border-[#333] bg-[#111] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
+              {step.assignedAgentName || step.assignedAgentId || 'unassigned'}
+            </span>
+          )}
+        </div>
+        <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
+          <span>{task.owner}</span>
+          <span>{timeAgo(task.updatedAt)}</span>
+        </div>
+      </button>
+    );
+  }
+
+  function renderBoardColumn(column: TaskStatus, mode: 'stacked' | 'desktop') {
+    const tasksInColumn = filteredTasks.filter((task) => task.status === column);
+
+    return (
+      <section key={`${mode}-${column}`} className={cn('rounded-[1.75rem] border p-4', COLUMN_COPY[column].tone)}>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className={cn('h-2.5 w-2.5 rounded-full', COLUMN_COPY[column].dot)} />
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-white">{COLUMN_COPY[column].label}</p>
+          </div>
+          <span className="rounded-full border border-[#2a2a2a] bg-black/60 px-2 py-1 text-[10px] font-black text-slate-400">
+            {tasksInColumn.length}
+          </span>
+        </div>
+
+        {tasksInColumn.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
+            No tasks
+          </div>
+        ) : (
+          <div className={mode === 'stacked' ? 'grid gap-3 sm:grid-cols-2' : 'space-y-3'}>
+            {tasksInColumn.map((task) => renderTaskCard(task))}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   return (
-    <div className="space-y-8 p-6 sm:p-10 lg:p-12">
-      <div className="rounded-[2rem] border border-[#1b1b1b] bg-[#0b0b0d] p-8 shadow-2xl">
+    <div className="space-y-6 p-4 sm:p-8 lg:p-12">
+      <div className="rounded-[2rem] border border-[#1b1b1b] bg-[#0b0b0d] p-5 shadow-2xl sm:p-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.24em] text-blue-400">Task {'->'} Plan {'->'} Run</p>
@@ -2295,7 +2390,7 @@ export default function TasksPage() {
         </div>
 
         <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <div className="rounded-2xl border border-[#222] bg-black/70 px-4 py-3">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Tasks</p>
               <p className="mt-2 text-2xl font-black text-white">{tasks.length}</p>
@@ -2331,65 +2426,12 @@ export default function TasksPage() {
         </div>
       ) : (
         <div className={cn('grid gap-4', showActivityPanel ? 'xl:grid-cols-[minmax(0,1fr)_360px]' : 'grid-cols-1')}>
-          <div className="grid gap-4 xl:grid-cols-5">
-            {COLUMNS.map((column) => {
-              const tasksInColumn = filteredTasks.filter((task) => task.status === column);
-              return (
-                <div key={column} className={cn('rounded-[1.75rem] border p-4', COLUMN_COPY[column].tone)}>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={cn('h-2.5 w-2.5 rounded-full', COLUMN_COPY[column].dot)} />
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-white">{COLUMN_COPY[column].label}</p>
-                    </div>
-                    <span className="rounded-full border border-[#2a2a2a] bg-black/60 px-2 py-1 text-[10px] font-black text-slate-400">
-                      {tasksInColumn.length}
-                    </span>
-                  </div>
+          <div className="space-y-4 xl:hidden">
+            {COLUMNS.map((column) => renderBoardColumn(column, 'stacked'))}
+          </div>
 
-                  <div className="space-y-3">
-                    {tasksInColumn.length === 0 ? (
-                      <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
-                        No tasks
-                      </div>
-                    ) : (
-                      tasksInColumn.map((task) => {
-                        const step = currentStep(task);
-                        return (
-                          <button
-                            key={task.id}
-                            onClick={() => loadTaskDetail(task.id)}
-                            className="w-full rounded-2xl border border-[#242424] bg-black/80 p-4 text-left transition-colors hover:border-slate-600"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <p className="text-sm font-bold text-white">{task.title}</p>
-                              {task.isStuck ? <ShieldAlert className="h-4 w-4 text-red-400" /> : <ChevronsRight className="h-4 w-4 text-slate-600" />}
-                            </div>
-                            <p className="mt-2 line-clamp-2 text-xs text-slate-500">{task.goal || task.description}</p>
-                            <div className="mt-4 flex flex-wrap items-center gap-2">
-                              <span className={cn('rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em]', PRIORITY_STYLES[task.priority])}>
-                                {task.priority}
-                              </span>
-                              <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200">
-                                {stageLabelForTask(task)}
-                              </span>
-                              {step && (
-                                <span className="rounded-full border border-[#333] bg-[#111] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-300">
-                                  {step.assignedAgentName || step.assignedAgentId || 'unassigned'}
-                                </span>
-                              )}
-                            </div>
-                            <div className="mt-4 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                              <span>{task.owner}</span>
-                              <span>{timeAgo(task.updatedAt)}</span>
-                            </div>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="hidden gap-4 xl:grid xl:grid-cols-5">
+            {COLUMNS.map((column) => renderBoardColumn(column, 'desktop'))}
           </div>
 
           {showActivityPanel && (

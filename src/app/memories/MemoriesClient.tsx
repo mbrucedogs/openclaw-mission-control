@@ -2,21 +2,26 @@
 
 import { cn } from '@/lib/utils';
 import {
-    Calendar,
     ChevronRight,
     Sparkles,
     SearchIcon,
     Clock,
     Maximize2,
     X,
-    FileText,
     RefreshCw,
     Brain
 } from 'lucide-react';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 
-export function MemoriesClient({ memories }: { memories: any[] }) {
+type MemoryEntry = {
+    id: string;
+    category: string;
+    content: string;
+    timestamp: string;
+};
+
+export function MemoriesClient({ memories }: { memories: MemoryEntry[] }) {
     const [selected, setSelected] = useState(memories[0]?.id || null);
     const [search, setSearch] = useState('');
     const [fullscreen, setFullscreen] = useState(false);
@@ -44,7 +49,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
     // Group by month label
     const groups = useMemo(() => {
         const now = new Date();
-        const grouped: Record<string, any[]> = {};
+        const grouped: Record<string, MemoryEntry[]> = {};
 
         for (const m of filteredMemories) {
             const dateMatch = m.id.match(/^(\d{4}-\d{2}-\d{2})/);
@@ -92,7 +97,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
     }, [fullscreen]);
 
     return (
-        <div className="flex flex-col md:flex-row h-screen relative bg-[#09090b] text-slate-200 overflow-hidden">
+        <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#09090b] text-slate-200 md:flex-row">
             {/* Left Sidebar */}
             <aside className={cn(
                 "w-full md:w-[380px] border-r border-[#1a1a1a] flex flex-col bg-[#09090b] relative z-20",
@@ -170,7 +175,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
                                     </span>
                                 </div>
                                 <div className="space-y-2">
-                                    {items.map((item: any) => (
+                                    {items.map((item: MemoryEntry) => (
                                         <div
                                             key={item.id}
                                             onClick={() => setSelected(item.id)}
@@ -227,7 +232,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
                 {selectedItem ? (
                     <div className="flex-1 flex flex-col">
                         <div className="px-6 md:px-12 py-8 md:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-6 md:mb-10">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                 <div className="flex items-center gap-4">
                                     <button 
                                         onClick={() => setSelected(null)}
@@ -249,7 +254,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
                                 </div>
                                 <button
                                     onClick={() => setFullscreen(true)}
-                                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#101010] hover:bg-[#1a1a1a] border border-[#1a1a1a] rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all shadow-lg shadow-black/20"
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#1a1a1a] bg-[#101010] px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-400 shadow-lg shadow-black/20 transition-all hover:bg-[#1a1a1a] hover:text-white md:w-auto"
                                 >
                                     <Maximize2 className="w-3.5 h-3.5" />
                                     Expand View
@@ -278,7 +283,7 @@ export function MemoriesClient({ memories }: { memories: any[] }) {
             </main>
 
             {fullscreen && selectedItem && (
-                <div className="fixed inset-0 z-[100] bg-black p-10 lg:p-20 overflow-y-auto animate-in fade-in zoom-in duration-300">
+                <div className="fixed inset-0 z-[100] overflow-y-auto bg-black p-4 sm:p-8 lg:p-20 animate-in fade-in zoom-in duration-300">
                     <div className="max-w-5xl mx-auto relative">
                         <div className="flex justify-end mb-8">
                             <button 

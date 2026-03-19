@@ -97,18 +97,18 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
     }
 
     return (
-        <div className="max-w-[1400px] p-6 lg:p-12">
+        <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-12">
             <div className="mb-8">
-                <div className="flex items-center justify-between mb-6">
-                    <Link href="/projects" className="flex items-center text-sm font-bold text-slate-500 hover:text-emerald-400 group transition-colors">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <Link href="/projects" className="flex items-center text-sm font-bold text-slate-500 transition-colors hover:text-emerald-400 group">
                         <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
                         Back to Projects
                     </Link>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         {!editing ? (
                             <button
                                 onClick={() => setEditing(true)}
-                                className="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-400 hover:text-emerald-400 bg-[#101010] border border-[#1a1a1a] hover:border-emerald-500/30 transition-all"
+                                className="flex items-center space-x-2 rounded-lg border border-[#1a1a1a] bg-[#101010] px-3 py-1.5 text-xs font-bold text-slate-400 transition-all hover:border-emerald-500/30 hover:text-emerald-400"
                             >
                                 <Pencil className="w-3.5 h-3.5" />
                                 <span>Edit</span>
@@ -141,12 +141,12 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
                         </button>
                     </div>
                 </div>
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-6 sm:gap-0">
-                    <div className="flex items-center space-x-4">
+                <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex items-start gap-4">
                         <div className="p-2 sm:p-3 bg-[#101010] border border-[#1a1a1a] rounded-xl">
                             <Layout className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-500" />
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             {editing ? (
                                 <input
                                     type="text"
@@ -167,8 +167,8 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1.15fr)_360px]">
+                <div className="space-y-6">
                     <div className="border border-[#1a1a1a] rounded-2xl bg-[#101010] overflow-hidden">
                         <div className="p-4 border-b border-[#1a1a1a] flex items-center justify-between">
                             <h2 className="font-black text-white text-sm uppercase tracking-widest flex items-center">
@@ -184,21 +184,23 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
                                 const Icon = statusIcons[task.status] || Circle;
                                 return (
                                     <div key={task.id} className="p-4 hover:bg-[#151515] transition-colors cursor-pointer group">
-                                        <div className="flex items-start">
-                                            <div className="mt-1 mr-3">
-                                                <Icon className={cn("w-4 h-4", statusColors[task.status] || "text-slate-500")} />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h3 className="text-sm font-semibold text-white truncate group-hover:text-emerald-400 transition-colors">
-                                                    {task.title}
-                                                </h3>
-                                                <div className="flex items-center space-x-3 mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                                                    <span>{task.id}</span>
-                                                    <span>•</span>
-                                                    <span className="capitalize">{task.owner}</span>
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="flex min-w-0 items-start">
+                                                <div className="mt-1 mr-3">
+                                                    <Icon className={cn("w-4 h-4", statusColors[task.status] || "text-slate-500")} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="text-sm font-semibold text-white truncate group-hover:text-emerald-400 transition-colors">
+                                                        {task.title}
+                                                    </h3>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                                        <span>{task.id}</span>
+                                                        <span className="hidden sm:inline">•</span>
+                                                        <span className="capitalize">{task.owner}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="ml-4 text-[10px] font-bold text-slate-500 tabular-nums">
+                                            <div className="text-[10px] font-bold text-slate-500 tabular-nums sm:ml-4 sm:text-right">
                                                 {new Date(task.updatedAt).toLocaleDateString()}
                                             </div>
                                         </div>
@@ -278,8 +280,8 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
 
             {/* Delete Confirmation Modal */}
             {confirmDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setConfirmDelete(false)}>
-                    <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-8 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setConfirmDelete(false)}>
+                    <div className="w-full max-w-sm rounded-t-2xl border border-[#1a1a1a] bg-[#0a0a0a] p-6 shadow-2xl sm:rounded-2xl sm:p-8" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center space-x-3 mb-4">
                             <div className="p-2 rounded-xl bg-red-500/10 text-red-500">
                                 <Trash2 className="w-5 h-5" />
@@ -289,7 +291,7 @@ export default function ProjectDetailClient({ project, tasks }: { project: Proje
                         <p className="text-sm text-slate-400 mb-6">
                             Are you sure you want to delete <strong className="text-white">{project.name}</strong>? This action cannot be undone.
                         </p>
-                        <div className="flex space-x-3">
+                        <div className="flex flex-col gap-3 sm:flex-row">
                             <button
                                 onClick={() => setConfirmDelete(false)}
                                 className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-slate-400 bg-[#101010] border border-[#1a1a1a] hover:text-white transition-colors"

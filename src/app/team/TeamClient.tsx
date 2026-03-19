@@ -5,7 +5,7 @@ import { Agent } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { 
     X, Search, Code, TestTube, Shield, Zap, User, 
-    ChevronRight, Target, Activity, Cpu, Users,
+    Target, Activity, Cpu, Users,
     ArrowRight
 } from 'lucide-react';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
@@ -24,6 +24,11 @@ const getAgentIcon = (agent: Agent) => {
     return User;
 };
 
+function renderAgentIcon(agent: Agent, className: string) {
+    const Icon = getAgentIcon(agent);
+    return typeof Icon === 'string' ? Icon : <Icon className={className} />;
+}
+
 export default function TeamClient({ agents }: { agents: Agent[] }) {
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
 
@@ -39,7 +44,7 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
         <div className="flex flex-col h-full bg-[#0a0a0a]">
             {/* Page Header */}
             <div className="px-6 sm:px-12 py-8 sm:py-10 border-b border-[#1a1a1a] bg-[#09090b]">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                         <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.05)]">
                             <Users className="w-6 h-6 text-emerald-400" />
@@ -79,17 +84,17 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
                             To activate the orchestration engine, you must first assign a <span className="text-blue-400 font-bold uppercase tracking-wider">System Type</span> to each discovered agent. 
                             This maps their unique capabilities to our workflow templates.
                         </p>
-                        <div className="mt-6 flex items-center space-x-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <div className="mt-6 flex flex-wrap items-center gap-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                             <div className="flex items-center space-x-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                                 <span>Assign All Roles</span>
                             </div>
-                            <ArrowRight className="w-3 h-3 text-slate-700" />
+                            <ArrowRight className="hidden sm:block w-3 h-3 text-slate-700" />
                             <div className="flex items-center space-x-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
                                 <span>Unlock Workflows</span>
                             </div>
-                            <ArrowRight className="w-3 h-3 text-slate-700" />
+                            <ArrowRight className="hidden sm:block w-3 h-3 text-slate-700" />
                             <div className="flex items-center space-x-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-slate-800" />
                                 <span>Begin Mission</span>
@@ -151,7 +156,7 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
                 )}
 
                 {/* Vertical Lines */}
-                <div className="absolute top-48 left-1/2 -ml-px w-px h-[calc(100%-12rem)] bg-[#1a1a1a] -z-10" />
+                <div className="absolute top-48 left-1/2 -ml-px hidden h-[calc(100%-12rem)] w-px bg-[#1a1a1a] -z-10 lg:block" />
 
                 {/* Unassigned / Available Agents */}
                 {unassignedAgents.length > 0 && (
@@ -181,7 +186,6 @@ export default function TeamClient({ agents }: { agents: Agent[] }) {
 }
 
 function AgentCard({ agent, highlight, badge, onClick }: { agent: Agent, highlight?: string, badge?: string, onClick: () => void }) {
-    const Icon = getAgentIcon(agent);
     const isUnassigned = !agent.type || agent.type === '';
 
     return (
@@ -199,7 +203,7 @@ function AgentCard({ agent, highlight, badge, onClick }: { agent: Agent, highlig
             )}
             <div className="flex items-start space-x-4 mb-6">
                 <div className="w-12 h-12 bg-[#1a1a1a] rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                    {typeof Icon === 'string' ? Icon : <Icon className="w-6 h-6 text-slate-400" />}
+                    {renderAgentIcon(agent, 'w-6 h-6 text-slate-400')}
                 </div>
                 <div className="min-w-0">
                     <div className="flex items-center space-x-2">
@@ -234,8 +238,6 @@ function AgentCard({ agent, highlight, badge, onClick }: { agent: Agent, highlig
 }
 
 function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }) {
-    const Icon = getAgentIcon(agent);
-
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-6" onClick={onClose}>
             <div 
@@ -246,7 +248,7 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                 <div className="p-8 pb-0 flex items-start justify-between">
                     <div className="flex items-center space-x-6">
                         <div className="w-20 h-20 bg-[#161618] rounded-2xl flex items-center justify-center text-4xl border border-[#1a1a1f]">
-                            {typeof Icon === 'string' ? Icon : <Icon className="w-10 h-10 text-slate-400" />}
+                            {renderAgentIcon(agent, 'w-10 h-10 text-slate-400')}
                         </div>
                         <div>
                             <div className="flex items-center space-x-3 mb-1">
@@ -289,7 +291,7 @@ function RoleCardModal({ agent, onClose }: { agent: Agent, onClose: () => void }
                             )}
                         </div>
                         <p className="text-base text-slate-300 font-medium leading-relaxed italic">
-                            "{agent.mission}"
+                            &ldquo;{agent.mission}&rdquo;
                         </p>
                     </div>
 

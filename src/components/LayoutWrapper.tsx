@@ -16,7 +16,7 @@ export function LayoutWrapper({ children, username = 'Admin' }: LayoutWrapperPro
     const closeSidebar = () => setIsSidebarOpen(false);
 
     return (
-        <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-black relative">
+        <div className="relative flex h-[100dvh] flex-col overflow-x-hidden bg-black md:flex-row md:overflow-hidden">
             <Header isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
             
             <Sidebar 
@@ -25,7 +25,7 @@ export function LayoutWrapper({ children, username = 'Admin' }: LayoutWrapperPro
                 onClose={closeSidebar} 
             />
             
-            <main className="flex-1 overflow-y-auto relative">
+            <main className="relative min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
                 {children}
             </main>
         </div>

@@ -5,29 +5,86 @@ import {
     Zap,
     LayoutGrid,
     Activity,
-    MoreHorizontal,
-    Maximize2,
     Users,
     Waves,
-    Calendar,
-    SearchIcon,
-    Plus,
-    MessageCircle,
-    Sparkles,
-    Shield,
-    TestTube,
     Code,
-    Search,
-    PenTool,
-    Palette,
-    Megaphone,
-    Terminal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
-import { Send, X } from 'lucide-react';
 
-const getAgentIcon = (agentOrId: any) => {
+type AgentSummary = {
+    id: string;
+    name: string;
+    role: string;
+    layer?: string;
+    mission?: string;
+    status?: string;
+    isLive?: boolean;
+    liveStatus?: string;
+};
+
+type OfficeTask = {
+    id: string;
+    title: string;
+    goal?: string;
+    description?: string;
+    status: string;
+    owner?: string;
+    currentRun?: {
+        currentStepId?: string;
+        steps?: Array<{
+            id: string;
+            stepNumber: number;
+            title: string;
+            role: string;
+            assignedAgentId?: string;
+            assignedAgentName?: string;
+            status: string;
+            goal?: string;
+        }>;
+    };
+    stagePlan?: Array<{
+        id: string;
+        stepNumber: number;
+        title: string;
+        role: string;
+        assignedAgentId?: string;
+        assignedAgentName?: string;
+        goal?: string;
+    }>;
+    issues?: Array<{
+        id: string;
+        status: string;
+        assignedTo: string;
+    }>;
+};
+
+type LiveSession = {
+    agentId?: string;
+    label?: string;
+    updatedAt?: number | string;
+    kind?: string;
+    key?: string;
+    sessionId?: string;
+    type?: string;
+    model?: string;
+    totalTokens?: number;
+};
+
+type PositionMap = Record<string, { x: number; y: number }>;
+
+function sessionUpdatedAt(session: LiveSession) {
+    if (typeof session.updatedAt === 'number') {
+        return session.updatedAt;
+    }
+    if (typeof session.updatedAt === 'string') {
+        const value = new Date(session.updatedAt).getTime();
+        return Number.isNaN(value) ? 0 : value;
+    }
+    return 0;
+}
+
+const getAgentIcon = (agentOrId?: string | Partial<AgentSummary>) => {
     const id = (typeof agentOrId === 'string' ? agentOrId : agentOrId?.id || '').toLowerCase();
     const role = (typeof agentOrId === 'string' ? '' : agentOrId?.role || '').toLowerCase();
     
@@ -41,36 +98,92 @@ const getAgentIcon = (agentOrId: any) => {
     return '👤';
 };
 
-export function OfficeClient({ agents }: { agents: any[] }) {
+function isOrchestratorAgent(agent?: Partial<AgentSummary>) {
+    const role = (agent?.role || '').toLowerCase();
+    const layer = (agent?.layer || '').toLowerCase();
+    return layer === 'governance' || role.includes('orchestrat') || role.includes('governance');
+}
+
+function getActiveTaskAssignment(task: OfficeTask) {
+    const currentStep = task.currentRun?.steps?.find((step) => step.id === task.currentRun?.currentStepId)
+        || task.currentRun?.steps?.find((step) => ['ready', 'running', 'submitted', 'blocked'].includes(step.status));
+
+    if (currentStep) {
+        return {
+            assignedAgentId: currentStep.assignedAgentId,
+            assignedAgentName: currentStep.assignedAgentName,
+            title: currentStep.title,
+            status: currentStep.status,
+        };
+    }
+
+    const plannedStep = task.stagePlan?.[0];
+    if (plannedStep) {
+        return {
+            assignedAgentId: plannedStep.assignedAgentId,
+            assignedAgentName: plannedStep.assignedAgentName,
+            title: plannedStep.title,
+            status: task.status === 'Backlog' ? 'planned' : task.status,
+        };
+    }
+
+    return null;
+}
+
+function taskNeedsOrchestrator(task: OfficeTask) {
+    if (task.status === 'Blocked' || task.status === 'In Review') {
+        return true;
+    }
+
+    if (task.currentRun?.steps?.some((step) => step.status === 'submitted' || step.status === 'blocked')) {
+        return true;
+    }
+
+    if (task.issues?.some((issue) => issue.assignedTo === 'orchestrator' && issue.status !== 'resolved')) {
+        return true;
+    }
+
+    return false;
+}
+
+export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
     // Dynamically pick the first agent or a sensible default
     const [selectedAgent, setSelectedAgent] = useState(() => {
         const orchestrator = agents.find(a => a.role?.toLowerCase().includes('orchestrat') || a.role?.toLowerCase().includes('governance'));
         return orchestrator?.id || agents[0]?.id || '';
     });
-    const [liveSessions, setLiveSessions] = useState<any[]>([]);
-    const [agentTasks, setAgentTasks] = useState<Record<string, any[]>>({});
-    const [loading, setLoading] = useState(true);
+    const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
+    const [agentTasks, setAgentTasks] = useState<Record<string, OfficeTask[]>>({});
 
     // Fetch assigned tasks for all agents
     useEffect(() => {
         const fetchTasks = async () => {
             try {
-                const res = await fetch('/api/tasks');
+                const res = await fetch('/api/tasks?include=currentRun,plan,issues');
                 if (res.ok) {
                     const tasks = await res.json();
-                    // Group tasks by owner
-                    const tasksByAgent: Record<string, any[]> = {};
-                    tasks.forEach((task: any) => {
-                        const owner = task.owner || 'unassigned';
-                        if (!tasksByAgent[owner]) tasksByAgent[owner] = [];
-                        tasksByAgent[owner].push(task);
+                    const tasksByAgent: Record<string, OfficeTask[]> = {};
+                    (tasks as OfficeTask[]).forEach((task) => {
+                        const assignment = getActiveTaskAssignment(task);
+
+                        if (assignment?.assignedAgentId) {
+                            if (!tasksByAgent[assignment.assignedAgentId]) tasksByAgent[assignment.assignedAgentId] = [];
+                            tasksByAgent[assignment.assignedAgentId].push(task);
+                        }
+                        if (assignment?.assignedAgentName) {
+                            if (!tasksByAgent[assignment.assignedAgentName]) tasksByAgent[assignment.assignedAgentName] = [];
+                            tasksByAgent[assignment.assignedAgentName].push(task);
+                        }
+                        if (taskNeedsOrchestrator(task)) {
+                            if (!tasksByAgent.orchestrator) tasksByAgent.orchestrator = [];
+                            tasksByAgent.orchestrator.push(task);
+                        }
                     });
                     setAgentTasks(tasksByAgent);
                 }
             } catch (err) {
                 console.error('Failed to fetch tasks', err);
             }
-            setLoading(false);
         };
 
         fetchTasks();
@@ -100,7 +213,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
         return pos;
     };
 
-    const [positions, setPositions] = useState<Record<string, {x: number, y: number}>>(getInitialPositions);
+    const [positions, setPositions] = useState<PositionMap>(getInitialPositions);
 
     useEffect(() => {
         const fetchSessions = async () => {
@@ -142,8 +255,117 @@ export function OfficeClient({ agents }: { agents: any[] }) {
     const selectedAgentData = displayAgents.find(a => a.id === selectedAgent) || displayAgents[0];
     const agentSessions = liveSessions
         .filter(s => s.agentId === selectedAgent || s.label?.toLowerCase().includes(selectedAgent.toLowerCase()))
-        .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+        .sort((a, b) => sessionUpdatedAt(b) - sessionUpdatedAt(a))
         .slice(0, 50);
+    const selectedAgentTasks = selectedAgentData
+        ? [
+            ...(agentTasks[selectedAgentData.name] || []),
+            ...(agentTasks[selectedAgentData.id] || []),
+            ...(isOrchestratorAgent(selectedAgentData) ? (agentTasks.orchestrator || []) : []),
+          ].filter((task, index, collection) => collection.findIndex((candidate) => candidate.id === task.id) === index)
+        : [];
+
+    const selectedAgentSummarySection = selectedAgentData ? (
+        <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+            <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#1a1a1a] bg-[#101010] text-2xl">
+                        {getAgentIcon(selectedAgentData)}
+                    </div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Selected Agent</p>
+                        <h2 className="mt-1 text-xl font-black text-white">{selectedAgentData.name}</h2>
+                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{selectedAgentData.role}</p>
+                    </div>
+                </div>
+                <span className={cn(
+                    "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+                    selectedAgentData.isLive ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-[#2a2a2a] bg-black text-slate-400",
+                )}>
+                    {selectedAgentData.isLive ? 'Active' : 'Standby'}
+                </span>
+            </div>
+            {selectedAgentData.mission && (
+                <p className="mt-4 text-sm leading-relaxed text-slate-400">{selectedAgentData.mission}</p>
+            )}
+        </section>
+    ) : null;
+
+    const assignedWorkSection = (
+        <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4 text-amber-400" />
+                    <p className="text-sm font-bold text-white">Assigned Work</p>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{selectedAgentTasks.length}</span>
+            </div>
+            <div className="mt-4 space-y-3">
+                {selectedAgentTasks.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
+                        No assigned tasks for this agent.
+                    </div>
+                ) : (
+                    selectedAgentTasks.map((task) => {
+                        const assignment = getActiveTaskAssignment(task);
+                        return (
+                            <div key={task.id} className="rounded-2xl border border-[#202020] bg-black/70 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="text-sm font-bold text-white">{task.title}</p>
+                                    <span className="rounded-full border border-[#2a2a2a] bg-black px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
+                                        {task.status}
+                                    </span>
+                                </div>
+                                <p className="mt-2 text-xs text-slate-500">{task.goal || task.description || 'No task summary available.'}</p>
+                                {assignment && (
+                                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                                        <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200">
+                                            {assignment.title}
+                                        </span>
+                                        <span className="rounded-full border border-[#2a2a2a] bg-black px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                            {assignment.status}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+        </section>
+    );
+
+    const recentSessionsSection = (
+        <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-blue-400" />
+                    <p className="text-sm font-bold text-white">Recent Sessions</p>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Live</span>
+            </div>
+            <div className="mt-4 space-y-3">
+                {agentSessions.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
+                        No recent session activity for this agent.
+                    </div>
+                ) : (
+                    agentSessions.map((session, i: number) => (
+                        <div key={i} className="rounded-2xl border border-[#202020] bg-black/70 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">{session.kind || 'Session'}</p>
+                                <span className="text-[10px] text-slate-500">
+                                    {session.updatedAt ? new Date(session.updatedAt).toLocaleTimeString() : ''}
+                                </span>
+                            </div>
+                            <p className="mt-2 break-all text-sm text-slate-300">{session.key || session.sessionId}</p>
+                            {session.type && <p className="mt-2 text-xs text-slate-500">{session.type}</p>}
+                        </div>
+                    ))
+                )}
+            </div>
+        </section>
+    );
 
     // Map Actions
     const handleReset = () => {
@@ -151,7 +373,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
     };
 
     const handleGather = () => {
-        const gatherPositions: any = {};
+        const gatherPositions: PositionMap = {};
         displayAgents.forEach((a, i) => {
             gatherPositions[a.id] = { x: (i % 3) + 2, y: Math.floor(i / 3) + 4 };
         });
@@ -169,9 +391,9 @@ export function OfficeClient({ agents }: { agents: any[] }) {
     };
 
     return (
-        <div className="flex flex-col h-screen relative overflow-hidden">
+        <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden">
             {/* Unified Header */}
-            <div className="px-6 md:px-12 py-8 md:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 md:mb-8">
+            <div className="shrink-0 px-6 md:px-12 py-8 md:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 md:mb-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="flex items-center gap-4">
                         <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
@@ -191,7 +413,48 @@ export function OfficeClient({ agents }: { agents: any[] }) {
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row flex-1 min-h-0 relative px-6 md:px-12 pb-20 gap-6">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-20 md:px-12 lg:hidden space-y-6">
+                {selectedAgentSummarySection}
+
+                <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-emerald-400" />
+                            <p className="text-sm font-bold text-white">Agents</p>
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{displayAgents.length} total</span>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {displayAgents.map((agent) => (
+                            <button
+                                key={agent.id}
+                                onClick={() => setSelectedAgent(agent.id)}
+                                className={cn(
+                                    "rounded-2xl border p-4 text-left transition-colors",
+                                    selectedAgent === agent.id ? "border-emerald-500/40 bg-emerald-500/10" : "border-[#202020] bg-black/70 hover:border-slate-600",
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-3">
+                                        <div className="text-xl">{getAgentIcon(agent)}</div>
+                                        <div>
+                                            <p className="text-sm font-bold text-white">{agent.name}</p>
+                                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{agent.role}</p>
+                                        </div>
+                                    </div>
+                                    <div className={cn("mt-1 h-2.5 w-2.5 rounded-full", agent.isLive ? "bg-blue-500" : "bg-slate-700")} />
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
+                {assignedWorkSection}
+
+                {recentSessionsSection}
+            </div>
+
+            <div className="hidden lg:flex flex-col lg:flex-row flex-1 min-h-0 relative px-6 md:px-12 pb-20 gap-6">
                 {/* Main 2D Floor Plan Area */}
                 <div className="flex-1 bg-black relative overflow-visible flex items-center justify-center min-h-[400px]">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(26,26,26,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(26,26,26,0.3)_1px,transparent_1px)] bg-[size:40px_40px]" />
@@ -268,7 +531,15 @@ export function OfficeClient({ agents }: { agents: any[] }) {
 
                 {/* Right Activity / Chat Sidebar */}
                 <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-[#1a1a1a] bg-[#0c0c0e] flex flex-col p-6 min-h-[300px]">
-                    <div className="flex items-center justify-between mb-8">
+                    <div className="mb-6 shrink-0">
+                        {selectedAgentSummarySection}
+                    </div>
+
+                    <div className="mb-6 shrink-0">
+                        {assignedWorkSection}
+                    </div>
+
+                    <div className="flex items-center justify-between mb-8 shrink-0">
                         <div className="flex items-center space-x-3">
                             <Activity className="w-4 h-4 text-blue-500" />
                             <h2 className="text-xs font-black text-slate-300 uppercase tracking-widest">Live Activity</h2>
@@ -284,7 +555,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
                                 <p className="text-[10px] font-medium text-slate-600">Events for {selectedAgent} will appear here.</p>
                             </div>
                         ) : (
-                            agentSessions.map((session: any, i: number) => (
+                            agentSessions.map((session, i: number) => (
                                 <div key={i} className="p-3 rounded-xl bg-[#131315] border border-[#1e1e20] flex flex-col gap-2 relative">
                                     <div className="flex justify-between items-start">
                                         <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{session.kind || 'Session'}</span>
@@ -320,7 +591,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
             </div>
 
             {/* Bottom Agents Bar */}
-            <div className="h-48 border-t border-[#1a1a1a] bg-[#0c0c0e] p-6">
+            <div className="hidden h-48 shrink-0 border-t border-[#1a1a1a] bg-[#0c0c0e] p-6 lg:block">
                 <div className="flex space-x-4 overflow-x-auto pb-2 h-full items-center">
                     {displayAgents.map((agent) => (
                         <div
@@ -360,7 +631,7 @@ export function OfficeClient({ agents }: { agents: any[] }) {
     );
 }
 
-function ControlBtn({ icon: Icon, label, color, onClick }: any) {
+function ControlBtn({ icon: Icon, label, color, onClick }: { icon: typeof Monitor; label: string; color: string; onClick: () => void }) {
     return (
         <button 
             onClick={onClick}
@@ -371,7 +642,16 @@ function ControlBtn({ icon: Icon, label, color, onClick }: any) {
     )
 }
 
-function MapObject({ x, y, type, agent, status, selected, showAvatar = true, onClick }: any) {
+function MapObject({ x, y, type, agent, status, selected, showAvatar = true, onClick }: {
+    x: number;
+    y: number;
+    type: 'desk' | 'character' | 'table' | 'fountain' | 'plant' | 'terminal';
+    agent?: string;
+    status?: string;
+    selected?: boolean;
+    showAvatar?: boolean;
+    onClick?: () => void;
+}) {
     const style = {
         gridColumnStart: x + 1,
         gridRowStart: y + 1,
@@ -442,5 +722,3 @@ function MapObject({ x, y, type, agent, status, selected, showAvatar = true, onC
 
     return null;
 }
-
-

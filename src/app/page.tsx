@@ -78,12 +78,12 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-[1400px] p-6 sm:p-10 lg:p-12 space-y-8 sm:space-y-12 animate-in fade-in duration-700">
+    <div className="max-w-[1400px] p-4 sm:p-10 lg:p-12 space-y-8 sm:space-y-12 animate-in fade-in duration-700">
       {/* Command Center Header */}
-      <div className="relative p-8 sm:p-10 lg:p-12 border border-[#1a1a1a] rounded-[2rem] sm:rounded-[3rem] bg-[#101010] overflow-hidden shadow-2xl">
+      <div className="relative border border-[#1a1a1a] rounded-[2rem] bg-[#101010] p-5 overflow-hidden shadow-2xl sm:rounded-[3rem] sm:p-10 lg:p-12">
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl opacity-50" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+        <div className="relative z-10 flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
           <div className="space-y-4 sm:space-y-6">
             <div className="flex items-center space-x-3">
               <div className="bg-blue-600/20 p-2 rounded-xl border border-blue-500/20">
@@ -100,8 +100,8 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center md:justify-end">
-            <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-4 sm:p-6 flex flex-col items-center min-w-[120px]">
+          <div className="flex md:justify-end">
+            <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-4 sm:p-6 flex flex-col items-center min-w-[120px] w-full sm:w-auto">
               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Status</span>
               <span className="text-lg sm:text-xl font-black text-emerald-500">NOMINAL</span>
             </div>
@@ -110,7 +110,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Orchestration Pulse Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
         <StatCard label="Pipeline Tasks" value={stats.totalTasks} icon={Target} color="text-blue-500" sub="Durable" href="/tasks" />
         <StatCard label="Stuck Recovery" value={stats.stuckTasks} icon={AlertTriangle} color="text-red-500" sub="Alerts active" href="/tasks" />
         <StatCard label="Uptime" value="100%" icon={Activity} color="text-emerald-500" sub="Real-time" href="/office" />
@@ -123,8 +123,9 @@ export default function DashboardPage() {
           <SectionHeader title="Active Pipeline" icon={History} link="/tasks" />
           <div className="grid grid-cols-1 gap-4">
             {tasks.slice(0, 5).map((task) => (
-              <Link key={task.id} href="/tasks" className="group p-6 bg-[#101010] border border-[#1a1a1a] rounded-2xl hover:border-slate-700 transition-all flex items-center justify-between shadow-lg">
-                <div className="flex items-center space-x-6">
+              <Link key={task.id} href="/tasks" className="group rounded-2xl border border-[#1a1a1a] bg-[#101010] p-5 shadow-lg transition-all hover:border-slate-700 sm:p-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center space-x-4 sm:space-x-6">
                   <div className={cn(
                     "w-3 h-3 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.3)]",
                     task.status === 'Done' ? "bg-emerald-500" : task.isStuck ? "bg-red-500 shadow-red-500/40 animate-pulse" : "bg-blue-500 shadow-blue-500/40"
@@ -137,10 +138,11 @@ export default function DashboardPage() {
                       <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{task.status}</span>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-6">
-                  {task.evidence && <LinkIcon className="w-4 h-4 text-emerald-500/50" />}
-                  <ArrowRight className="w-5 h-5 text-slate-800 group-hover:text-white transition-all group-hover:translate-x-1" />
+                  </div>
+                  <div className="flex items-center justify-end space-x-6">
+                    {task.evidence && <LinkIcon className="w-4 h-4 text-emerald-500/50" />}
+                    <ArrowRight className="w-5 h-5 text-slate-800 transition-all group-hover:translate-x-1 group-hover:text-white" />
+                  </div>
                 </div>
               </Link>
             ))}
@@ -150,7 +152,7 @@ export default function DashboardPage() {
         {/* Right: Domain Pulse */}
         <div className="space-y-8">
           <SectionHeader title="Domain Progress" icon={Cpu} link="/projects" />
-          <div className="space-y-8 p-8 bg-[#101010] border border-[#1a1a1a] rounded-3xl shadow-xl">
+          <div className="space-y-8 rounded-3xl border border-[#1a1a1a] bg-[#101010] p-5 shadow-xl sm:p-8">
             {projects.slice(0, 4).map((project) => (
               <Link key={project.id} href="/projects" className="block space-y-3 group/project transition-all hover:opacity-80">
                 <div className="flex justify-between items-end">
