@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, appendFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
@@ -57,5 +57,31 @@ export async function GET() {
     } catch (error) {
         console.error('Failed to read activity log:', error);
         return NextResponse.json({ activities: [], agents: [], error: 'Failed to read activity log' }, { status: 500 });
+    }
+}
+
+export async function POST(request: Request) {
+    try {
+        const body = await request.json();
+        
+        // Ensure the directory exists
+        const logDir = join(process.env.HOME || '', '.openclaw', 'workspace');
+        if (!existsSync(logDir)) {
+            mkdirSync(logDir, { recursive: true });
+        }
+
+        const entry = {
+            agent_id: body.agent_id || body.actor || 'unknown',
+            message: body.message || body.msg || '',
+            timestamp: new Date().toISOString(),
+            ...body,
+        };
+
+        appendFileSync(ACTIVITY_LOG_PATH, JSON.stringify(entry) + '\n');
+
+        return NextResponse.json({ success: true, entry }, { status: 201 });
+    } catch (error) {
+        console.error('Failed to write activity log:', error);
+        return NextResponse.json({ error: 'Failed to log activity' }, { status: 500 });
     }
 }
