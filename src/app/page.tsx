@@ -1,6 +1,7 @@
 import { getTasks } from '@/lib/domain/tasks';
 import { getProjects } from '@/lib/domain/projects';
 import {
+  Wifi,
   Zap,
   Target,
   Activity,
@@ -16,6 +17,7 @@ import {
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { isSystemReady } from '@/lib/domain/agents';
+import { GatewayPanel } from '@/components/GatewayPanel';
 
 export default function DashboardPage() {
   const tasks = getTasks();
@@ -151,6 +153,15 @@ export default function DashboardPage() {
 
         {/* Right: Domain Pulse */}
         <div className="space-y-8">
+          {/* Gateway Panel */}
+          <div className="rounded-3xl border border-[#1a1a1a] bg-[#101010] p-5 shadow-xl">
+            <div className="flex items-center space-x-3 mb-4">
+              <Wifi className="w-4 h-4 text-blue-400" />
+              <h2 className="text-sm font-black text-white uppercase tracking-[0.2em]">Gateway</h2>
+            </div>
+            <GatewayPanel />
+          </div>
+
           <SectionHeader title="Domain Progress" icon={Cpu} link="/projects" />
           <div className="space-y-8 rounded-3xl border border-[#1a1a1a] bg-[#101010] p-5 shadow-xl sm:p-8">
             {projects.slice(0, 4).map((project) => (
