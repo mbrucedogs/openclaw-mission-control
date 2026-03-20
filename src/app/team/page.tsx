@@ -1,8 +1,8 @@
 import { getAgents } from '@/lib/domain/agents';
 import TeamClient from './TeamClient';
 
-export default function TeamPage() {
-    const agents = getAgents();
+export default async function TeamPage() {
+    const agents = await getAgents();
     
     return (
         <div className="max-w-[1400px] p-6 sm:p-10 lg:p-12 space-y-12 sm:space-y-20">
@@ -24,4 +24,3 @@ export default function TeamPage() {
         </div>
     );
 }
-

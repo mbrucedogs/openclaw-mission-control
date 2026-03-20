@@ -258,6 +258,14 @@ export interface Agent {
   responsibilities?: string[];
   folder?: string;
   soulContent?: string;
+  // Live gateway fields
+  gatewaySessionCount?: number;
+  isActive?: boolean;
+  heartbeatEnabled?: boolean;
+  heartbeatEvery?: string;
+  recentSessions?: Array<{ key: string; updatedAt: number; age: number }>;
+  currentModel?: string;
+  percentUsed?: number;
 }
 
 export interface Project {
