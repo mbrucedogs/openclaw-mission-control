@@ -204,6 +204,26 @@ CREATE TABLE IF NOT EXISTS task_activity (
 CREATE INDEX IF NOT EXISTS idx_task_activity_task_id ON task_activity(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_activity_created_at ON task_activity(created_at DESC);
 
+-- Activity logging tables for Tron agent heartbeats
+CREATE TABLE IF NOT EXISTS step_heartbeats (
+    id TEXT PRIMARY KEY,
+    step_id TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    agent_name TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    is_stuck INTEGER NOT NULL DEFAULT 0,
+    stuck_reason TEXT,
+    last_activity TEXT,
+    heartbeat_count INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(step_id, agent_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_heartbeats_step ON step_heartbeats(step_id);
+CREATE INDEX IF NOT EXISTS idx_heartbeats_task ON step_heartbeats(task_id);
+
 CREATE TABLE IF NOT EXISTS task_evidence (
     id TEXT PRIMARY KEY,
     task_id TEXT NOT NULL,

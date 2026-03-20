@@ -1,28 +1,61 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 export const dynamic = 'force-dynamic';
 
+const ACTIVITY_LOG_PATH = join(process.env.HOME || '', '.openclaw', 'workspace', 'activity-log.jsonl');
+const LIVENESS_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
 export async function GET() {
     try {
-        const activity = db.prepare('SELECT * FROM activity ORDER BY timestamp DESC LIMIT 50').all();
-        return NextResponse.json(activity);
+        if (!existsSync(ACTIVITY_LOG_PATH)) {
+            return NextResponse.json({ activities: [], agents: [] });
+        }
+
+        const content = readFileSync(ACTIVITY_LOG_PATH, 'utf-8');
+        const lines = content.trim().split('\n').filter(Boolean);
+        
+        const now = Date.now();
+        
+        // Get activities from last 60 seconds
+        const activities = lines
+            .map(line => {
+                try {
+                    const entry = JSON.parse(line);
+                    const age = now - new Date(entry.timestamp).getTime();
+                    if (age <= LIVENESS_WINDOW_MS) return entry;
+                } catch {
+                    // skip invalid lines
+                }
+                return null;
+            })
+            .filter(Boolean);
+
+        // Get unique agents active in last hour
+        const agentMap: Record<string, any> = {};
+        const hourAgo = 60 * 60 * 1000; // 1 hour
+        
+        for (const line of lines) {
+            try {
+                const entry = JSON.parse(line);
+                const age = now - new Date(entry.timestamp).getTime();
+                if (age <= hourAgo) {
+                    if (!agentMap[entry.agent_id] || new Date(entry.timestamp) > new Date(agentMap[entry.agent_id].timestamp)) {
+                        agentMap[entry.agent_id] = entry;
+                    }
+                }
+            } catch {
+                // skip
+            }
+        }
+
+        return NextResponse.json({ 
+            activities, 
+            agents: Object.values(agentMap)
+        });
     } catch (error) {
-        return NextResponse.json({ error: 'Failed to fetch activity' }, { status: 500 });
-    }
-}
-
-export async function POST(req: Request) {
-    try {
-        const body = await req.json();
-        const now = new Date().toISOString();
-        const id = `act-${Date.now()}`;
-
-        db.prepare(`INSERT INTO activity (id, type, message, actor, timestamp) VALUES (?, ?, ?, ?, ?)`)
-            .run(id, body.type || 'task_updated', body.message, body.actor, now);
-
-        return NextResponse.json({ id }, { status: 201 });
-    } catch (error) {
-        return NextResponse.json({ error: 'Failed to create activity' }, { status: 500 });
+        console.error('Failed to read activity log:', error);
+        return NextResponse.json({ activities: [], agents: [], error: 'Failed to read activity log' }, { status: 500 });
     }
 }

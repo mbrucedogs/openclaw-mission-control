@@ -1,34 +1,33 @@
 #!/bin/zsh
-# Mission Control health check and auto-restart script
-# This runs via cron to ensure the service stays up
-
 PORT=4000
 PIDFILE=/tmp/mission-control.pid
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control"
 LOGFILE="$PROJECT_DIR/logs/cron-healthcheck.log"
+API_URL="http://localhost:$PORT"
 
-echo "$(date): Health check starting..." >> $LOGFILE
-
-# Check if port is responding
-curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/api/health 2>/dev/null | grep -q "200\|401"
-if [ $? -eq 0 ]; then
-    echo "$(date): Service is healthy on port $PORT" >> $LOGFILE
-    exit 0
+# Check if Mission Control is healthy
+if curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/health" 2>/dev/null | grep -q "200\|401"; then
+  # Service is up - send heartbeat to activity API
+  HEARTBEAT_PAYLOAD=$(cat << 'PAYLOAD'
+{
+  "runId": "tron",
+  "stepId": "tron-healthcheck",
+  "taskId": "system",
+  "agentId": "tron",
+  "agentName": "Tron",
+  "message": "healthcheck heartbeat",
+  "metadata": {},
+  "eventType": "heartbeat"
+}
+PAYLOAD
+)
+  curl -s -X POST "$API_URL/api/activity/heartbeat" \
+    -H "Content-Type: application/json" \
+    -d "$HEARTBEAT_PAYLOAD" >> "$LOGFILE" 2>&1
+  exit 0
 fi
 
-# Check if there's already a process running on that port
+# Service is down - restart it
 EXISTING_PID=$(lsof -t -i :$PORT 2>/dev/null)
-if [ -n "$EXISTING_PID" ]; then
-    echo "$(date): Killing stale process $EXISTING_PID" >> $LOGFILE
-    kill $EXISTING_PID 2>/dev/null
-    sleep 2
-fi
-
-# Start the service
-echo "$(date): Starting Mission Control..." >> $LOGFILE
-cd $PROJECT_DIR
-export PATH="/opt/homebrew/bin:$PATH"
-nohup npm run dev >> logs/stdout.log 2>> logs/stderr.log &
-echo $! > $PIDFILE
-
-echo "$(date): Started with PID $(cat $PIDFILE)" >> $LOGFILE
+if [ -n "$EXISTING_PID" ]; then kill $EXISTING_PID 2>/dev/null; sleep 2; fi
+cd $PROJECT_DIR && export PATH="/opt/homebrew/bin:$PATH" && nohup ./node_modules/.bin/next dev -p $PORT >> logs/stdout.log 2>> logs/stderr.log & echo $! > $PIDFILE

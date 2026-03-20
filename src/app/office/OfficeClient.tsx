@@ -153,6 +153,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
         return orchestrator?.id || agents[0]?.id || '';
     });
     const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
+    const [activityAgents, setActivityAgents] = useState<Array<{agent_id: string; event_type: string; timestamp: string; message?: string}>>([]);
     const [agentTasks, setAgentTasks] = useState<Record<string, OfficeTask[]>>({});
 
     // Fetch assigned tasks for all agents
@@ -215,35 +216,76 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
 
     const [positions, setPositions] = useState<PositionMap>(getInitialPositions);
 
+    // Fetch agent status from activity API (persists after sessions end)
     useEffect(() => {
-        const fetchSessions = async () => {
+        const fetchAgentStatus = async () => {
+            try {
+                const actRes = await fetch('/api/activity/agents');
+                if (actRes.ok) {
+                    const actData = await actRes.json();
+                    const activityAsSessions = (actData.agents || []).map((a: {
+                        agentId?: string; agentName?: string; lastSeen?: string;
+                        status?: string; stepTitle?: string; taskTitle?: string
+                    }) => ({
+                        agentId: a.agentId,
+                        label: a.agentName,
+                        updatedAt: a.lastSeen,
+                        kind: 'activity:' + (a.status || 'unknown'),
+                        key: (a.stepTitle || a.agentId) + ' @ ' + (a.taskTitle || 'no task'),
+                    }));
+                    setLiveSessions(prev => {
+                        const existing = prev.filter(s => !activityAsSessions.find((a: {agentId?: string}) => a.agentId === s.agentId));
+                        return [...existing, ...activityAsSessions];
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch activity agents", err);
+            }
+
             try {
                 const res = await fetch('/api/sessions');
                 if (res.ok) {
                     const data = await res.json();
-                    setLiveSessions(data.sessions || []);
+                    setLiveSessions(prev => {
+                        const sessions = data.sessions || [];
+                        const existing = prev.filter(s => !sessions.find((ns: {agentId?: string}) => ns.agentId === s.agentId));
+                        return [...existing, ...sessions];
+                    });
                 }
             } catch (err) {
                 console.error("Failed to fetch live sessions", err);
             }
         };
 
-        fetchSessions();
-        const interval = setInterval(fetchSessions, 5000);
+        fetchAgentStatus();
+        const interval = setInterval(fetchAgentStatus, 5000);
         return () => clearInterval(interval);
     }, []);
 
-    // Merge static agents from DB with live status from OpenClaw
     const displayAgents = agents.map(agent => {
-        // OpenClaw often uses names directly or prefixed IDs
+        // Check OpenClaw sessions
         const session = liveSessions.find(s => 
             s.agentId === agent.id || 
             s.label?.toLowerCase().includes(agent.id.toLowerCase())
         );
+        
+        // Check activity log for pipeline agents
+        const agentNameLower = agent.name.toLowerCase();
+        const agentIdLower = agent.id.toLowerCase();
+        const activity = activityAgents.find(a => 
+            a.agent_id.toLowerCase() === agentNameLower || 
+            a.agent_id.toLowerCase() === agentIdLower ||
+            agentNameLower.includes(a.agent_id.toLowerCase()) ||
+            a.agent_id.toLowerCase().includes(agentNameLower)
+        );
+        
+        const hasActivity = !!activity;
+        const isActive = !!session || hasActivity;
+        
         return {
             ...agent,
-            isLive: !!session,
-            liveStatus: session ? 'Active' : agent.status
+            isLive: isActive,
+            liveStatus: isActive ? (hasActivity ? 'Active (Pipeline)' : 'Active') : agent.status
         };
     });
 
