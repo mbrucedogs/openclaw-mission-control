@@ -532,6 +532,56 @@ This allows the dashboard to distinguish full outages from partial or scope-limi
 
 This route also attempts to sync gateway-derived runtime events before returning.
 
+## Gateway Diagnostics
+
+`GET /api/gateway/diagnostics`
+
+Returns the richer operator-facing runtime capability snapshot used by `/gateway`.
+
+The response includes:
+
+- `checkedAt`
+- `config`
+- `summary`
+- `checks`
+
+`config` includes:
+
+- `gatewayUrl`
+- `workspaceRoot`
+- `timeoutMs`
+- `hasTokenConfigured`
+
+`summary` includes:
+
+- `transportMode`
+- `state`
+- `reasonCode`
+- `operatorMessage`
+- `runtimeVersion`
+- `openClawVersion`
+- `defaultAgentId`
+- `heartbeatSeconds`
+- `channelCount`
+- `agentCount`
+- `sessionCount`
+
+`checks` is a list of normalized compatibility checks such as:
+
+- `transport`
+- `gateway`
+- `auth`
+- `scope`
+- `runtime`
+- `cli`
+
+Each check includes:
+
+- `id`
+- `label`
+- `status` -> `pass`, `warn`, or `fail`
+- `detail`
+
 ## Exec Approvals
 
 `GET /api/exec-approvals`

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Shield, Lock, Fingerprint, Activity, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -11,7 +10,6 @@ export default function LoginPage() {
     const [isAuthenticating, setIsAuthenticating] = useState(false);
     const [status, setStatus] = useState('Standby');
     const [shake, setShake] = useState(false);
-    const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,9 +25,8 @@ export default function LoginPage() {
 
             if (res.ok) {
                 setStatus('Handshake Verified. Access Granted.');
-                // Cookie is set by the API route
                 setTimeout(() => {
-                    router.push('/');
+                    window.location.assign('/');
                 }, 800);
             } else {
                 const data = await res.json();

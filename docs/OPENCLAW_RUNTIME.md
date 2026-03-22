@@ -55,6 +55,8 @@ It also normalizes common failure reasons into stable reason codes:
 
 The dashboard uses operator-safe summaries built from those codes. Raw internal errors stay out of the main panel.
 
+Mission Control now also exposes a dedicated operator-facing diagnostics page at `/gateway` backed by `GET /api/gateway/diagnostics`.
+
 ## What This Layer Is For
 
 The OpenClaw runtime layer is what makes the app feel live instead of static.
@@ -139,8 +141,11 @@ This transport is consumed by:
 - [`/api/status`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/app/api/status/route.ts)
 - [`/api/sessions`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/app/api/sessions/route.ts)
 - [`/api/gateway`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/app/api/gateway/route.ts)
+- [`/api/gateway/diagnostics`](/Users/mattbruce/.config/superpowers/worktrees/alex-mission-control/codex/full-hardening/src/app/api/gateway/diagnostics/route.ts)
 - [`/api/agents`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/app/api/agents/route.ts)
 - [`/api/exec-approvals`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/app/api/exec-approvals/route.ts)
+
+The capability snapshot builder lives in [`src/lib/openclaw/capabilities.ts`](/Users/mattbruce/.config/superpowers/worktrees/alex-mission-control/codex/full-hardening/src/lib/openclaw/capabilities.ts).
 
 ## Default Local Setup
 
@@ -193,6 +198,15 @@ Connected-state semantics are now:
 - `degraded`: at least one gateway call succeeded, but runtime data is partial or scope-limited
 - `failed`: no gateway call succeeded
 
+The diagnostics page turns that into explicit compatibility checks for:
+
+- transport
+- gateway reachability
+- auth/token presence
+- scope availability
+- runtime completeness
+- OpenClaw CLI availability
+
 ## Freshness Model
 
 Mission Control intentionally keeps two agent read paths:
@@ -244,6 +258,7 @@ Supported decisions are:
 These pages are the main consumers of the OpenClaw runtime layer:
 
 - `/` dashboard summary
+- `/gateway` runtime diagnostics and manual probe refresh
 - `/team` discovered roster and grouping
 - `/office` team operations board, live scene, and agent inspector
 - `/approvals` gateway approval queue

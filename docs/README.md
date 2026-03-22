@@ -30,6 +30,7 @@ Mission Control now uses a `Task -> Plan -> Run` model.
 - OpenClaw runtime connectivity is explicit and config-driven; it does not depend on shelling out to the CLI.
 - The live agent roster comes from OpenClaw workspace discovery, not a hardcoded app list.
 - Gateway, session, and approval state must come from the shared runtime adapters, not static UI assumptions.
+- `/gateway` is the operator-facing diagnostics surface for runtime capability checks and manual probe refresh.
 - The primary orchestrator and the human operator use the same API contract.
 - Task detail supports editing task summary fields and editable planned stages in place before the run starts.
 - Each execution packet must name one concrete assigned agent before creation.
@@ -41,3 +42,4 @@ Mission Control now uses a `Task -> Plan -> Run` model.
 - Gateway exec approvals are a separate operator queue; they are not a substitute for task issue threads.
 - Blockers that the primary orchestrator cannot resolve must become task-bound issue threads with replies, not loose side conversations.
 - A stalled stage is blocked and escalated; it is not auto-restarted by default.
+- Playwright smoke coverage now protects login, dashboard, gateway diagnostics, approvals, and the new-task flow.

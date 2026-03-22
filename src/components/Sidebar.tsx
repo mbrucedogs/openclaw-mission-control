@@ -17,6 +17,7 @@ import {
     LogOut,
     Settings,
     ShieldAlert,
+    Wifi,
     X
 } from 'lucide-react';
 
@@ -28,6 +29,7 @@ const navigation = [
     { name: 'Memory', href: '/memories', icon: Brain },
     { name: 'Docs', href: '/docs', icon: FileText },
     { name: 'Office', href: '/office', icon: Monitor },
+    { name: 'Gateway', href: '/gateway', icon: Wifi },
     { name: 'Approvals', href: '/approvals', icon: ShieldAlert },
     { name: 'Team', href: '/team', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },

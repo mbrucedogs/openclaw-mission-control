@@ -160,9 +160,14 @@ export default async function DashboardPage() {
         <div className="space-y-8">
           {/* Gateway Panel */}
           <div className="rounded-3xl border border-[#1a1a1a] bg-[#101010] p-5 shadow-xl">
-            <div className="flex items-center space-x-3 mb-4">
-              <Wifi className="w-4 h-4 text-blue-400" />
-              <h2 className="text-sm font-black text-white uppercase tracking-[0.2em]">Gateway</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Wifi className="w-4 h-4 text-blue-400" />
+                <h2 className="text-sm font-black text-white uppercase tracking-[0.2em]">Gateway</h2>
+              </div>
+              <Link href="/gateway" className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400 transition hover:text-blue-300">
+                Diagnostics
+              </Link>
             </div>
             <GatewayPanel />
           </div>
