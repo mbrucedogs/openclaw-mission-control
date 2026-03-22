@@ -24,8 +24,16 @@ test('buildGatewayPanelModel derives counts, recent session rows, and channel st
       channelOrder: ['telegram', 'discord'],
     },
     agents: [
-      { id: 'main', name: 'Max', isDefault: true, heartbeatEnabled: true, heartbeatEvery: '30m', sessionCount: 2 },
-      { id: 'alice', name: 'Alice', isDefault: false, heartbeatEnabled: false, heartbeatEvery: 'disabled', sessionCount: 0 },
+      {
+        id: 'main',
+        name: 'Max',
+        isDefault: true,
+        heartbeatEnabled: true,
+        heartbeatEvery: '30m',
+        sessionCount: 2,
+        recent: [{ key: 'agent:main:main', updatedAt: 1700000000000, age: 120000 }],
+      },
+      { id: 'alice', name: 'Alice', isDefault: false, heartbeatEnabled: false, heartbeatEvery: 'disabled', sessionCount: 0, recent: [] },
     ],
     sessions: {
       count: 5,
@@ -119,7 +127,15 @@ test('buildGatewayPanelModel keeps recent session ids unique when the gateway re
     },
     gateway: null,
     agents: [
-      { id: 'main', name: 'Max', isDefault: true, heartbeatEnabled: true, heartbeatEvery: '30m', sessionCount: 2 },
+      {
+        id: 'main',
+        name: 'Max',
+        isDefault: true,
+        heartbeatEnabled: true,
+        heartbeatEvery: '30m',
+        sessionCount: 2,
+        recent: [{ key: 'agent:tron:cron:job-1', updatedAt: 1700000000000, age: 120000 }],
+      },
     ],
     sessions: {
       count: 2,
@@ -169,4 +185,41 @@ test('buildGatewayPanelModel keeps recent session ids unique when the gateway re
     detail: 'Gateway reachable, but some runtime details are unavailable.',
     transportLabel: 'CLI fallback',
   })
+})
+
+test('buildGatewayPanelModel only counts agents with fresh recent sessions as active', () => {
+  const model = buildGatewayPanelModel({
+    connected: true,
+    diagnostics: {
+      transportMode: 'sdk',
+      state: 'connected',
+      reasonCode: 'ok',
+      operatorMessage: 'Connected via SDK transport.',
+      hasRawError: false,
+    },
+    gateway: null,
+    agents: [
+      {
+        id: 'fresh',
+        name: 'Fresh',
+        isDefault: false,
+        heartbeatEnabled: true,
+        heartbeatEvery: '30m',
+        sessionCount: 2,
+        recent: [{ key: 'agent:fresh:main', updatedAt: 1700000000000, age: 60_000 }],
+      },
+      {
+        id: 'stale',
+        name: 'Stale',
+        isDefault: false,
+        heartbeatEnabled: true,
+        heartbeatEvery: '30m',
+        sessionCount: 8,
+        recent: [{ key: 'agent:stale:main', updatedAt: 1700000000000, age: 60 * 60 * 1000 }],
+      },
+    ],
+    sessions: null,
+  })
+
+  assert.equal(model.summary.activeAgentCount, 1)
 })

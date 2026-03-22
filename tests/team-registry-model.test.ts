@@ -32,3 +32,21 @@ test('buildTeamRegistryModel summarizes registry counts and stable grouping', ()
   assert.equal(build?.agents[0]?.agent.id, 'r1');
   assert.equal(automation?.agents[0]?.needsSetup, true);
 });
+
+test('buildTeamRegistryModel does not count stale gateway sessions as active agents', () => {
+  const model = buildTeamRegistryModel({
+    agents: [
+      {
+        id: 'stale',
+        name: 'Stale Agent',
+        role: 'Builder',
+        type: 'builder',
+        gatewaySessionCount: 5,
+        recentSessions: [{ key: 'agent:stale:main', updatedAt: 1, age: 60 * 60 * 1000 }],
+      },
+    ],
+  });
+
+  assert.equal(model.summary.activeAgents, 0);
+  assert.equal(model.groups.find((group) => group.id === 'build')?.agents[0]?.isActive, false);
+});

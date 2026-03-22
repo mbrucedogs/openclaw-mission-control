@@ -2,6 +2,7 @@ import { Agent, RunStepRole } from '../types'
 import { discoverAgents, toGatewayAgentId } from '../openclaw/discovery'
 import { db } from '../db'
 import { agentMatchesStepRole, inferStepRoleForAgent } from '../agent-matching'
+import { hasFreshPresence } from '../agent-presence'
 import {
   getGatewayHealth,
   getGatewayStatus,
@@ -119,11 +120,12 @@ export function mergeAgentsWithRuntime(
     const dbData = dbDataMap.get(agent.id)
     const runtime = runtimeMap.get(toGatewayAgentId(agent.id))
     const gatewaySessionCount = runtime?.sessionCount ?? 0
+    const isLive = hasFreshPresence(runtime?.recentSessions)
 
     return {
       ...agent,
       gatewaySessionCount,
-      isActive: gatewaySessionCount > 0,
+      isActive: isLive,
       heartbeatEnabled: runtime?.heartbeatEnabled ?? false,
       heartbeatEvery: runtime?.heartbeatEvery,
       recentSessions: runtime?.recentSessions ?? [],

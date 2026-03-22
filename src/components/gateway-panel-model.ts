@@ -1,3 +1,5 @@
+import { hasFreshPresence } from '@/lib/agent-presence'
+
 export type GatewayPanelResponse = {
   connected: boolean
   diagnostics?: {
@@ -21,6 +23,11 @@ export type GatewayPanelResponse = {
     heartbeatEnabled: boolean
     heartbeatEvery: string
     sessionCount: number
+    recent?: Array<{
+      key: string
+      updatedAt: number
+      age: number
+    }>
   }>
   sessions?: {
     count: number
@@ -96,7 +103,7 @@ export function buildGatewayPanelModel(data: GatewayPanelResponse | null): Gatew
     },
     summary: {
       agentCount: agents.length,
-      activeAgentCount: agents.filter((agent) => agent.sessionCount > 0).length,
+      activeAgentCount: agents.filter((agent) => hasFreshPresence(agent.recent)).length,
       sessionCount: sessions?.count ?? 0,
     },
     recentSessions: (sessions?.recent ?? []).slice(0, 4).map((session) => ({

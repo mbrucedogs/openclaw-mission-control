@@ -127,3 +127,34 @@ test('mergeAgentsWithRuntime fails safe when the gateway is unavailable', () => 
   assert.equal(agents[0]?.isActive, false)
   assert.equal(agents[0]?.currentModel, undefined)
 })
+
+test('mergeAgentsWithRuntime keeps historical session counts without marking stale agents active', () => {
+  const runtimeMap = new Map([
+    ['main', {
+      sessionCount: 4,
+      heartbeatEnabled: true,
+      heartbeatEvery: '30m',
+      recentSessions: [{ key: 'agent:main:main', updatedAt: 100, age: 60 * 60 * 1000 }],
+      currentModel: 'gpt-5.4',
+      percentUsed: 12,
+    }],
+  ])
+
+  const agents = mergeAgentsWithRuntime(
+    [
+      {
+        id: 'main',
+        name: 'Max',
+        role: 'Primary Orchestrator',
+        status: 'idle',
+        mission: '',
+        responsibilities: [],
+      },
+    ],
+    new Map([['main', { status: 'idle', type: 'orchestrator' }]]),
+    runtimeMap,
+  )
+
+  assert.equal(agents[0]?.gatewaySessionCount, 4)
+  assert.equal(agents[0]?.isActive, false)
+})

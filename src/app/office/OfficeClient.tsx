@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildRuntimeEventsStreamPath } from '@/lib/runtime-events';
+import { isPresenceFresh } from '@/lib/agent-presence';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     buildTeamOperationsModel,
@@ -150,9 +151,24 @@ function sessionUpdatedAt(session: LiveSession) {
     return 0;
 }
 
-function mergeSessionsByAgentId(current: LiveSession[], incoming: LiveSession[]) {
-    const existing = current.filter((session) => !incoming.find((next) => next.agentId === session.agentId));
-    return [...existing, ...incoming];
+function uniquePresenceKey(session: LiveSession) {
+    if (session.key) return session.key;
+    if (session.sessionId) return session.sessionId;
+    if (session.agentId && session.kind?.startsWith('activity:')) return `activity:${session.agentId}`;
+    return `${session.agentId || session.label || 'unknown'}:${session.kind || 'presence'}`;
+}
+
+function mergePresenceSignals(incoming: LiveSession[]) {
+    const unique = new Map<string, LiveSession>();
+
+    incoming
+        .filter((session) => isPresenceFresh(session))
+        .sort((left, right) => sessionUpdatedAt(right) - sessionUpdatedAt(left))
+        .forEach((session) => {
+            unique.set(uniquePresenceKey(session), session);
+        });
+
+    return [...unique.values()];
 }
 
 function getAgentIcon(agentOrId?: string | Partial<AgentSummary>) {
@@ -267,11 +283,13 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
     const [sseConnected, setSseConnected] = useState(false);
 
     const refreshLiveAgentStatus = useCallback(async () => {
+        const nextSignals: LiveSession[] = [];
+
         try {
             const activityResponse = await fetch('/api/activity/agents');
             if (activityResponse.ok) {
                 const activityData = await activityResponse.json();
-                const activityAsSessions = (activityData.agents || []).map((agent: {
+                nextSignals.push(...(activityData.agents || []).map((agent: {
                     agentId?: string;
                     agentName?: string;
                     lastSeen?: string;
@@ -284,8 +302,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
                     updatedAt: agent.lastSeen,
                     kind: `activity:${agent.status || 'unknown'}`,
                     key: `${agent.stepTitle || agent.agentId} @ ${agent.taskTitle || 'no task'}`,
-                }));
-                setLiveSessions((previous) => mergeSessionsByAgentId(previous, activityAsSessions));
+                })));
             }
         } catch (error) {
             console.error('Failed to fetch activity agents', error);
@@ -295,11 +312,13 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
             const sessionsResponse = await fetch('/api/sessions');
             if (sessionsResponse.ok) {
                 const sessionsData = await sessionsResponse.json();
-                setLiveSessions((previous) => mergeSessionsByAgentId(previous, sessionsData.sessions || []));
+                nextSignals.push(...(sessionsData.sessions || []));
             }
         } catch (error) {
             console.error('Failed to fetch live sessions', error);
         }
+
+        setLiveSessions(mergePresenceSignals(nextSignals));
     }, []);
 
     const handleRuntimeEvent = useCallback((event: SSERuntimeEvent) => {
@@ -366,8 +385,10 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
     const displayAgents = useMemo(() => (
         agents.map((agent) => {
             const session = liveSessions.find((liveSession) => (
-                liveSession.agentId === agent.id ||
-                String(liveSession.label || '').toLowerCase().includes(agent.id.toLowerCase())
+                (
+                    liveSession.agentId === agent.id ||
+                    String(liveSession.label || '').toLowerCase().includes(agent.id.toLowerCase())
+                ) && isPresenceFresh(liveSession)
             ));
 
             const isLive = Boolean(session);

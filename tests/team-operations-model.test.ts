@@ -25,10 +25,24 @@ test('classifyAgentGroup maps agents into stable operations lanes', () => {
 });
 
 test('deriveAgentWorkState prioritizes live work, then blocked, then assigned', () => {
-  assert.equal(deriveAgentWorkState(agents[1], [], [{ agentId: 'rita' }]), 'active');
+  assert.equal(
+    deriveAgentWorkState(agents[1], [], [{ agentId: 'rita', updatedAt: new Date().toISOString() }]),
+    'active',
+  );
   assert.equal(deriveAgentWorkState(agents[2], [{ id: '1', title: 'Build', status: 'Blocked' }], []), 'blocked');
   assert.equal(deriveAgentWorkState(agents[2], [{ id: '1', title: 'Build', status: 'In Progress' }], []), 'assigned');
   assert.equal(deriveAgentWorkState(agents[2], [], []), 'idle');
+});
+
+test('deriveAgentWorkState ignores stale live-session signals', () => {
+  assert.equal(
+    deriveAgentWorkState(
+      agents[1],
+      [],
+      [{ agentId: 'rita', updatedAt: new Date(Date.now() - (60 * 60 * 1000)).toISOString() }],
+    ),
+    'idle',
+  );
 });
 
 test('buildTeamOperationsModel creates non-overlapping zone seats and summary counts', () => {
@@ -38,7 +52,10 @@ test('buildTeamOperationsModel creates non-overlapping zone seats and summary co
       rita: [{ id: 't1', title: 'Research payment flow', status: 'In Progress' }],
       ben: [{ id: 't2', title: 'Build payment flow', status: 'Blocked' }],
     },
-    liveSessions: [{ agentId: 'rita', key: 'session-1' }, { agentId: 'main', key: 'session-2' }],
+    liveSessions: [
+      { agentId: 'rita', key: 'session-1', updatedAt: new Date().toISOString() },
+      { agentId: 'main', key: 'session-2', updatedAt: new Date().toISOString() },
+    ],
     workItems: [
       { id: 't1', title: 'Research payment flow', state: 'active', agentId: 'rita' },
       { id: 't2', title: 'Build payment flow', state: 'blocked', agentId: 'ben', needsAttention: true },

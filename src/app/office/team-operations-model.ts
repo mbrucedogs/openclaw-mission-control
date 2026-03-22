@@ -29,6 +29,7 @@ export type TeamOperationsSession = {
   totalTokens?: number;
 };
 
+import { hasFreshPresence } from '@/lib/agent-presence';
 import {
   AGENT_GROUP_META,
   classifyAgentGroup,
@@ -158,7 +159,7 @@ export function deriveAgentWorkState(
   tasks: TeamOperationsTask[],
   sessions: TeamOperationsSession[],
 ): AgentWorkState {
-  if (sessions.length > 0 || agent.isLive) return 'active';
+  if (hasFreshPresence(sessions) || agent.isLive) return 'active';
   if (tasks.some((task) => task.status === 'Blocked' || task.status === 'In Review')) return 'blocked';
   if (tasks.length > 0) return 'assigned';
   return 'idle';

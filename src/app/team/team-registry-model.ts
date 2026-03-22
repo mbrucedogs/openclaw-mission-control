@@ -1,4 +1,5 @@
 import type { Agent } from '@/lib/types';
+import { hasFreshPresence } from '@/lib/agent-presence';
 import {
   AGENT_GROUP_META,
   classifyAgentGroup,
@@ -36,7 +37,7 @@ function isAgentActive(agent: Agent): boolean {
   const extended = agent as Agent & { isActive?: boolean; gatewaySessionCount?: number };
   return Boolean(
     extended.isActive ||
-    (extended.gatewaySessionCount ?? 0) > 0 ||
+    hasFreshPresence(agent.recentSessions) ||
     status === 'active' ||
     status === 'busy',
   );

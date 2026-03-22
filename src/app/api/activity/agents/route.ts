@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { LIVE_AGENT_WINDOW_MS } from '@/lib/agent-presence';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const cutoff = new Date(Date.now() - LIVE_AGENT_WINDOW_MS).toISOString();
     const rows = db.prepare(`
       SELECT 
         sh.agent_id,
@@ -23,8 +25,10 @@ export async function GET() {
       FROM step_heartbeats sh
       LEFT JOIN tasks t ON sh.task_id = t.id
       LEFT JOIN run_steps rs ON sh.step_id = rs.id
+      WHERE sh.updated_at >= ?
+        AND (rs.status IS NULL OR rs.status IN ('running', 'submitted', 'blocked'))
       ORDER BY sh.heartbeat_count DESC, sh.updated_at DESC
-    `).all() as Record<string, unknown>[];
+    `).all(cutoff) as Record<string, unknown>[];
     
     const agents = rows.map(row => ({
       agentId: row.agent_id,
