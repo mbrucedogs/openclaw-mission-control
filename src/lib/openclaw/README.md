@@ -14,8 +14,8 @@ Primary env/config:
 
 The transport implementation lives in:
 
-- [`client.ts`](/Users/mattbruce/.config/superpowers/worktrees/alex-mission-control/openclaw-explicit-gateway-service/src/lib/openclaw/client.ts)
-- [`gateway.ts`](/Users/mattbruce/.config/superpowers/worktrees/alex-mission-control/openclaw-explicit-gateway-service/src/lib/openclaw/gateway.ts)
+- [`client.ts`](./client.ts)
+- [`gateway.ts`](./gateway.ts)
 
 Mission Control no longer depends on spawning the `openclaw` CLI for routine gateway RPCs.
 
@@ -28,7 +28,7 @@ Workspace root resolution:
 - `OPENCLAW_WORKSPACE` when set
 - otherwise `~/openclaw/workspace`
 
-### Required Files in OpenClaw Workspace:
+### Discovery Inputs
 
 1.  **`agents/TEAM-REGISTRY.md`**: 
     - **MUST** contain a Markdown table with `Name`, `Role`, and `Folder`.
@@ -47,10 +47,33 @@ Workspace root resolution:
 
 Discovery also handles:
 
-- root workspace agent derivation
-- metadata enrichment from `SOUL.md` and `AGENTS.md`
-- technical ID remapping
-- canonical layer hints for `governance`, `build`, `review`, and `automation`
+- deriving the root workspace agent identity
+- enriching metadata from `SOUL.md` and `AGENTS.md`
+- remapping to technical gateway IDs when configured
+- inferring canonical layer hints: `governance`, `build`, `review`, `automation`
+
+See [`discovery.ts`](./discovery.ts).
+
+## Shared Runtime Transport
+
+Gateway-backed runtime access is centralized here instead of spread across unrelated shell-outs or route-specific transport code.
+
+Key modules:
+
+- [`client.ts`](./client.ts) for explicit gateway client loading and request wiring
+- [`gateway.ts`](./gateway.ts) for health and status RPCs
+- [`sessions.ts`](./sessions.ts) for normalized session payloads
+- [`approvals.ts`](./approvals.ts) for exec approval snapshots and decisions
+- [`runtime-bridge.ts`](./runtime-bridge.ts) for converting gateway snapshots into durable runtime events
+
+## Freshness Model
+
+The app intentionally separates:
+
+- cached synchronous agent reads
+- fresh asynchronous agent reads merged with gateway runtime
+
+That boundary lives in [`../domain/agents.ts`](../domain/agents.ts) and is used so API and live UI surfaces can request fresh runtime state when needed.
 
 ### Maintenance
 
@@ -58,6 +81,6 @@ If you add a new agent to OpenClaw:
 - Add them to `TEAM-REGISTRY.md`.
 - Create their folder with `SOUL.md` and `AGENTS.md`.
 - Update `TEAM_GOVERNANCE.md` if they participate in the main delivery flow.
-- Update technical config if the gateway-facing ID differs from the discovery ID.
+- Update technical config if the gateway-facing ID differs from the friendly discovery ID.
 
 The Mission Control UI will automatically pick up these changes on the next refresh.

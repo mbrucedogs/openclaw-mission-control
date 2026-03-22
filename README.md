@@ -12,8 +12,10 @@ Mission Control is a task orchestration system for OpenClaw organizations built 
 - Tracks live step events, comments, and evidence
 - Tracks blocker conversations through task-bound issue threads with replies
 - Surfaces stalled work to the primary orchestrator through a recovery scan instead of silently retrying
-- Discovers the OpenClaw agent roster dynamically from workspace metadata
-- Connects to OpenClaw through an explicit native gateway client configured by URL/token instead of shelling out to the CLI
+- Dynamically discovers the OpenClaw agent roster from workspace metadata instead of hardcoding agents in the UI
+- Connects to OpenClaw through an explicit native gateway client configured by URL and token instead of shelling out to the CLI
+- Uses shared gateway adapters for live status, sessions, runtime events, and exec approvals
+- Shows live operational state across the dashboard, team registry, office operations view, and approvals queue
 - Uses task lifecycle statuses on the board: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`
 - Shows the current execution stage inside each task as secondary context
 
@@ -68,6 +70,14 @@ POST   /api/tasks/:id/issues
 PATCH  /api/tasks/:id/issues/:issueId
 POST   /api/tasks/:id/rerun
 GET    /api/tasks/activity
+GET    /api/agents
+GET    /api/status
+GET    /api/sessions
+GET    /api/gateway
+GET    /api/exec-approvals
+POST   /api/exec-approvals
+GET    /api/events/stream
+GET    /api/activity/feed
 GET    /api/task-templates
 POST   /api/task-templates
 GET    /api/task-templates/:id
@@ -81,6 +91,13 @@ GET    /api/recovery/scan
 Saved templates can be managed directly from `/tasks` through `Manage Templates`, including edit, duplicate, and delete.
 
 The `/tasks` screen also includes a show/hide live activity panel backed by the task-native activity feed.
+
+The runtime side of the product now has four primary operational surfaces:
+
+- `/` for the dashboard summary and truthful gateway status
+- `/team` for the discovered agent registry and grouping
+- `/office` for the live team operations view driven by runtime and task state
+- `/approvals` for gateway exec approval review and resolution
 
 Full request details live in [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md).
 

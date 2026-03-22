@@ -15,7 +15,7 @@ Mission Control now uses a `Task -> Plan -> Run` model.
 
 1. `README.md` - This overview
 2. `API_REFERENCE.md` - Canonical API contract and examples
-3. `OPENCLAW_RUNTIME.md` - Explicit runtime transport, discovery, gateway state, and approvals
+3. `OPENCLAW_RUNTIME.md` - Live runtime model, explicit gateway transport, discovery, sessions, approvals, and SSE
 4. `ORCHESTRATOR_OPERATING_MODEL.md` - What the primary orchestrator is expected to do
 5. `TASK_AUTHORING_WIZARD.md` - How one-shot creation works
 6. `STEP_EXECUTION.md` - How steps move through start, submission, validation, and retry
@@ -28,6 +28,8 @@ Mission Control now uses a `Task -> Plan -> Run` model.
 - `POST /api/tasks` saves the task and planned stages only.
 - `POST /api/tasks/:id/start` is what instantiates the first run.
 - OpenClaw runtime connectivity is explicit and config-driven; it does not depend on shelling out to the CLI.
+- The live agent roster comes from OpenClaw workspace discovery, not a hardcoded app list.
+- Gateway, session, and approval state must come from the shared runtime adapters, not static UI assumptions.
 - The primary orchestrator and the human operator use the same API contract.
 - Task detail supports editing task summary fields and editable planned stages in place before the run starts.
 - Each execution packet must name one concrete assigned agent before creation.
@@ -36,5 +38,6 @@ Mission Control now uses a `Task -> Plan -> Run` model.
 - Every running stage requires a structured completion packet before the primary orchestrator can validate it.
 - Board columns reflect task lifecycle status: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`.
 - Current execution stage such as `Planning`, `Build`, `QA`, or `Review` is shown inside the task card and detail view.
+- Gateway exec approvals are a separate operator queue; they are not a substitute for task issue threads.
 - Blockers that the primary orchestrator cannot resolve must become task-bound issue threads with replies, not loose side conversations.
 - A stalled stage is blocked and escalated; it is not auto-restarted by default.

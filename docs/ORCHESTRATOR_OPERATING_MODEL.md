@@ -46,6 +46,7 @@ After an agent submits completion but BEFORE validating:
 - `running` with stale heartbeat: block and decide retry, restart, or keep blocked.
 - `submitted` but weak completion packet: reject and return the stage to blocked.
 - `blocked`: decide whether to retry the same stage, rerun from this stage, or wait for human input.
+- external exec approval pending: route it through the approvals queue; do not rewrite it as task state unless it also creates a task-specific blocker.
 - if human context is required: open an issue thread on the task, explain what failed, what was tried, and what decision is needed.
 - repeated failure: prefer reroute or explicit escalation instead of silent looping.
 

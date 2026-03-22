@@ -436,3 +436,159 @@ Query params:
 - `staleMinutes`
 
 The scan finds stale running steps, blocks them, records escalation events, and returns the work the primary orchestrator needs to review.
+
+## OpenClaw Runtime APIs
+
+These endpoints back the live operational surfaces of the app.
+
+## Agents
+
+`GET /api/agents`
+
+Returns the discovered agent roster merged with fresh gateway runtime where available.
+
+Live runtime fields can include:
+
+- `isActive`
+- `gatewaySessionCount`
+- `currentModel`
+- `percentUsed`
+
+This endpoint uses the fresh async gateway-backed agent path rather than the cached sync helper.
+
+## Status
+
+`GET /api/status`
+
+Returns app-level status plus truthful gateway connectivity.
+
+Response shape:
+
+```json
+{
+  "status": "online",
+  "version": "2.0.0-mission-control",
+  "gateway": "connected",
+  "environment": "local",
+  "stats": {
+    "agents": 6,
+    "tasks": 24
+  },
+  "timestamp": "2026-03-22T12:00:00.000Z"
+}
+```
+
+`gateway` becomes `disconnected` when the app cannot reach OpenClaw gateway health.
+
+## Sessions
+
+`GET /api/sessions`
+
+Returns a normalized sessions payload built from gateway status data.
+
+Response shape:
+
+```json
+{
+  "sessions": [
+    {
+      "id": "sess-123",
+      "agentId": "builder-1",
+      "model": "gpt-5.4",
+      "startedAt": "2026-03-22T11:30:00.000Z",
+      "updatedAt": "2026-03-22T11:59:00.000Z",
+      "ageMs": 1740000,
+      "percentUsed": 42
+    }
+  ]
+}
+```
+
+If gateway status is unavailable, the endpoint fails safe with an empty `sessions` list.
+
+## Gateway Snapshot
+
+`GET /api/gateway`
+
+Returns the broader gateway snapshot used by the dashboard and gateway panel.
+
+The response includes:
+
+- `connected`
+- `gateway`
+- `agents`
+- `sessions`
+
+This route also attempts to sync gateway-derived runtime events before returning.
+
+## Exec Approvals
+
+`GET /api/exec-approvals`
+
+Returns pending gateway exec approvals in normalized shape:
+
+```json
+{
+  "approvals": [
+    {
+      "id": "apr-123",
+      "agentId": "builder-1",
+      "risk": "medium",
+      "command": "npm publish",
+      "reason": "Publishing requires approval",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+`POST /api/exec-approvals`
+
+Request:
+
+```json
+{
+  "id": "apr-123",
+  "action": "approve"
+}
+```
+
+Supported actions:
+
+- `approve`
+- `always_allow`
+- `deny`
+
+## Runtime Events Stream
+
+`GET /api/events/stream`
+
+Server-sent events stream for runtime snapshots and agent activity transitions.
+
+Behavior:
+
+- emits a `connection` event when the stream opens
+- emits `event` messages for replayed or newly synced runtime events
+- supports replay from `Last-Event-ID`
+- sends heartbeat comments periodically to keep the stream alive
+
+## Activity Feed
+
+`GET /api/activity/feed`
+
+Returns task-native agent activity and active heartbeat state for the live activity UI.
+
+Query params:
+
+- `taskId`
+- `agent`
+- `limit`
+
+Response shape:
+
+```json
+{
+  "events": [],
+  "agents": []
+}
+```
