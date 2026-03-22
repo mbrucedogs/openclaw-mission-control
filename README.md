@@ -38,6 +38,40 @@ npm run dev
 
 Open [http://localhost:4000](http://localhost:4000).
 
+## Setup
+
+For a fresh clone:
+
+1. Copy `.env.template` to `.env`
+2. Set `API_KEY`, `AUTH_USER`, and `AUTH_PASS`
+3. Set `OPENCLAW_WORKSPACE` if your workspace is not at `~/openclaw/workspace`
+4. Start the app with `npm run dev`
+
+Minimum local setup usually looks like:
+
+```bash
+API_KEY=replace_with_a_real_api_key
+AUTH_USER=admin
+AUTH_PASS=replace_with_a_real_password
+DATABASE_URL=./mission-control.db
+OPENCLAW_WORKSPACE=~/openclaw/workspace
+OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
+```
+
+Optional variables:
+
+- `OPENCLAW_GATEWAY_TOKEN` if the gateway requires auth
+- `OPENCLAW_GATEWAY_TIMEOUT_MS` to override the default `10000`
+- `DOCUMENTS_ROOT`, `DOCS_ROOT`, `MEMORY_ROOT`, `TMP_ROOT` only if your workspace layout is non-standard
+- `OPENCLAW_GATEWAY_SDK_CALL_PATH` only for debugging package-layout issues
+
+Variables you probably do not need in `.env` anymore for a normal setup:
+
+- `RESEARCH_PATH`
+- `PLANS_PATH`
+
+They are legacy leftovers from the older docs-path configuration and are not part of the current runtime path.
+
 ## Docs
 
 AI training and operating docs live in [`docs/`](./docs):
