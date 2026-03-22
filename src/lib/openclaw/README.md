@@ -4,7 +4,7 @@ This directory contains the logic for integrating with the OpenClaw workspace.
 
 ## Runtime Transport
 
-Mission Control now uses an explicit native OpenClaw gateway client for runtime access.
+Mission Control now uses an explicit OpenClaw gateway transport for runtime access.
 
 Primary env/config:
 
@@ -17,13 +17,12 @@ The transport implementation lives in:
 - [`client.ts`](./client.ts)
 - [`gateway.ts`](./gateway.ts)
 
-Mission Control no longer depends on spawning the `openclaw` CLI for routine gateway RPCs.
-
 Current implementation note:
 
-- [`client.ts`](./client.ts) currently loads the installed OpenClaw gateway client from `node_modules/openclaw/dist/plugin-sdk/gateway/call.js`.
-- `OPENCLAW_GATEWAY_SDK_CALL_PATH` can override that path for local debugging or future package changes.
-- If OpenClaw later exposes the gateway client as a public package export, this loader should switch to that public entrypoint.
+- [`client.ts`](./client.ts) first tries to load a runtime gateway client from the installed `openclaw` package.
+- If the package does not expose a usable runtime client, it falls back to `openclaw gateway call --url --token ...`.
+- The runtime config is still explicit even when the CLI fallback is used.
+- If OpenClaw later exposes a supported runtime gateway client, this transport should switch fully to that public entrypoint.
 
 ## Dynamic Agent Discovery
 

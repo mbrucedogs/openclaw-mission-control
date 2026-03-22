@@ -9,17 +9,9 @@ This document describes the second layer.
 
 ## Runtime Connection Model
 
-Mission Control now connects to OpenClaw through a native gateway client inside the app process.
+Mission Control now connects to OpenClaw through an explicit gateway transport inside the app process.
 
-It no longer shells out to:
-
-```bash
-openclaw gateway call ...
-```
-
-for routine runtime reads.
-
-Instead, runtime access is configured explicitly with:
+The transport is config-driven around:
 
 ```bash
 OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
@@ -35,9 +27,10 @@ This gives Mission Control a stable path for:
 
 Current implementation note:
 
-- Mission Control loads OpenClaw's gateway client from the installed `openclaw` package under `node_modules`.
-- Today that means `src/lib/openclaw/client.ts` imports the internal SDK file at `openclaw/dist/plugin-sdk/gateway/call.js` unless `OPENCLAW_GATEWAY_SDK_CALL_PATH` overrides it.
-- This is still better than CLI shell-out, but it remains a dependency on OpenClaw's current package layout until the client is publicly exported.
+- Mission Control first tries to load a runtime gateway client from the installed `openclaw` package.
+- The published package in this repo does not currently expose a stable runtime `callGateway` entrypoint.
+- When that runtime client is unavailable, Mission Control falls back to `openclaw gateway call --url --token ...` using the explicit gateway config above.
+- That keeps runtime behavior explicit and correct, but it is still a CLI-mediated fallback until OpenClaw publishes a supported runtime client surface.
 
 ## What This Layer Is For
 
@@ -103,7 +96,7 @@ The main implementation lives in [`src/lib/openclaw/discovery.ts`](/Volumes/Data
 
 ## Shared Gateway Transport
 
-Mission Control now standardizes runtime access through a native client plus shared gateway adapters instead of mixing unrelated transport paths.
+Mission Control now standardizes runtime access through a config-driven gateway transport plus shared gateway adapters instead of mixing unrelated transport paths.
 
 Primary implementation modules:
 

@@ -29,7 +29,7 @@ test('getOpenClawGatewayRuntimeConfig falls back to local loopback defaults when
   })
 })
 
-test('callOpenClawGateway uses explicit native client wiring instead of CLI subprocess args', async () => {
+test('callOpenClawGateway uses explicit gateway config when invoking the transport layer', async () => {
   const calls: unknown[] = []
 
   const result = await callOpenClawGateway<{ ok: boolean }>(

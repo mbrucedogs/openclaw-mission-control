@@ -13,7 +13,7 @@ Mission Control is a task orchestration system for OpenClaw organizations built 
 - Tracks blocker conversations through task-bound issue threads with replies
 - Surfaces stalled work to the primary orchestrator through a recovery scan instead of silently retrying
 - Dynamically discovers the OpenClaw agent roster from workspace metadata instead of hardcoding agents in the UI
-- Connects to OpenClaw through an explicit native gateway client configured by URL and token instead of shelling out to the CLI
+- Connects to OpenClaw through an explicit gateway transport configured by URL and token
 - Uses shared gateway adapters for live status, sessions, runtime events, and exec approvals
 - Shows live operational state across the dashboard, team registry, office operations view, and approvals queue
 - Uses task lifecycle statuses on the board: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`
@@ -63,7 +63,6 @@ Optional variables:
 - `OPENCLAW_GATEWAY_TOKEN` if the gateway requires auth
 - `OPENCLAW_GATEWAY_TIMEOUT_MS` to override the default `10000`
 - `DOCUMENTS_ROOT`, `DOCS_ROOT`, `MEMORY_ROOT`, `TMP_ROOT` only if your workspace layout is non-standard
-- `OPENCLAW_GATEWAY_SDK_CALL_PATH` only for debugging package-layout issues
 
 Variables you probably do not need in `.env` anymore for a normal setup:
 
@@ -139,7 +138,7 @@ All API requests require the `X-API-Key` header when made outside the authentica
 
 ## OpenClaw Runtime Config
 
-Mission Control now talks to OpenClaw through an explicit native gateway client.
+Mission Control now talks to OpenClaw through an explicit gateway transport.
 
 Primary runtime config:
 
@@ -155,7 +154,8 @@ Notes:
 - `OPENCLAW_GATEWAY_URL` can stay loopback for same-machine deployments.
 - If OpenClaw moves to another machine later, point the URL at the remote gateway and provide the token if required.
 - `OPENCLAW_WORKSPACE` is still used for local discovery of agent metadata and docs.
-- Runtime access no longer depends on spawning the `openclaw` CLI from Mission Control.
+- Runtime access is config-driven.
+- The app prefers a published OpenClaw runtime client when available and falls back to `openclaw gateway call` when the package does not expose one.
 
 ## Development
 
