@@ -8,24 +8,24 @@
     <array>
         <string>/bin/zsh</string>
         <string>-c</string>
-        <string>exec /path/to/project/alex-mission-control/start-mission-control.sh</string>
+        <string>exec /Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control/start-mission-control.sh</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/path/to/project/alex-mission-control</string>
+    <string>/Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/path/to/project/alex-mission-control/logs/launchd-stdout.log</string>
+    <string>/Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control/logs/launchd-stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/path/to/project/alex-mission-control/logs/launchd-stderr.log</string>
+    <string>/Users/mattbruce/.openclaw/workspace/projects/Web/alex-mission-control/logs/launchd-stderr.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
         <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>HOME</key>
-        <string>/Users/yourusername</string>
+        <string>/Users/mattbruce</string>
     </dict>
 </dict>
 </plist>

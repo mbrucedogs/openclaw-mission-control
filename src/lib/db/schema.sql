@@ -337,3 +337,17 @@ CREATE TABLE IF NOT EXISTS schedule_jobs (
 
 INSERT OR IGNORE INTO projects (id, name, description, status, progress) VALUES
     ('general', 'General', 'Default project for uncategorized tasks', 'active', 0);
+
+-- Runtime events for Tron/agent durability and cursor-based replay
+CREATE TABLE IF NOT EXISTS runtime_events (
+    cursor INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT NOT NULL UNIQUE,
+    event_type TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    payload TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_runtime_events_cursor ON runtime_events(cursor);
+CREATE INDEX IF NOT EXISTS idx_runtime_events_type ON runtime_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_runtime_events_created ON runtime_events(created_at);

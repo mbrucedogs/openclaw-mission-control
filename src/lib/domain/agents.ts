@@ -173,6 +173,27 @@ export function getOrchestrationAgentById(id: string): Agent | null {
     return inferStepRoleForAgent(agent) ? agent : null;
 }
 
+export function updateAgentType(id: string, type: string): void {
+    const normalizedId = String(id || '').trim();
+    const normalizedType = String(type || '').trim();
+
+    if (!normalizedId) {
+        throw new Error('Agent id is required');
+    }
+
+    if (!normalizedType) {
+        throw new Error('Agent type is required');
+    }
+
+    const result = db
+        .prepare('UPDATE agents SET type = ? WHERE id = ?')
+        .run(normalizedType, normalizedId);
+
+    if (result.changes === 0) {
+        throw new Error(`Agent not found: ${normalizedId}`);
+    }
+}
+
 /**
  * System is ready only when all agents have an assigned system type.
  */

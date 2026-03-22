@@ -10,7 +10,8 @@ import {
     Code,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState, useEffect } from 'react';
+import { buildRuntimeEventsStreamPath } from '@/lib/runtime-events';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 type AgentSummary = {
     id: string;
@@ -73,6 +74,89 @@ type LiveSession = {
 
 type PositionMap = Record<string, { x: number; y: number }>;
 
+type SSERuntimeEvent = {
+    id: string;
+    type: string;
+    actor: string;
+    payload: Record<string, unknown>;
+    cursor: number;
+    createdAt: string;
+};
+
+// SSE Hook for real-time event streaming
+function useSSERuntimeEvents(onEvent?: (event: SSERuntimeEvent) => void) {
+    const eventSourceRef = useRef<EventSource | null>(null);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const connectRef = useRef<() => void>(() => {});
+    const lastEventIdRef = useRef<number>(0);
+    const [sseIsConnected, setSseIsConnected] = useState(false);
+    
+    const connect = useCallback(() => {
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+        }
+
+        const eventSource = new EventSource(buildRuntimeEventsStreamPath(lastEventIdRef.current));
+        eventSourceRef.current = eventSource;
+        
+        eventSource.onopen = () => {
+            setSseIsConnected(true);
+        };
+        
+        eventSource.addEventListener('connection', (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                lastEventIdRef.current = data.cursor ?? 0;
+            } catch {
+                // Ignore parse errors
+            }
+        });
+        
+        eventSource.addEventListener('event', (e) => {
+            try {
+                const data = JSON.parse(e.data) as SSERuntimeEvent;
+                if (data.cursor) {
+                    lastEventIdRef.current = data.cursor;
+                }
+                onEvent?.(data);
+            } catch {
+                // Ignore parse errors
+            }
+        });
+        
+        eventSource.onerror = () => {
+            setSseIsConnected(false);
+            eventSource.close();
+            
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            reconnectTimeoutRef.current = setTimeout(() => {
+                connectRef.current();
+            }, 5000);
+        };
+    }, [onEvent]);
+
+    useEffect(() => {
+        connectRef.current = connect;
+    }, [connect]);
+
+    useEffect(() => {
+        connect();
+        
+        return () => {
+            if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+            }
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+            }
+        };
+    }, [connect]);
+    
+    return { sseIsConnected };
+}
+
 function sessionUpdatedAt(session: LiveSession) {
     if (typeof session.updatedAt === 'number') {
         return session.updatedAt;
@@ -82,6 +166,14 @@ function sessionUpdatedAt(session: LiveSession) {
         return Number.isNaN(value) ? 0 : value;
     }
     return 0;
+}
+
+function mergeSessionsByAgentId(
+    current: LiveSession[],
+    incoming: LiveSession[],
+) {
+    const existing = current.filter(session => !incoming.find(next => next.agentId === session.agentId));
+    return [...existing, ...incoming];
 }
 
 const getAgentIcon = (agentOrId?: string | Partial<AgentSummary>) => {
@@ -153,8 +245,56 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
         return orchestrator?.id || agents[0]?.id || '';
     });
     const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
-    const [activityAgents, setActivityAgents] = useState<Array<{agent_id: string; event_type: string; timestamp: string; message?: string}>>([]);
     const [agentTasks, setAgentTasks] = useState<Record<string, OfficeTask[]>>({});
+    const [sseConnected, setSseConnected] = useState(false);
+
+    const refreshLiveAgentStatus = useCallback(async () => {
+        try {
+            const actRes = await fetch('/api/activity/agents');
+            if (actRes.ok) {
+                const actData = await actRes.json();
+                const activityAsSessions = (actData.agents || []).map((a: {
+                    agentId?: string; agentName?: string; lastSeen?: string;
+                    status?: string; stepTitle?: string; taskTitle?: string
+                }) => ({
+                    agentId: a.agentId,
+                    label: a.agentName,
+                    updatedAt: a.lastSeen,
+                    kind: 'activity:' + (a.status || 'unknown'),
+                    key: (a.stepTitle || a.agentId) + ' @ ' + (a.taskTitle || 'no task'),
+                }));
+                setLiveSessions(prev => mergeSessionsByAgentId(prev, activityAsSessions));
+            }
+        } catch (err) {
+            console.error("Failed to fetch activity agents", err);
+        }
+
+        try {
+            const res = await fetch('/api/sessions');
+            if (res.ok) {
+                const data = await res.json();
+                setLiveSessions(prev => mergeSessionsByAgentId(prev, data.sessions || []));
+            }
+        } catch (err) {
+            console.error("Failed to fetch live sessions", err);
+        }
+    }, []);
+
+    // Handle SSE runtime events
+    const handleRuntimeEvent = useCallback((event: SSERuntimeEvent) => {
+        if (event.type === 'gateway.status.fetch') {
+            void refreshLiveAgentStatus();
+        }
+    }, [refreshLiveAgentStatus]);
+
+
+    // SSE connection for real-time updates
+    const { sseIsConnected: isConnected } = useSSERuntimeEvents(handleRuntimeEvent);
+    
+    useEffect(() => {
+        setSseConnected(isConnected);
+    }, [isConnected]);
+
 
     // Fetch assigned tasks for all agents
     useEffect(() => {
@@ -188,7 +328,7 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
         };
 
         fetchTasks();
-        const interval = setInterval(fetchTasks, 10000); // Refresh every 10s
+        const interval = setInterval(fetchTasks, 30000); // Refresh every 30s
         return () => clearInterval(interval);
     }, []);
     
@@ -216,51 +356,13 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
 
     const [positions, setPositions] = useState<PositionMap>(getInitialPositions);
 
-    // Fetch agent status from activity API (persists after sessions end)
     useEffect(() => {
-        const fetchAgentStatus = async () => {
-            try {
-                const actRes = await fetch('/api/activity/agents');
-                if (actRes.ok) {
-                    const actData = await actRes.json();
-                    const activityAsSessions = (actData.agents || []).map((a: {
-                        agentId?: string; agentName?: string; lastSeen?: string;
-                        status?: string; stepTitle?: string; taskTitle?: string
-                    }) => ({
-                        agentId: a.agentId,
-                        label: a.agentName,
-                        updatedAt: a.lastSeen,
-                        kind: 'activity:' + (a.status || 'unknown'),
-                        key: (a.stepTitle || a.agentId) + ' @ ' + (a.taskTitle || 'no task'),
-                    }));
-                    setLiveSessions(prev => {
-                        const existing = prev.filter(s => !activityAsSessions.find((a: {agentId?: string}) => a.agentId === s.agentId));
-                        return [...existing, ...activityAsSessions];
-                    });
-                }
-            } catch (err) {
-                console.error("Failed to fetch activity agents", err);
-            }
-
-            try {
-                const res = await fetch('/api/sessions');
-                if (res.ok) {
-                    const data = await res.json();
-                    setLiveSessions(prev => {
-                        const sessions = data.sessions || [];
-                        const existing = prev.filter(s => !sessions.find((ns: {agentId?: string}) => ns.agentId === s.agentId));
-                        return [...existing, ...sessions];
-                    });
-                }
-            } catch (err) {
-                console.error("Failed to fetch live sessions", err);
-            }
-        };
-
-        fetchAgentStatus();
-        const interval = setInterval(fetchAgentStatus, 5000);
+        void refreshLiveAgentStatus();
+        const interval = setInterval(() => {
+            void refreshLiveAgentStatus();
+        }, 15000);
         return () => clearInterval(interval);
-    }, []);
+    }, [refreshLiveAgentStatus]);
 
     const displayAgents = agents.map(agent => {
         // Check OpenClaw sessions
@@ -268,24 +370,13 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
             s.agentId === agent.id || 
             s.label?.toLowerCase().includes(agent.id.toLowerCase())
         );
-        
-        // Check activity log for pipeline agents
-        const agentNameLower = agent.name.toLowerCase();
-        const agentIdLower = agent.id.toLowerCase();
-        const activity = activityAgents.find(a => 
-            a.agent_id.toLowerCase() === agentNameLower || 
-            a.agent_id.toLowerCase() === agentIdLower ||
-            agentNameLower.includes(a.agent_id.toLowerCase()) ||
-            a.agent_id.toLowerCase().includes(agentNameLower)
-        );
-        
-        const hasActivity = !!activity;
-        const isActive = !!session || hasActivity;
+
+        const isActive = !!session;
         
         return {
             ...agent,
             isLive: isActive,
-            liveStatus: isActive ? (hasActivity ? 'Active (Pipeline)' : 'Active') : agent.status
+            liveStatus: isActive ? 'Active' : agent.status
         };
     });
 
@@ -326,7 +417,13 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
                 )}>
                     {selectedAgentData.isLive ? 'Active' : 'Standby'}
                 </span>
-            </div>
+                    <span className={cn(
+                        "rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
+                        sseConnected ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-[#2a2a2a] bg-black text-slate-400",
+                    )}>
+                        {sseConnected ? '● Live' : '○ Polling'}
+                    </span>
+                </div>
             {selectedAgentData.mission && (
                 <p className="mt-4 text-sm leading-relaxed text-slate-400">{selectedAgentData.mission}</p>
             )}
