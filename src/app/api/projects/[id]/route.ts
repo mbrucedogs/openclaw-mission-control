@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getProject } from '@/lib/domain/projects';
 
+type ProjectUpdateBody = {
+    name?: string;
+    description?: string;
+    status?: string;
+};
+
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
@@ -19,7 +25,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const body = await request.json();
+        const body = await request.json() as ProjectUpdateBody;
         const { name, description, status } = body;
 
         const existing = db.prepare('SELECT id FROM projects WHERE id = ?').get(id);
@@ -28,7 +34,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         }
 
         const updates: string[] = [];
-        const values: any[] = [];
+        const values: string[] = [];
 
         if (name !== undefined) { updates.push('name = ?'); values.push(name); }
         if (description !== undefined) { updates.push('description = ?'); values.push(description); }

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { 
     Settings, Plus, Trash2, 
     User, Save, X, Loader2,
-    Users, Bot, Edit3, Check
+    Bot, Edit3, Check
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,25 +44,39 @@ export default function SettingsPage() {
     const [agents, setAgents] = useState<AgentData[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<TabType>('users');
+    const [refreshNonce, setRefreshNonce] = useState(0);
 
     useEffect(() => {
-        loadData();
-    }, [activeTab]);
+        let cancelled = false;
 
-    const loadData = async () => {
-        setLoading(true);
-        try {
-            if (activeTab === 'users') {
-                const res = await fetch('/api/users');
-                if (res.ok) setUsers(await res.json());
-            } else {
-                const res = await fetch('/api/agents');
-                if (res.ok) setAgents(await res.json());
+        async function loadData() {
+            setLoading(true);
+            try {
+                if (activeTab === 'users') {
+                    const res = await fetch('/api/users');
+                    if (res.ok && !cancelled) setUsers(await res.json());
+                } else {
+                    const res = await fetch('/api/agents');
+                    if (res.ok && !cancelled) setAgents(await res.json());
+                }
+            } catch (err) {
+                console.error('Failed to load data:', err);
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
             }
-        } catch (err) {
-            console.error('Failed to load data:', err);
         }
-        setLoading(false);
+
+        void loadData();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [activeTab, refreshNonce]);
+
+    const refreshCurrentTab = () => {
+        setRefreshNonce((current) => current + 1);
     };
 
     return (
@@ -117,8 +131,8 @@ export default function SettingsPage() {
                     </div>
                 ) : (
                     activeTab === 'users' 
-                        ? <UsersTab users={users} onRefresh={() => loadData()} />
-                        : <AgentsTab agents={agents} onRefresh={() => loadData()} />
+                        ? <UsersTab users={users} onRefresh={refreshCurrentTab} />
+                        : <AgentsTab agents={agents} onRefresh={refreshCurrentTab} />
                 )}
             </div>
         </div>

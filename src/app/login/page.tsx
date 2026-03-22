@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Shield, Zap, Lock, Fingerprint, Activity, ChevronRight, Brain } from 'lucide-react';
+import { Shield, Lock, Fingerprint, Activity, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
@@ -38,7 +38,7 @@ export default function LoginPage() {
                 setIsAuthenticating(false);
                 setTimeout(() => setShake(false), 500);
             }
-        } catch (err) {
+        } catch {
             setShake(true);
             setStatus('Connection Error.');
             setIsAuthenticating(false);

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { listWorkspaceFiles, searchWorkspaceFiles, getLocalFileContent } from '@/lib/domain/documents';
 import { WORKSPACE_ROOTS } from '@/lib/config';
+import type { DocumentEntry } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
     const action = req.nextUrl.searchParams.get('action');
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest) {
 
     switch (action) {
         case 'list': {
-            let files: any[] = [];
+            let files: DocumentEntry[] = [];
             if (root) {
                 files = listWorkspaceFiles(root);
             } else {
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
 
             if (query) {
                 const q = query.toLowerCase();
-                files = files.filter(f => f.title.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
+                files = files.filter((file) => file.title.toLowerCase().includes(q) || file.path.toLowerCase().includes(q));
             }
 
             // Sort newest first

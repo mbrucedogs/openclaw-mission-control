@@ -2,7 +2,11 @@ import { db } from '../db';
 import { DocumentEntry, RepoDocument, DocumentFolder, LinkedTask } from '../types';
 import fs from 'fs';
 import path from 'path';
-import { WORKSPACE_ROOTS, EXCLUDED_FOLDERS, ALLOWED_EXTENSIONS, expandHome } from '../config';
+import { EXCLUDED_FOLDERS, ALLOWED_EXTENSIONS, expandHome } from '../config';
+
+type RepoDocumentRow = Omit<RepoDocument, 'tags'> & {
+    tags: string | null;
+};
 
 
 // ─── Viewer Mode (filesystem-backed, via local_documents table) ───────────────
@@ -84,7 +88,7 @@ export function searchWorkspaceFiles(rootDir: string, query: string): DocumentEn
 
 export function getRepoDocuments(opts?: { search?: string; folder_id?: number }): RepoDocument[] {
     let sql = 'SELECT * FROM documents WHERE 1=1';
-    const params: any[] = [];
+    const params: Array<string | number> = [];
 
     if (opts?.search) {
         sql += ' AND (title LIKE ? OR summary LIKE ? OR content LIKE ?)';
@@ -97,11 +101,11 @@ export function getRepoDocuments(opts?: { search?: string; folder_id?: number })
     }
     sql += ' ORDER BY updated_at DESC';
 
-    return (db.prepare(sql).all(...params) as any[]).map(parseRepoDoc);
+    return (db.prepare(sql).all(...params) as RepoDocumentRow[]).map(parseRepoDoc);
 }
 
 export function getRepoDocumentById(id: number): (RepoDocument & { linkedTasks: LinkedTask[] }) | null {
-    const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as any;
+    const row = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as RepoDocumentRow | undefined;
     if (!row) return null;
     const doc = parseRepoDoc(row);
     const linkedTasks = db.prepare(`
@@ -124,7 +128,7 @@ export function createRepoDocument(d: Omit<RepoDocument, 'id' | 'updated_at'>): 
 }
 
 export function updateRepoDocument(id: number, d: Partial<RepoDocument>): RepoDocument | null {
-    const existing = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as any;
+    const existing = db.prepare('SELECT * FROM documents WHERE id = ?').get(id) as RepoDocumentRow | undefined;
     if (!existing) return null;
 
     const updated = {
@@ -174,7 +178,7 @@ export function unlinkTask(documentId: number, taskId: string): boolean {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function parseRepoDoc(row: any): RepoDocument {
+function parseRepoDoc(row: RepoDocumentRow): RepoDocument {
     return {
         ...row,
         tags: row.tags ? JSON.parse(row.tags) : [],

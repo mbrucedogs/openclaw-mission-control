@@ -26,7 +26,7 @@ export function IngestButton() {
                 setStatus('error');
                 setErrorMessage(result.error || 'Sync failed');
             }
-        } catch (err) {
+        } catch {
             setStatus('error');
             setErrorMessage('Network error');
         }

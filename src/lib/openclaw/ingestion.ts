@@ -1,9 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { execSync } from 'child_process';
 import { db } from '@/lib/db';
-import { Task, TaskStatus, Agent } from '@/lib/types';
 import { WORKSPACE_ROOTS, BASE_WORKSPACE } from '@/lib/config';
 import { listWorkspaceFiles } from '@/lib/domain/documents';
 
@@ -71,26 +69,6 @@ function ingestMemories() {
     }
 }
 
-function getAllMarkdownFiles(dirPath: string, fileList: string[] = []): string[] {
-    if (!fs.existsSync(dirPath)) return fileList;
-    const items = fs.readdirSync(dirPath);
-    for (const item of items) {
-        if (item.startsWith('.') || item === 'node_modules' || item.includes('bl-mission-control')) continue;
-        const fullPath = path.join(dirPath, item);
-        try {
-            const stats = fs.statSync(fullPath);
-            if (stats.isDirectory()) {
-                getAllMarkdownFiles(fullPath, fileList);
-            } else if (item.endsWith('.md')) { // ONLY .md files
-                fileList.push(fullPath);
-            }
-        } catch {
-            // skip
-        }
-    }
-    return fileList;
-}
-
 // ─── Documents ────────────────────────────────────────────────────────────────
 
 function ingestDocuments() {
@@ -146,7 +124,7 @@ function ingestScheduleJobs() {
                         cronExpr = job.schedule.expr;
                     } else if (job.schedule?.kind === 'every' && job.schedule?.everyMs) {
                         // Convert "every X ms" to a simple cron for display if possible
-                        let mins = Math.max(1, Math.round(job.schedule.everyMs / 60000));
+                        const mins = Math.max(1, Math.round(job.schedule.everyMs / 60000));
                         if (mins < 60) {
                             cronExpr = `*/${mins} * * * *`;
                         } else {
@@ -160,8 +138,8 @@ function ingestScheduleJobs() {
                     currentJobIds.push(job.id);
                 }
             }
-        } catch(e) {
-            console.error('Failed to parse OpenClaw cron jobs.json:', e);
+        } catch (error) {
+            console.error('Failed to parse OpenClaw cron jobs.json:', error);
         }
     }
 
@@ -176,7 +154,7 @@ function ingestScheduleJobs() {
 
 /** Run ingestion only if DB is effectively empty (first boot or reset) */
 export function ensureSeeded() {
-    const agentCount = (db.prepare('SELECT COUNT(*) as c FROM agents').get() as any).c;
+    const agentCount = (db.prepare('SELECT COUNT(*) as c FROM agents').get() as { c: number }).c;
     if (agentCount === 0) {
         ingestWorkspace().catch(console.error);
     }

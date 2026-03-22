@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { randomUUID } from 'crypto';
 import { db } from '../db';
 import type {
@@ -948,7 +949,6 @@ export function submitStepCompletion(stepId: string, input: StepCompletionPacket
   }
 
   // Validate that outputs actually exist on disk
-  const fs = require('fs');
   for (const output of input.outputsProduced) {
     if (typeof output === 'string' && output.startsWith('/')) {
       if (!fs.existsSync(output)) {

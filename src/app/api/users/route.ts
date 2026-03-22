@@ -1,9 +1,30 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
+type UserRow = {
+    username: string;
+    role: string;
+    createdAt: string;
+};
+
+type UserBody = {
+    username?: string;
+    password?: string;
+    role?: string;
+};
+
+function isSqliteConstraintError(error: unknown): error is { code: string } {
+    return Boolean(
+        error
+        && typeof error === 'object'
+        && 'code' in error
+        && typeof (error as { code?: unknown }).code === 'string',
+    );
+}
+
 export async function GET() {
     try {
-        const users = db.prepare('SELECT username, role, createdAt FROM users').all();
+        const users = db.prepare('SELECT username, role, createdAt FROM users').all() as UserRow[];
         return NextResponse.json(users);
     } catch (error) {
         console.error('Failed to fetch users:', error);
@@ -13,7 +34,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
-        const { username, password, role } = await request.json();
+        const { username, password, role } = await request.json() as UserBody;
 
         if (!username || !password) {
             return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
@@ -26,8 +47,8 @@ export async function POST(request: NextRequest) {
         );
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+    } catch (error) {
+        if (isSqliteConstraintError(error) && error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
             return NextResponse.json({ error: 'User already exists' }, { status: 400 });
         }
         console.error('Failed to create user:', error);

@@ -3,12 +3,6 @@ import { db } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-interface FeedParams {
-  taskId?: string;
-  agent?: string;
-  limit?: string;
-}
-
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -23,6 +17,7 @@ export async function GET(request: Request) {
         ta.task_id,
         ta.run_id,
         ta.step_id,
+        ta.actor,
         ta.actor as agentName,
         ta.actor_type,
         ta.activity_type as eventType,

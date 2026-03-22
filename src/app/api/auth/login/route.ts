@@ -1,9 +1,21 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
+type LoginRequestBody = {
+    username?: string;
+    password?: string;
+};
+
+type UserAuthRow = {
+    username: string;
+    password: string;
+    role: string;
+    createdAt: string;
+};
+
 export async function POST(request: NextRequest) {
     try {
-        const { username, password } = await request.json();
+        const { username, password } = await request.json() as LoginRequestBody;
 
         if (!username || !password) {
             return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
@@ -17,7 +29,7 @@ export async function POST(request: NextRequest) {
 
         // 2. Check against database
         const dbUser = !isEnvAuth 
-            ? db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password) as any
+            ? db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password) as UserAuthRow | undefined
             : null;
 
         if (isEnvAuth || dbUser) {
@@ -26,7 +38,7 @@ export async function POST(request: NextRequest) {
             response.cookies.set('auth-token', 'authorized', {
                 path: '/',
                 maxAge: 86400, // 24 hours
-                httpOnly: false, // Set to false to match current middleware logic if needed, but true is better for security
+                httpOnly: true,
                 sameSite: 'lax',
             });
             return response;

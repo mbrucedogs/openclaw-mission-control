@@ -12,7 +12,8 @@ export async function POST(req: NextRequest) {
     try {
         const folder = createDocumentFolder(name.trim());
         return NextResponse.json(folder, { status: 201 });
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 400 });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to create document folder';
+        return NextResponse.json({ error: message }, { status: 400 });
     }
 }
