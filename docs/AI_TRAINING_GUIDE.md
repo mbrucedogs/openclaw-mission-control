@@ -8,8 +8,11 @@ Use this guide to train the primary orchestrator on the rebuilt Mission Control 
 - Tasks are durable; planned stages are saved before execution; runs preserve retries and reruns.
 - Stages are scoped packets with one exact assigned agent.
 - The selected agent is the source of truth; the internal role is derived from that agent's configured type.
+- The agent roster is dynamically discovered from the OpenClaw workspace; it is not hardcoded in the UI.
 - Task board status uses lifecycle state: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`.
 - Planning, Build, QA, and Review are execution stages, not task statuses.
+- Dashboard, team, and office runtime state should come from truthful gateway-backed data when available.
+- Exec approvals are gateway-level operator requests and should not be conflated with task issue threads.
 - Completion requires primary-orchestrator validation.
 - Recovery scan blocks stale running steps and wakes the primary orchestrator.
 - If the primary orchestrator cannot resolve a blocker, the problem belongs in a task-bound issue thread with replies.
@@ -63,6 +66,7 @@ Detailed context should live in the stage packets:
 7. Pass or reject validation.
 8. Retry or rerun only when needed.
 9. If blocked and unresolved, open or update an issue thread on the task instead of using unrelated main-chat context.
+10. If a gateway exec approval is pending, resolve it through the approvals queue instead of inventing task state for it.
 
 ## Evidence Validation Rules
 
