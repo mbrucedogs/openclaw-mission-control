@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 import { db } from '@/lib/db';
+import { pruneStaleStepHeartbeats } from '@/lib/activity-heartbeats';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString();
     const activityId = randomUUID();
+    pruneStaleStepHeartbeats();
 
     // Insert into task_activity (existing schema with actor/activity_type columns)
     const insertActivity = db.prepare(`

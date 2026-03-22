@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { LIVE_AGENT_WINDOW_MS } from '@/lib/agent-presence';
+import { listFreshStepHeartbeats, pruneStaleStepHeartbeats } from '@/lib/activity-heartbeats';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,29 +50,13 @@ export async function GET(request: Request) {
     const rows = db.prepare(query).all(...params) as Record<string, unknown>[];
     
     // Get active agents from step_heartbeats
-    const cutoff = new Date(Date.now() - LIVE_AGENT_WINDOW_MS).toISOString();
-    const agentsQuery = `
-      SELECT 
-        sh.agent_id,
-        sh.agent_name,
-        sh.step_id,
-        sh.task_id,
-        sh.run_id,
-        sh.last_activity,
-        sh.heartbeat_count,
-        sh.is_stuck,
-        sh.updated_at as lastSeen,
-        t.title as taskTitle,
-        rs.title as stepTitle
-      FROM step_heartbeats sh
-      LEFT JOIN tasks t ON sh.task_id = t.id
-      LEFT JOIN run_steps rs ON sh.step_id = rs.id
-      WHERE sh.updated_at >= ?
-        AND (rs.status IS NULL OR rs.status IN ('running', 'submitted', 'blocked'))
-      ORDER BY sh.updated_at DESC
-    `;
-    
-    const agents = db.prepare(agentsQuery).all(cutoff) as Record<string, unknown>[];
+    pruneStaleStepHeartbeats();
+    const agents = listFreshStepHeartbeats().map((row) => ({
+      ...row,
+      lastSeen: row.last_seen,
+      taskTitle: row.task_title,
+      stepTitle: row.step_title,
+    })) as Record<string, unknown>[];
     
     const events = rows.map(row => ({
       id: row.id,

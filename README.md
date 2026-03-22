@@ -112,6 +112,7 @@ GET    /api/gateway/diagnostics
 GET    /api/exec-approvals
 POST   /api/exec-approvals
 GET    /api/events/stream
+GET    /api/activity
 GET    /api/activity/feed
 GET    /api/task-templates
 POST   /api/task-templates
@@ -132,6 +133,7 @@ The runtime side of the product now has five primary operational surfaces:
 - `/` for the dashboard summary and truthful gateway status
 - `/gateway` for full runtime diagnostics, compatibility checks, and manual probe refresh
 - `/team` for the discovered agent registry and grouping
+- `/team/:agentId` for single-agent live detail, sessions, assignments, and runtime history
 - `/office` for the live team operations view driven by runtime and task state
 - `/approvals` for gateway exec approval review and resolution
 
@@ -159,6 +161,7 @@ Notes:
 - `OPENCLAW_WORKSPACE` is still used for local discovery of agent metadata and docs.
 - Runtime access is config-driven.
 - The app prefers a published OpenClaw runtime client when available and falls back to `openclaw gateway call` when the package does not expose one.
+- `/api/activity` is now database-backed and no longer depends on a legacy `activity-log.jsonl` file.
 
 ## Development
 

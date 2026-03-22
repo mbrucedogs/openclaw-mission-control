@@ -233,8 +233,21 @@ Key pieces:
 - event persistence: [`src/lib/db/runtime.ts`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/lib/db/runtime.ts)
 - bridge from gateway snapshots to events: [`src/lib/openclaw/runtime-bridge.ts`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/lib/openclaw/runtime-bridge.ts)
 - SSE endpoint: [`src/app/api/events/stream/route.ts`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/app/api/events/stream/route.ts)
+- heartbeat helpers: [`src/lib/activity-heartbeats.ts`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/lib/activity-heartbeats.ts)
 
 The stream supports `Last-Event-ID` replay semantics through runtime cursors.
+
+## Activity And Presence
+
+Mission Control no longer depends on a legacy OpenClaw home-directory activity log for runtime operator views.
+
+Current activity/presence sources are:
+
+- `task_activity` for task-native agent events
+- `runtime_events` for gateway-derived runtime state changes
+- `step_heartbeats` for fresh in-flight agent presence
+
+Fresh heartbeat rows are retention-bound and stale rows are pruned automatically during heartbeat writes and activity polling.
 
 ## Exec Approvals
 
@@ -260,6 +273,7 @@ These pages are the main consumers of the OpenClaw runtime layer:
 - `/` dashboard summary
 - `/gateway` runtime diagnostics and manual probe refresh
 - `/team` discovered roster and grouping
+- `/team/[agentId]` single-agent operational detail and runtime timeline
 - `/office` team operations board, live scene, and agent inspector
 - `/approvals` gateway approval queue
 

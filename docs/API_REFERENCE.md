@@ -137,6 +137,27 @@ Query params:
 
 - `limit`
 
+## Runtime Activity
+
+`GET /api/activity`
+
+Returns a runtime-backed operator activity payload built from:
+
+- recent `task_activity`
+- recent `runtime_events`
+- fresh `step_heartbeats`
+
+It does not read from a legacy filesystem activity log.
+
+Response shape:
+
+```json
+{
+  "activities": [],
+  "agents": []
+}
+```
+
 `DELETE /api/tasks/:id`
 
 Deletes the task and its dependent orchestration records.
@@ -638,6 +659,11 @@ Behavior:
 `GET /api/activity/feed`
 
 Returns task-native agent activity and active heartbeat state for the live activity UI.
+
+Behavior notes:
+
+- only fresh heartbeat rows are returned
+- stale heartbeat rows are pruned during heartbeat writes and activity polling
 
 Query params:
 

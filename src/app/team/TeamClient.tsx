@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import type { Agent } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -403,6 +404,13 @@ function AgentInspectorDrawer({
                     <InspectorMetric label="Layer" value={agent.layer || 'unassigned'} />
                     <InspectorMetric label="Status" value={agent.status || 'idle'} />
                 </div>
+
+                <Link
+                    href={`/team/${agent.id}`}
+                    className="mt-4 inline-flex items-center justify-center rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-cyan-100 transition hover:bg-cyan-500/20"
+                >
+                    Open Detail Page
+                </Link>
 
                 <div className="mt-4 rounded-2xl border border-white/10 bg-black/60 p-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">System Type</p>

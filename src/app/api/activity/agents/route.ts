@@ -1,34 +1,12 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { LIVE_AGENT_WINDOW_MS } from '@/lib/agent-presence';
+import { listFreshStepHeartbeats, pruneStaleStepHeartbeats } from '@/lib/activity-heartbeats';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const cutoff = new Date(Date.now() - LIVE_AGENT_WINDOW_MS).toISOString();
-    const rows = db.prepare(`
-      SELECT 
-        sh.agent_id,
-        sh.agent_name,
-        sh.step_id,
-        sh.task_id,
-        sh.run_id,
-        sh.last_activity,
-        sh.heartbeat_count,
-        sh.is_stuck,
-        sh.stuck_reason,
-        sh.updated_at as last_seen,
-        sh.created_at as first_seen,
-        t.title as task_title,
-        rs.title as step_title
-      FROM step_heartbeats sh
-      LEFT JOIN tasks t ON sh.task_id = t.id
-      LEFT JOIN run_steps rs ON sh.step_id = rs.id
-      WHERE sh.updated_at >= ?
-        AND (rs.status IS NULL OR rs.status IN ('running', 'submitted', 'blocked'))
-      ORDER BY sh.heartbeat_count DESC, sh.updated_at DESC
-    `).all(cutoff) as Record<string, unknown>[];
+    pruneStaleStepHeartbeats();
+    const rows = listFreshStepHeartbeats() as Record<string, unknown>[];
     
     const agents = rows.map(row => ({
       agentId: row.agent_id,

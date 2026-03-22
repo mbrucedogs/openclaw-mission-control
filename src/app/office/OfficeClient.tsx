@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
     Activity,
     AlertTriangle,
@@ -897,6 +898,13 @@ function AgentInspector({
                     <InspectorMetric icon={LayoutGrid} label="Assigned" value={selectedCard.assignedCount} />
                     <InspectorMetric icon={Activity} label="Live Sessions" value={selectedCard.liveSessionCount} />
                 </div>
+
+                <Link
+                    href={`/team/${selectedAgent.id}`}
+                    className="mt-4 inline-flex items-center justify-center rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-xs font-black uppercase tracking-[0.18em] text-cyan-100 transition hover:bg-cyan-500/20"
+                >
+                    Open Agent Detail
+                </Link>
             </section>
 
             <section className="rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5">
