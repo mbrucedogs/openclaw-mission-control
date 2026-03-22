@@ -33,6 +33,12 @@ This gives Mission Control a stable path for:
 - SSH tunnel or tailnet forwarding
 - future remote gateway deployments on another host
 
+Current implementation note:
+
+- Mission Control loads OpenClaw's gateway client from the installed `openclaw` package under `node_modules`.
+- Today that means `src/lib/openclaw/client.ts` imports the internal SDK file at `openclaw/dist/plugin-sdk/gateway/call.js` unless `OPENCLAW_GATEWAY_SDK_CALL_PATH` overrides it.
+- This is still better than CLI shell-out, but it remains a dependency on OpenClaw's current package layout until the client is publicly exported.
+
 ## What This Layer Is For
 
 The OpenClaw runtime layer is what makes the app feel live instead of static.

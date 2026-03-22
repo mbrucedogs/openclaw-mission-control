@@ -19,6 +19,12 @@ The transport implementation lives in:
 
 Mission Control no longer depends on spawning the `openclaw` CLI for routine gateway RPCs.
 
+Current implementation note:
+
+- [`client.ts`](./client.ts) currently loads the installed OpenClaw gateway client from `node_modules/openclaw/dist/plugin-sdk/gateway/call.js`.
+- `OPENCLAW_GATEWAY_SDK_CALL_PATH` can override that path for local debugging or future package changes.
+- If OpenClaw later exposes the gateway client as a public package export, this loader should switch to that public entrypoint.
+
 ## Dynamic Agent Discovery
 
 Agents in this application are **not** hardcoded. They are dynamically discovered from the configured OpenClaw workspace.
