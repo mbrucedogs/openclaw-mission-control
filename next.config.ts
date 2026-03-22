@@ -6,6 +6,7 @@ const configDir = path.dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {
   // Server port is set via PORT env var or npm start -- -p 4000
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   serverExternalPackages: ['openclaw'],
   allowedDevOrigins: ['localhost', '127.0.0.1'],
   turbopack: {
