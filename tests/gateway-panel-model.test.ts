@@ -6,6 +6,13 @@ import { buildGatewayPanelModel } from '../src/components/gateway-panel-model'
 test('buildGatewayPanelModel derives counts, recent session rows, and channel states without a hardcoded version', () => {
   const model = buildGatewayPanelModel({
     connected: true,
+    diagnostics: {
+      transportMode: 'sdk',
+      state: 'connected',
+      reasonCode: 'ok',
+      operatorMessage: 'Connected via SDK transport.',
+      hasRawError: false,
+    },
     gateway: {
       ts: '2026-03-22T12:00:00.000Z',
       heartbeatSeconds: 30,
@@ -62,12 +69,25 @@ test('buildGatewayPanelModel derives counts, recent session rows, and channel st
     { id: 'telegram', label: 'telegram', isRunning: true },
     { id: 'discord', label: 'discord', isRunning: false },
   ])
+  assert.deepEqual(model.status, {
+    tone: 'connected',
+    label: 'Connected',
+    detail: 'Connected via SDK transport.',
+    transportLabel: 'SDK',
+  })
   assert.equal('version' in model, false)
 })
 
 test('buildGatewayPanelModel handles disconnected or sparse gateway payloads safely', () => {
   const model = buildGatewayPanelModel({
     connected: false,
+    diagnostics: {
+      transportMode: 'failed',
+      state: 'failed',
+      reasonCode: 'unreachable',
+      operatorMessage: 'OpenClaw is unreachable.',
+      hasRawError: true,
+    },
     agents: [],
     sessions: null,
     gateway: null,
@@ -79,11 +99,24 @@ test('buildGatewayPanelModel handles disconnected or sparse gateway payloads saf
   assert.equal(model.summary.sessionCount, 0)
   assert.deepEqual(model.recentSessions, [])
   assert.deepEqual(model.channels, [])
+  assert.deepEqual(model.status, {
+    tone: 'failed',
+    label: 'Gateway failed',
+    detail: 'OpenClaw is unreachable.',
+    transportLabel: 'Unavailable',
+  })
 })
 
 test('buildGatewayPanelModel keeps recent session ids unique when the gateway reuses a sessionId across keys', () => {
   const model = buildGatewayPanelModel({
     connected: true,
+    diagnostics: {
+      transportMode: 'cli-fallback',
+      state: 'degraded',
+      reasonCode: 'partial_data',
+      operatorMessage: 'Gateway reachable, but some runtime details are unavailable.',
+      hasRawError: true,
+    },
     gateway: null,
     agents: [
       { id: 'main', name: 'Max', isDefault: true, heartbeatEnabled: true, heartbeatEvery: '30m', sessionCount: 2 },
@@ -130,4 +163,10 @@ test('buildGatewayPanelModel keeps recent session ids unique when the gateway re
       'agent:tron:cron:job-1:run:shared-session',
     ],
   )
+  assert.deepEqual(model.status, {
+    tone: 'degraded',
+    label: 'Degraded',
+    detail: 'Gateway reachable, but some runtime details are unavailable.',
+    transportLabel: 'CLI fallback',
+  })
 })

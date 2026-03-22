@@ -1,24 +1,16 @@
 import { NextResponse } from 'next/server'
-import { getGatewayHealth, getGatewayStatus } from '@/lib/openclaw/gateway'
+import { getGatewaySnapshot, type GatewaySnapshot } from '@/lib/openclaw/gateway'
 import { syncGatewayRuntimeEvents } from '@/lib/openclaw/runtime-bridge'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
-  const [health, status] = await Promise.all([getGatewayHealth(), getGatewayStatus()])
+export function buildGatewayPayload(snapshot: GatewaySnapshot) {
+  const health = snapshot.health
+  const status = snapshot.status
 
-  if (!health && !status) {
-    return NextResponse.json({ connected: false, agents: [], sessions: [] })
-  }
-
-  try {
-    await syncGatewayRuntimeEvents('api.gateway')
-  } catch (err) {
-    console.warn('Failed to sync gateway runtime events:', err)
-  }
-
-  const response: Record<string, unknown> = {
-    connected: health?.ok ?? false,
+  return {
+    connected: snapshot.connected,
+    diagnostics: snapshot.diagnostics,
     gateway: health ? {
       ts: new Date(health.ts).toISOString(),
       heartbeatSeconds: health.heartbeatSeconds,
@@ -46,6 +38,18 @@ export async function GET() {
       })),
     } : null,
   }
+}
 
-  return NextResponse.json(response)
+export async function GET() {
+  const snapshot = await getGatewaySnapshot()
+
+  try {
+    if (snapshot.diagnostics.state !== 'failed') {
+      await syncGatewayRuntimeEvents('api.gateway')
+    }
+  } catch (err) {
+    console.warn('Failed to sync gateway runtime events:', err)
+  }
+
+  return NextResponse.json(buildGatewayPayload(snapshot))
 }

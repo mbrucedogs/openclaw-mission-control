@@ -49,18 +49,6 @@ export function GatewayPanel() {
     )
   }
 
-  if (!model.connected) {
-    return (
-      <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-4">
-        <div className="flex items-center gap-2 text-sm font-bold text-red-400">
-          <div className="h-2 w-2 rounded-full bg-red-500" />
-          Gateway offline
-        </div>
-        <p className="mt-2 text-xs text-slate-500">OpenClaw is unreachable, so runtime metrics are temporarily unavailable.</p>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -68,9 +56,24 @@ export function GatewayPanel() {
           <p className="text-sm font-bold text-white">Gateway snapshot</p>
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Runtime bridge</p>
         </div>
-        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-200">
-          Connected
+        <span className={cn(
+          'rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]',
+          model.status.tone === 'connected'
+            ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+            : model.status.tone === 'degraded'
+              ? 'border-amber-500/20 bg-amber-500/10 text-amber-100'
+              : 'border-red-500/20 bg-red-500/10 text-red-200',
+        )}>
+          {model.status.label}
         </span>
+      </div>
+
+      <div className="rounded-2xl border border-[#1a1a1a] bg-[#0d0d0d] px-3 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-white">{model.status.transportLabel}</p>
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Transport</span>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">{model.status.detail}</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2">

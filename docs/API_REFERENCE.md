@@ -515,9 +515,20 @@ Returns the broader gateway snapshot used by the dashboard and gateway panel.
 The response includes:
 
 - `connected`
+- `diagnostics`
 - `gateway`
 - `agents`
 - `sessions`
+
+`diagnostics` normalizes transport/runtime state into:
+
+- `transportMode` -> `sdk`, `cli-fallback`, or `failed`
+- `state` -> `connected`, `degraded`, or `failed`
+- `reasonCode` -> `ok`, `partial_data`, `auth_failed`, `insufficient_scope`, `unreachable`, `timeout`, `transport_missing`, or `unknown`
+- `operatorMessage`
+- `hasRawError`
+
+This allows the dashboard to distinguish full outages from partial or scope-limited runtime access without exposing raw gateway errors in the main UI.
 
 This route also attempts to sync gateway-derived runtime events before returning.
 

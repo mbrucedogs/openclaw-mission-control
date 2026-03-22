@@ -32,6 +32,29 @@ Current implementation note:
 - When that runtime client is unavailable, Mission Control falls back to `openclaw gateway call --url --token ...` using the explicit gateway config above.
 - That keeps runtime behavior explicit and correct, but it is still a CLI-mediated fallback until OpenClaw publishes a supported runtime client surface.
 
+## Transport Diagnostics
+
+Mission Control now exposes normalized transport diagnostics instead of flattening every gateway problem into "offline".
+
+The runtime layer classifies each gateway interaction by transport mode:
+
+- `sdk`
+- `cli-fallback`
+- `failed`
+
+It also normalizes common failure reasons into stable reason codes:
+
+- `ok`
+- `partial_data`
+- `auth_failed`
+- `insufficient_scope`
+- `unreachable`
+- `timeout`
+- `transport_missing`
+- `unknown`
+
+The dashboard uses operator-safe summaries built from those codes. Raw internal errors stay out of the main panel.
+
 ## What This Layer Is For
 
 The OpenClaw runtime layer is what makes the app feel live instead of static.
@@ -155,8 +178,20 @@ Current behavior:
 - `/api/status` reports `gateway: connected` only when gateway health was actually reached
 - `/api/sessions` is normalized from gateway status data instead of a separate legacy shell-out path
 - `/api/gateway` returns the broader runtime snapshot used by the gateway panel and event sync path
+- `/api/gateway` now includes a `diagnostics` block with:
+  - `transportMode`
+  - `state` -> `connected`, `degraded`, or `failed`
+  - `reasonCode`
+  - `operatorMessage`
+  - `hasRawError`
 
 The dashboard model in [`src/app/dashboard-model.ts`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/src/app/dashboard-model.ts) now derives summary cards from discovered-agent counts and actual gateway reachability.
+
+Connected-state semantics are now:
+
+- `connected`: health and status both succeeded
+- `degraded`: at least one gateway call succeeded, but runtime data is partial or scope-limited
+- `failed`: no gateway call succeeded
 
 ## Freshness Model
 
@@ -220,5 +255,6 @@ The office redesign uses a shared operations model in [`src/app/office/team-oper
 - If `TEAM-REGISTRY.md` is missing in the configured workspace, discovery falls back safely but the roster will be incomplete.
 - Gateway-derived fields such as `gatewaySessionCount`, `currentModel`, and `percentUsed` are live runtime fields and should be treated as ephemeral.
 - If the gateway is unreachable, Mission Control should fail safe and report disconnected or empty runtime state.
+- If the gateway is partially reachable, Mission Control should preserve whatever runtime data did succeed and mark the panel as degraded instead of pretending the entire runtime is offline.
 - Runtime access should be explicit, typed, and config-driven.
 - Task state is still the system of record for planning and execution. Runtime telemetry is an operational overlay, not a replacement for task/run/step history.

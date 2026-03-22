@@ -1,5 +1,12 @@
 export type GatewayPanelResponse = {
   connected: boolean
+  diagnostics?: {
+    transportMode: 'sdk' | 'cli-fallback' | 'failed'
+    state: 'connected' | 'degraded' | 'failed'
+    reasonCode: 'ok' | 'partial_data' | 'auth_failed' | 'insufficient_scope' | 'unreachable' | 'timeout' | 'transport_missing' | 'unknown'
+    operatorMessage: string
+    hasRawError: boolean
+  }
   gateway?: {
     ts: string
     heartbeatSeconds: number
@@ -37,6 +44,12 @@ export type GatewayPanelResponse = {
 
 export type GatewayPanelModel = {
   connected: boolean
+  status: {
+    tone: 'connected' | 'degraded' | 'failed'
+    label: string
+    detail: string
+    transportLabel: string
+  }
   summary: {
     agentCount: number
     activeAgentCount: number
@@ -61,9 +74,26 @@ export function buildGatewayPanelModel(data: GatewayPanelResponse | null): Gatew
   const agents = data?.agents ?? []
   const sessions = data?.sessions
   const gateway = data?.gateway
+  const diagnostics = data?.diagnostics
 
   return {
     connected: Boolean(data?.connected),
+    status: {
+      tone: diagnostics?.state ?? (data?.connected ? 'connected' : 'failed'),
+      label: diagnostics?.state === 'degraded'
+        ? 'Degraded'
+        : diagnostics?.state === 'failed' || !data?.connected
+          ? 'Gateway failed'
+          : 'Connected',
+      detail: diagnostics?.operatorMessage ?? (data?.connected
+        ? 'Connected to OpenClaw.'
+        : 'OpenClaw is unreachable, so runtime metrics are temporarily unavailable.'),
+      transportLabel: diagnostics?.transportMode === 'sdk'
+        ? 'SDK'
+        : diagnostics?.transportMode === 'cli-fallback'
+          ? 'CLI fallback'
+          : 'Unavailable',
+    },
     summary: {
       agentCount: agents.length,
       activeAgentCount: agents.filter((agent) => agent.sessionCount > 0).length,

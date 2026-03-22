@@ -24,6 +24,21 @@ Current implementation note:
 - The runtime config is still explicit even when the CLI fallback is used.
 - If OpenClaw later exposes a supported runtime gateway client, this transport should switch fully to that public entrypoint.
 
+### Diagnostics Semantics
+
+The transport layer now emits normalized diagnostics instead of exposing only success/failure:
+
+- transport modes: `sdk`, `cli-fallback`, `failed`
+- reason codes: `ok`, `partial_data`, `auth_failed`, `insufficient_scope`, `unreachable`, `timeout`, `transport_missing`, `unknown`
+
+[`gateway.ts`](./gateway.ts) lifts those transport-level results into gateway snapshot states:
+
+- `connected`
+- `degraded`
+- `failed`
+
+Use that snapshot when building API payloads or operator-facing runtime UI. It preserves partial data when one gateway method succeeds and another fails.
+
 ## Dynamic Agent Discovery
 
 Agents in this application are **not** hardcoded. They are dynamically discovered from the configured OpenClaw workspace.
@@ -65,8 +80,8 @@ Gateway-backed runtime access is centralized here instead of spread across unrel
 
 Key modules:
 
-- [`client.ts`](./client.ts) for explicit gateway client loading and request wiring
-- [`gateway.ts`](./gateway.ts) for health and status RPCs
+- [`client.ts`](./client.ts) for explicit gateway client loading, CLI fallback wiring, and normalized transport diagnostics
+- [`gateway.ts`](./gateway.ts) for health/status RPCs and snapshot-level gateway diagnostics
 - [`sessions.ts`](./sessions.ts) for normalized session payloads
 - [`approvals.ts`](./approvals.ts) for exec approval snapshots and decisions
 - [`runtime-bridge.ts`](./runtime-bridge.ts) for converting gateway snapshots into durable runtime events
