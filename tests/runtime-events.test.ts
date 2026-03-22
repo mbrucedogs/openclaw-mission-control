@@ -29,12 +29,12 @@ test('runtime events persist with cursors and stream cursor helpers support repl
   } = await loadFreshRuntimeModules();
 
   const first = appendRuntimeEvent({
-    eventType: 'gateway.status.fetch',
+    eventType: 'runtime.test',
     actor: 'main',
     payload: { sessionCount: 1 },
   });
   const second = appendRuntimeEvent({
-    eventType: 'gateway.status.fetch',
+    eventType: 'runtime.test',
     actor: 'main',
     payload: { sessionCount: 2 },
   });
@@ -57,4 +57,27 @@ test('runtime events persist with cursors and stream cursor helpers support repl
   );
   assert.equal(buildRuntimeEventsStreamPath(9), '/api/events/stream?cursor=9');
   assert.equal(buildRuntimeEventsStreamPath(0), '/api/events/stream');
+});
+
+test('runtime events can return the newest event for a specific type', async () => {
+  const {
+    appendRuntimeEvent,
+    getLatestEventByType,
+  } = await loadFreshRuntimeModules();
+
+  const first = appendRuntimeEvent({
+    eventType: 'openclaw.runtime.snapshot',
+    actor: 'main',
+    payload: { seq: 1 },
+  });
+  const second = appendRuntimeEvent({
+    eventType: 'openclaw.runtime.snapshot',
+    actor: 'main',
+    payload: { seq: 2 },
+  });
+
+  const latest = getLatestEventByType('openclaw.runtime.snapshot');
+
+  assert.equal(latest?.id, second.id);
+  assert.equal(latest?.cursor > first.cursor, true);
 });

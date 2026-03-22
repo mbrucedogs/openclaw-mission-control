@@ -1,35 +1,32 @@
 'use client';
 
 import {
-    Monitor,
-    Zap,
-    LayoutGrid,
     Activity,
+    AlertTriangle,
+    Clock3,
+    LayoutGrid,
+    Monitor,
+    Sparkles,
     Users,
-    Waves,
-    Code,
+    Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buildRuntimeEventsStreamPath } from '@/lib/runtime-events';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    buildTeamOperationsModel,
+    type TeamOperationsAgent,
+    type TeamOperationsAgentCard,
+    type TeamOperationsGroup,
+    type TeamOperationsSession,
+    type TeamOperationsTask,
+    type TeamOperationsWorkItem,
+    type TeamOperationsZone,
+} from './team-operations-model';
 
-type AgentSummary = {
-    id: string;
-    name: string;
-    role: string;
-    layer?: string;
-    mission?: string;
-    status?: string;
-    isLive?: boolean;
-    liveStatus?: string;
-};
+type AgentSummary = TeamOperationsAgent;
 
-type OfficeTask = {
-    id: string;
-    title: string;
-    goal?: string;
-    description?: string;
-    status: string;
+type OfficeTask = TeamOperationsTask & {
     owner?: string;
     currentRun?: {
         currentStepId?: string;
@@ -60,19 +57,7 @@ type OfficeTask = {
     }>;
 };
 
-type LiveSession = {
-    agentId?: string;
-    label?: string;
-    updatedAt?: number | string;
-    kind?: string;
-    key?: string;
-    sessionId?: string;
-    type?: string;
-    model?: string;
-    totalTokens?: number;
-};
-
-type PositionMap = Record<string, { x: number; y: number }>;
+type LiveSession = TeamOperationsSession;
 
 type SSERuntimeEvent = {
     id: string;
@@ -83,14 +68,13 @@ type SSERuntimeEvent = {
     createdAt: string;
 };
 
-// SSE Hook for real-time event streaming
 function useSSERuntimeEvents(onEvent?: (event: SSERuntimeEvent) => void) {
     const eventSourceRef = useRef<EventSource | null>(null);
     const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const connectRef = useRef<() => void>(() => {});
     const lastEventIdRef = useRef<number>(0);
     const [sseIsConnected, setSseIsConnected] = useState(false);
-    
+
     const connect = useCallback(() => {
         if (eventSourceRef.current) {
             eventSourceRef.current.close();
@@ -98,39 +82,40 @@ function useSSERuntimeEvents(onEvent?: (event: SSERuntimeEvent) => void) {
 
         const eventSource = new EventSource(buildRuntimeEventsStreamPath(lastEventIdRef.current));
         eventSourceRef.current = eventSource;
-        
+
         eventSource.onopen = () => {
             setSseIsConnected(true);
         };
-        
-        eventSource.addEventListener('connection', (e) => {
+
+        eventSource.addEventListener('connection', (event) => {
             try {
-                const data = JSON.parse(e.data);
+                const data = JSON.parse(event.data);
                 lastEventIdRef.current = data.cursor ?? 0;
             } catch {
-                // Ignore parse errors
+                // Ignore parse errors from connection payloads.
             }
         });
-        
-        eventSource.addEventListener('event', (e) => {
+
+        eventSource.addEventListener('event', (event) => {
             try {
-                const data = JSON.parse(e.data) as SSERuntimeEvent;
+                const data = JSON.parse(event.data) as SSERuntimeEvent;
                 if (data.cursor) {
                     lastEventIdRef.current = data.cursor;
                 }
                 onEvent?.(data);
             } catch {
-                // Ignore parse errors
+                // Ignore malformed event payloads.
             }
         });
-        
+
         eventSource.onerror = () => {
             setSseIsConnected(false);
             eventSource.close();
-            
+
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
             }
+
             reconnectTimeoutRef.current = setTimeout(() => {
                 connectRef.current();
             }, 5000);
@@ -143,7 +128,6 @@ function useSSERuntimeEvents(onEvent?: (event: SSERuntimeEvent) => void) {
 
     useEffect(() => {
         connect();
-        
         return () => {
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
@@ -153,14 +137,12 @@ function useSSERuntimeEvents(onEvent?: (event: SSERuntimeEvent) => void) {
             }
         };
     }, [connect]);
-    
+
     return { sseIsConnected };
 }
 
 function sessionUpdatedAt(session: LiveSession) {
-    if (typeof session.updatedAt === 'number') {
-        return session.updatedAt;
-    }
+    if (typeof session.updatedAt === 'number') return session.updatedAt;
     if (typeof session.updatedAt === 'string') {
         const value = new Date(session.updatedAt).getTime();
         return Number.isNaN(value) ? 0 : value;
@@ -168,31 +150,27 @@ function sessionUpdatedAt(session: LiveSession) {
     return 0;
 }
 
-function mergeSessionsByAgentId(
-    current: LiveSession[],
-    incoming: LiveSession[],
-) {
-    const existing = current.filter(session => !incoming.find(next => next.agentId === session.agentId));
+function mergeSessionsByAgentId(current: LiveSession[], incoming: LiveSession[]) {
+    const existing = current.filter((session) => !incoming.find((next) => next.agentId === session.agentId));
     return [...existing, ...incoming];
 }
 
-const getAgentIcon = (agentOrId?: string | Partial<AgentSummary>) => {
+function getAgentIcon(agentOrId?: string | Partial<AgentSummary>) {
     const id = (typeof agentOrId === 'string' ? agentOrId : agentOrId?.id || '').toLowerCase();
     const role = (typeof agentOrId === 'string' ? '' : agentOrId?.role || '').toLowerCase();
-    
-    if (role.includes('orchestrat') || role.includes('governance')) return '🎉';
-    if (role.includes('research') || role.includes('intelligence')) return '🔍';
-    if (role.includes('implement') || role.includes('code') || role.includes('builder')) return '💻';
-    if (role.includes('test') || role.includes('qa')) return '🧪';
-    if (role.includes('review') || role.includes('standard')) return '🛡️';
-    if (role.includes('auto') || role.includes('cron') || role.includes('monitor') || id.includes('heartbeat')) return '⚡';
-    
-    return '👤';
-};
+
+    if (role.includes('orchestrat') || role.includes('governance')) return 'O';
+    if (role.includes('research') || role.includes('intelligence')) return 'R';
+    if (role.includes('implement') || role.includes('code') || role.includes('builder')) return 'B';
+    if (role.includes('test') || role.includes('qa')) return 'Q';
+    if (role.includes('review') || role.includes('security')) return 'V';
+    if (role.includes('auto') || role.includes('cron') || role.includes('monitor') || id.includes('heartbeat')) return 'A';
+    return 'T';
+}
 
 function isOrchestratorAgent(agent?: Partial<AgentSummary>) {
-    const role = (agent?.role || '').toLowerCase();
-    const layer = (agent?.layer || '').toLowerCase();
+    const role = String(agent?.role || '').toLowerCase();
+    const layer = String(agent?.layer || '').toLowerCase();
     return layer === 'governance' || role.includes('orchestrat') || role.includes('governance');
 }
 
@@ -223,138 +201,159 @@ function getActiveTaskAssignment(task: OfficeTask) {
 }
 
 function taskNeedsOrchestrator(task: OfficeTask) {
-    if (task.status === 'Blocked' || task.status === 'In Review') {
-        return true;
-    }
-
-    if (task.currentRun?.steps?.some((step) => step.status === 'submitted' || step.status === 'blocked')) {
-        return true;
-    }
-
-    if (task.issues?.some((issue) => issue.assignedTo === 'orchestrator' && issue.status !== 'resolved')) {
-        return true;
-    }
-
+    if (task.status === 'Blocked' || task.status === 'In Review') return true;
+    if (task.currentRun?.steps?.some((step) => step.status === 'submitted' || step.status === 'blocked')) return true;
+    if (task.issues?.some((issue) => issue.assignedTo === 'orchestrator' && issue.status !== 'resolved')) return true;
     return false;
 }
 
+function deriveTaskWorkItem(task: OfficeTask): TeamOperationsWorkItem | null {
+    if (task.status === 'Done') return null;
+
+    const assignment = getActiveTaskAssignment(task);
+    let state: TeamOperationsWorkItem['state'] = 'planned';
+
+    if (task.status === 'Blocked' || assignment?.status === 'blocked') {
+        state = 'blocked';
+    } else if (task.status === 'In Review' || assignment?.status === 'submitted') {
+        state = 'review';
+    } else if (task.status === 'In Progress' || assignment?.status === 'running' || assignment?.status === 'ready') {
+        state = 'active';
+    }
+
+    return {
+        id: task.id,
+        title: task.title,
+        summary: task.goal || task.description,
+        state,
+        agentId: assignment?.assignedAgentId,
+        agentName: assignment?.assignedAgentName,
+        stepTitle: assignment?.title,
+        statusLabel: assignment?.status || task.status,
+        needsAttention: taskNeedsOrchestrator(task),
+    };
+}
+
+function statusTone(state: TeamOperationsAgentCard['workState']) {
+    if (state === 'active') return 'border-blue-500/40 bg-blue-500/10 text-blue-200';
+    if (state === 'blocked') return 'border-red-500/40 bg-red-500/10 text-red-200';
+    if (state === 'assigned') return 'border-amber-500/40 bg-amber-500/10 text-amber-100';
+    return 'border-white/10 bg-white/[0.03] text-slate-400';
+}
+
+function zoneTone(tone: string) {
+    if (tone === 'amber') return 'border-amber-500/25 bg-amber-500/[0.04]';
+    if (tone === 'blue') return 'border-blue-500/25 bg-blue-500/[0.04]';
+    if (tone === 'emerald') return 'border-emerald-500/25 bg-emerald-500/[0.04]';
+    if (tone === 'violet') return 'border-violet-500/25 bg-violet-500/[0.04]';
+    return 'border-white/10 bg-white/[0.03]';
+}
+
+function laneAccent(groupId: TeamOperationsGroup['id']) {
+    if (groupId === 'governance') return 'text-amber-400';
+    if (groupId === 'build') return 'text-blue-400';
+    if (groupId === 'review') return 'text-emerald-400';
+    return 'text-violet-400';
+}
+
 export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
-    // Dynamically pick the first agent or a sensible default
     const [selectedAgent, setSelectedAgent] = useState(() => {
-        const orchestrator = agents.find(a => a.role?.toLowerCase().includes('orchestrat') || a.role?.toLowerCase().includes('governance'));
+        const orchestrator = agents.find((agent) => isOrchestratorAgent(agent));
         return orchestrator?.id || agents[0]?.id || '';
     });
     const [liveSessions, setLiveSessions] = useState<LiveSession[]>([]);
     const [agentTasks, setAgentTasks] = useState<Record<string, OfficeTask[]>>({});
+    const [allTasks, setAllTasks] = useState<OfficeTask[]>([]);
     const [sseConnected, setSseConnected] = useState(false);
 
     const refreshLiveAgentStatus = useCallback(async () => {
         try {
-            const actRes = await fetch('/api/activity/agents');
-            if (actRes.ok) {
-                const actData = await actRes.json();
-                const activityAsSessions = (actData.agents || []).map((a: {
-                    agentId?: string; agentName?: string; lastSeen?: string;
-                    status?: string; stepTitle?: string; taskTitle?: string
+            const activityResponse = await fetch('/api/activity/agents');
+            if (activityResponse.ok) {
+                const activityData = await activityResponse.json();
+                const activityAsSessions = (activityData.agents || []).map((agent: {
+                    agentId?: string;
+                    agentName?: string;
+                    lastSeen?: string;
+                    status?: string;
+                    stepTitle?: string;
+                    taskTitle?: string;
                 }) => ({
-                    agentId: a.agentId,
-                    label: a.agentName,
-                    updatedAt: a.lastSeen,
-                    kind: 'activity:' + (a.status || 'unknown'),
-                    key: (a.stepTitle || a.agentId) + ' @ ' + (a.taskTitle || 'no task'),
+                    agentId: agent.agentId,
+                    label: agent.agentName,
+                    updatedAt: agent.lastSeen,
+                    kind: `activity:${agent.status || 'unknown'}`,
+                    key: `${agent.stepTitle || agent.agentId} @ ${agent.taskTitle || 'no task'}`,
                 }));
-                setLiveSessions(prev => mergeSessionsByAgentId(prev, activityAsSessions));
+                setLiveSessions((previous) => mergeSessionsByAgentId(previous, activityAsSessions));
             }
-        } catch (err) {
-            console.error("Failed to fetch activity agents", err);
+        } catch (error) {
+            console.error('Failed to fetch activity agents', error);
         }
 
         try {
-            const res = await fetch('/api/sessions');
-            if (res.ok) {
-                const data = await res.json();
-                setLiveSessions(prev => mergeSessionsByAgentId(prev, data.sessions || []));
+            const sessionsResponse = await fetch('/api/sessions');
+            if (sessionsResponse.ok) {
+                const sessionsData = await sessionsResponse.json();
+                setLiveSessions((previous) => mergeSessionsByAgentId(previous, sessionsData.sessions || []));
             }
-        } catch (err) {
-            console.error("Failed to fetch live sessions", err);
+        } catch (error) {
+            console.error('Failed to fetch live sessions', error);
         }
     }, []);
 
-    // Handle SSE runtime events
     const handleRuntimeEvent = useCallback((event: SSERuntimeEvent) => {
-        if (event.type === 'gateway.status.fetch') {
+        if (event.type.startsWith('openclaw.')) {
             void refreshLiveAgentStatus();
         }
     }, [refreshLiveAgentStatus]);
 
+    const { sseIsConnected } = useSSERuntimeEvents(handleRuntimeEvent);
 
-    // SSE connection for real-time updates
-    const { sseIsConnected: isConnected } = useSSERuntimeEvents(handleRuntimeEvent);
-    
     useEffect(() => {
-        setSseConnected(isConnected);
-    }, [isConnected]);
+        setSseConnected(sseIsConnected);
+    }, [sseIsConnected]);
 
-
-    // Fetch assigned tasks for all agents
     useEffect(() => {
         const fetchTasks = async () => {
             try {
-                const res = await fetch('/api/tasks?include=currentRun,plan,issues');
-                if (res.ok) {
-                    const tasks = await res.json();
-                    const tasksByAgent: Record<string, OfficeTask[]> = {};
-                    (tasks as OfficeTask[]).forEach((task) => {
-                        const assignment = getActiveTaskAssignment(task);
+                const response = await fetch('/api/tasks?include=currentRun,plan,issues');
+                if (!response.ok) return;
 
-                        if (assignment?.assignedAgentId) {
-                            if (!tasksByAgent[assignment.assignedAgentId]) tasksByAgent[assignment.assignedAgentId] = [];
-                            tasksByAgent[assignment.assignedAgentId].push(task);
-                        }
-                        if (assignment?.assignedAgentName) {
-                            if (!tasksByAgent[assignment.assignedAgentName]) tasksByAgent[assignment.assignedAgentName] = [];
-                            tasksByAgent[assignment.assignedAgentName].push(task);
-                        }
-                        if (taskNeedsOrchestrator(task)) {
-                            if (!tasksByAgent.orchestrator) tasksByAgent.orchestrator = [];
-                            tasksByAgent.orchestrator.push(task);
-                        }
-                    });
-                    setAgentTasks(tasksByAgent);
-                }
-            } catch (err) {
-                console.error('Failed to fetch tasks', err);
+                const tasks = await response.json();
+                setAllTasks(tasks as OfficeTask[]);
+                const tasksByAgent: Record<string, OfficeTask[]> = {};
+                (tasks as OfficeTask[]).forEach((task) => {
+                    const assignment = getActiveTaskAssignment(task);
+
+                    if (assignment?.assignedAgentId) {
+                        if (!tasksByAgent[assignment.assignedAgentId]) tasksByAgent[assignment.assignedAgentId] = [];
+                        tasksByAgent[assignment.assignedAgentId].push(task);
+                    }
+
+                    if (assignment?.assignedAgentName) {
+                        if (!tasksByAgent[assignment.assignedAgentName]) tasksByAgent[assignment.assignedAgentName] = [];
+                        tasksByAgent[assignment.assignedAgentName].push(task);
+                    }
+
+                    if (taskNeedsOrchestrator(task)) {
+                        if (!tasksByAgent.orchestrator) tasksByAgent.orchestrator = [];
+                        tasksByAgent.orchestrator.push(task);
+                    }
+                });
+                setAgentTasks(tasksByAgent);
+            } catch (error) {
+                console.error('Failed to fetch tasks', error);
             }
         };
 
-        fetchTasks();
-        const interval = setInterval(fetchTasks, 30000); // Refresh every 30s
+        void fetchTasks();
+        const interval = setInterval(() => {
+            void fetchTasks();
+        }, 30000);
+
         return () => clearInterval(interval);
     }, []);
-    
-    // Auto-generate positions for agents based on their roles/layers
-    const getInitialPositions = () => {
-        const pos: Record<string, {x: number, y: number}> = {};
-        let pipelineIdx = 0;
-        
-        agents.forEach(agent => {
-            const role = agent.role?.toLowerCase() || '';
-            const layer = agent.layer || '';
-            
-            if (layer === 'governance' || role.includes('orchestrat')) {
-                pos[agent.id] = { x: 2, y: 1 };
-            } else if (layer === 'automation' || role.includes('auto')) {
-                pos[agent.id] = { x: 3, y: 1 };
-            } else {
-                // Pipeline agents spread across the bottom
-                pos[agent.id] = { x: (pipelineIdx % 4) + 1, y: 4 };
-                pipelineIdx++;
-            }
-        });
-        return pos;
-    };
-
-    const [positions, setPositions] = useState<PositionMap>(getInitialPositions);
 
     useEffect(() => {
         void refreshLiveAgentStatus();
@@ -364,500 +363,627 @@ export function OfficeClient({ agents }: { agents: AgentSummary[] }) {
         return () => clearInterval(interval);
     }, [refreshLiveAgentStatus]);
 
-    const displayAgents = agents.map(agent => {
-        // Check OpenClaw sessions
-        const session = liveSessions.find(s => 
-            s.agentId === agent.id || 
-            s.label?.toLowerCase().includes(agent.id.toLowerCase())
-        );
+    const displayAgents = useMemo(() => (
+        agents.map((agent) => {
+            const session = liveSessions.find((liveSession) => (
+                liveSession.agentId === agent.id ||
+                String(liveSession.label || '').toLowerCase().includes(agent.id.toLowerCase())
+            ));
 
-        const isActive = !!session;
-        
-        return {
-            ...agent,
-            isLive: isActive,
-            liveStatus: isActive ? 'Active' : agent.status
-        };
-    });
+            const isLive = Boolean(session);
+            return {
+                ...agent,
+                isLive,
+                liveStatus: isLive ? 'Active' : agent.status,
+            };
+        })
+    ), [agents, liveSessions]);
 
-    const getAgentStatus = (agentId: string) => {
-        const agent = displayAgents.find(a => a.id === agentId);
-        return agent?.isLive ? 'Active' : undefined;
-    };
+    const workItems = useMemo(() => (
+        allTasks
+            .map((task) => deriveTaskWorkItem(task))
+            .filter((item): item is TeamOperationsWorkItem => Boolean(item))
+    ), [allTasks]);
 
-    const selectedAgentData = displayAgents.find(a => a.id === selectedAgent) || displayAgents[0];
-    const agentSessions = liveSessions
-        .filter(s => s.agentId === selectedAgent || s.label?.toLowerCase().includes(selectedAgent.toLowerCase()))
-        .sort((a, b) => sessionUpdatedAt(b) - sessionUpdatedAt(a))
-        .slice(0, 50);
+    useEffect(() => {
+        if (!displayAgents.find((agent) => agent.id === selectedAgent)) {
+            setSelectedAgent(displayAgents[0]?.id || '');
+        }
+    }, [displayAgents, selectedAgent]);
+
+    const model = useMemo(() => buildTeamOperationsModel({
+        agents: displayAgents,
+        tasksByAgent: agentTasks,
+        liveSessions,
+        workItems,
+        selectedAgentId: selectedAgent,
+    }), [agentTasks, displayAgents, liveSessions, selectedAgent, workItems]);
+
+    const selectedAgentData = model.selected?.agent || displayAgents[0];
     const selectedAgentTasks = selectedAgentData
         ? [
             ...(agentTasks[selectedAgentData.name] || []),
             ...(agentTasks[selectedAgentData.id] || []),
             ...(isOrchestratorAgent(selectedAgentData) ? (agentTasks.orchestrator || []) : []),
-          ].filter((task, index, collection) => collection.findIndex((candidate) => candidate.id === task.id) === index)
+        ].filter((task, index, collection) => collection.findIndex((candidate) => candidate.id === task.id) === index)
         : [];
 
-    const selectedAgentSummarySection = selectedAgentData ? (
-        <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
-            <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#1a1a1a] bg-[#101010] text-2xl">
-                        {getAgentIcon(selectedAgentData)}
-                    </div>
-                    <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Selected Agent</p>
-                        <h2 className="mt-1 text-xl font-black text-white">{selectedAgentData.name}</h2>
-                        <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{selectedAgentData.role}</p>
-                    </div>
-                </div>
-                <span className={cn(
-                    "rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-                    selectedAgentData.isLive ? "border-blue-500/30 bg-blue-500/10 text-blue-300" : "border-[#2a2a2a] bg-black text-slate-400",
-                )}>
-                    {selectedAgentData.isLive ? 'Active' : 'Standby'}
-                </span>
-                    <span className={cn(
-                        "rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em]",
-                        sseConnected ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-[#2a2a2a] bg-black text-slate-400",
-                    )}>
-                        {sseConnected ? '● Live' : '○ Polling'}
-                    </span>
-                </div>
-            {selectedAgentData.mission && (
-                <p className="mt-4 text-sm leading-relaxed text-slate-400">{selectedAgentData.mission}</p>
-            )}
-        </section>
-    ) : null;
-
-    const assignedWorkSection = (
-        <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                    <LayoutGrid className="h-4 w-4 text-amber-400" />
-                    <p className="text-sm font-bold text-white">Assigned Work</p>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{selectedAgentTasks.length}</span>
-            </div>
-            <div className="mt-4 space-y-3">
-                {selectedAgentTasks.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
-                        No assigned tasks for this agent.
-                    </div>
-                ) : (
-                    selectedAgentTasks.map((task) => {
-                        const assignment = getActiveTaskAssignment(task);
-                        return (
-                            <div key={task.id} className="rounded-2xl border border-[#202020] bg-black/70 p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <p className="text-sm font-bold text-white">{task.title}</p>
-                                    <span className="rounded-full border border-[#2a2a2a] bg-black px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
-                                        {task.status}
-                                    </span>
-                                </div>
-                                <p className="mt-2 text-xs text-slate-500">{task.goal || task.description || 'No task summary available.'}</p>
-                                {assignment && (
-                                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200">
-                                            {assignment.title}
-                                        </span>
-                                        <span className="rounded-full border border-[#2a2a2a] bg-black px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                                            {assignment.status}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })
-                )}
-            </div>
-        </section>
-    );
-
-    const recentSessionsSection = (
-        <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-blue-400" />
-                    <p className="text-sm font-bold text-white">Recent Sessions</p>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Live</span>
-            </div>
-            <div className="mt-4 space-y-3">
-                {agentSessions.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[#2a2a2a] px-4 py-6 text-center text-xs text-slate-600">
-                        No recent session activity for this agent.
-                    </div>
-                ) : (
-                    agentSessions.map((session, i: number) => (
-                        <div key={i} className="rounded-2xl border border-[#202020] bg-black/70 p-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-400">{session.kind || 'Session'}</p>
-                                <span className="text-[10px] text-slate-500">
-                                    {session.updatedAt ? new Date(session.updatedAt).toLocaleTimeString() : ''}
-                                </span>
-                            </div>
-                            <p className="mt-2 break-all text-sm text-slate-300">{session.key || session.sessionId}</p>
-                            {session.type && <p className="mt-2 text-xs text-slate-500">{session.type}</p>}
-                        </div>
-                    ))
-                )}
-            </div>
-        </section>
-    );
-
-    // Map Actions
-    const handleReset = () => {
-        setPositions(getInitialPositions());
-    };
-
-    const handleGather = () => {
-        const gatherPositions: PositionMap = {};
-        displayAgents.forEach((a, i) => {
-            gatherPositions[a.id] = { x: (i % 3) + 2, y: Math.floor(i / 3) + 4 };
-        });
-        setPositions(gatherPositions);
-    };
-
-    const handleWatercooler = () => {
-        const watercoolerPos = { ...positions };
-        const pipelineAgents = displayAgents.filter(a => a.layer === 'pipeline');
-        if (pipelineAgents.length >= 2) {
-            watercoolerPos[pipelineAgents[0].id] = { x: 0, y: 5 };
-            watercoolerPos[pipelineAgents[1].id] = { x: 1, y: 5 };
-        }
-        setPositions(watercoolerPos);
-    };
+    const agentSessions = useMemo(() => (
+        liveSessions
+            .filter((session) => (
+                session.agentId === selectedAgent ||
+                String(session.label || '').toLowerCase().includes(selectedAgent.toLowerCase())
+            ))
+            .sort((left, right) => sessionUpdatedAt(right) - sessionUpdatedAt(left))
+            .slice(0, 30)
+    ), [liveSessions, selectedAgent]);
 
     return (
         <div className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden">
-            {/* Unified Header */}
-            <div className="shrink-0 px-6 md:px-12 py-8 md:py-10 border-b border-[#1a1a1a] bg-[#09090b] mb-4 md:mb-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.05)]">
-                            <Monitor className="w-5 h-5 md:w-6 md:h-6 text-amber-500" />
+            <div className="shrink-0 border-b border-[#1a1a1a] bg-[#09090b] px-6 py-8 md:px-12 md:py-10">
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.08)]">
+                                <Monitor className="h-5 w-5 text-cyan-300" />
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-black uppercase tracking-[0.2em] text-white md:text-xl">Team Operations</h1>
+                                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                                    Live collaboration, active work, and agent visibility
+                                </p>
+                            </div>
                         </div>
-                        <div>
-                            <h1 className="text-lg md:text-xl font-black text-white uppercase tracking-[0.2em] leading-none">Command Center</h1>
-                            <p className="hidden sm:block text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-wider italic opacity-70">Real-time agent orchestration and HQ monitoring</p>
-                        </div>
+                        <p className="max-w-3xl text-sm leading-relaxed text-slate-400">
+                            This is the operational view of the team. Lanes show who is working, who is blocked, and where load is accumulating.
+                            The desktop live scene mirrors the same state without becoming the primary source of truth.
+                        </p>
                     </div>
 
-                    <div className="hidden xl:flex items-center space-x-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-                        <ControlBtn icon={Monitor} label="Reset Desks" color="text-emerald-400" onClick={handleReset} />
-                        <ControlBtn icon={Users} label="Gather" color="text-blue-400" onClick={handleGather} />
-                        <ControlBtn icon={Waves} label="Watercooler" color="text-cyan-400" onClick={handleWatercooler} />
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className={cn(
+                            'rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]',
+                            sseConnected ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' : 'border-white/10 bg-white/[0.03] text-slate-400',
+                        )}>
+                            {sseConnected ? 'Live Runtime' : 'Polling Runtime'}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                            {model.summary.totalAgents} Agents
+                        </span>
                     </div>
                 </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-20 md:px-12 xl:hidden space-y-6">
-                {selectedAgentSummarySection}
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-20 pt-6 md:px-12">
+                <SummaryRail
+                    activeAgents={model.summary.activeAgents}
+                    activeWorkItems={model.summary.activeWorkItems}
+                    reviewLoad={model.summary.reviewLoad}
+                    blockedWorkItems={model.summary.blockedWorkItems}
+                    liveSessions={model.summary.liveSessions}
+                    handoffPressure={model.summary.handoffPressure}
+                />
 
-                <section className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-emerald-400" />
-                            <p className="text-sm font-bold text-white">Agents</p>
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{displayAgents.length} total</span>
-                    </div>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                        {displayAgents.map((agent) => (
-                            <button
-                                key={agent.id}
-                                onClick={() => setSelectedAgent(agent.id)}
-                                className={cn(
-                                    "rounded-2xl border p-4 text-left transition-colors",
-                                    selectedAgent === agent.id ? "border-emerald-500/40 bg-emerald-500/10" : "border-[#202020] bg-black/70 hover:border-slate-600",
-                                )}
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-start gap-3">
-                                        <div className="text-xl">{getAgentIcon(agent)}</div>
-                                        <div>
-                                            <p className="text-sm font-bold text-white">{agent.name}</p>
-                                            <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{agent.role}</p>
-                                        </div>
-                                    </div>
-                                    <div className={cn("mt-1 h-2.5 w-2.5 rounded-full", agent.isLive ? "bg-blue-500" : "bg-slate-700")} />
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </section>
-
-                {assignedWorkSection}
-
-                {recentSessionsSection}
-            </div>
-
-            <div className="hidden xl:flex flex-col xl:flex-row flex-1 min-h-0 relative px-6 md:px-12 pb-20 gap-6">
-                {/* Main 2D Floor Plan Area */}
-                <div className="flex-1 bg-black relative overflow-visible flex items-center justify-center min-h-[400px]">
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(26,26,26,0.3)_1px,transparent_1px),linear-gradient(90deg,rgba(26,26,26,0.3)_1px,transparent_1px)] bg-[size:40px_40px]" />
-
-                    {/* The Map Container */}
-                    <div className="relative w-full h-full max-w-5xl max-h-[600px] border border-[#1a1a1a] rounded-3xl bg-[#09090b] shadow-2xl overflow-x-auto overflow-y-hidden custom-scrollbar">
-                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
-
-                        {/* Rendering Agents on the Map */}
-                        <div className="relative w-full h-full p-20 grid grid-cols-6 grid-rows-6 gap-0">
-                            {/* Static Desks for Anchors */}
-                            {(() => {
-                                const mainAgent = displayAgents.find(a => a.layer === 'governance' || a.role.toLowerCase().includes('orchestrat'));
-                                const automationAgent = displayAgents.find(a => a.layer === 'automation' || a.role.toLowerCase().includes('auto'));
-                                
-                                return (
-                                    <>
-                                        {mainAgent && (
-                                            <MapObject 
-                                                x={2} y={1} type="desk" agent={mainAgent.name} 
-                                                status={getAgentStatus(mainAgent.id) || "Orchestrating..."} 
-                                                selected={selectedAgent === mainAgent.id} 
-                                                onClick={() => setSelectedAgent(mainAgent.id)} 
-                                                showAvatar={positions[mainAgent.id]?.x === 2 && positions[mainAgent.id]?.y === 1} 
-                                            />
-                                        )}
-                                        {automationAgent && (
-                                            <MapObject 
-                                                x={3} y={1} type="desk" agent={automationAgent.name} 
-                                                status={getAgentStatus(automationAgent.id) || "Monitoring"} 
-                                                selected={selectedAgent === automationAgent.id} 
-                                                onClick={() => setSelectedAgent(automationAgent.id)} 
-                                                showAvatar={positions[automationAgent.id]?.x === 3 && positions[automationAgent.id]?.y === 1} 
-                                            />
-                                        )}
-                                    </>
-                                );
-                            })()}
-
-                            {/* Dynamic Characters */}
-                            {displayAgents.map(agent => {
-                                const pos = positions[agent.id];
-                                if (!pos) return null;
-
-                                // Don't render character if they are currently shown AT their desk (Governance/Automation anchors)
-                                const isMain = agent.layer === 'governance' || agent.role.toLowerCase().includes('orchestrat');
-                                const isAutomation = agent.layer === 'automation' || agent.role.toLowerCase().includes('auto');
-                                
-                                if (isMain && pos.x === 2 && pos.y === 1) return null;
-                                if (isAutomation && pos.x === 3 && pos.y === 1) return null;
-
-                                return (
-                                    <MapObject 
-                                        key={agent.id}
-                                        x={pos.x} y={pos.y} 
-                                        type="character" 
-                                        agent={agent.name} 
-                                        status={getAgentStatus(agent.id)} 
-                                        selected={selectedAgent === agent.id} 
-                                        onClick={() => setSelectedAgent(agent.id)} 
-                                    />
-                                );
-                            })}
-
-                            {/* Decorations */}
-                            <MapObject x={0} y={4} type="fountain" />
-                            <MapObject x={5} y={4} type="plant" />
-                            <MapObject x={0} y={6} type="plant" />
-                            <MapObject x={1} y={6} type="terminal" />
-                            <MapObject x={3} y={5} type="table" />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Activity / Chat Sidebar */}
-                <div className="w-full xl:w-80 border-t xl:border-t-0 xl:border-l border-[#1a1a1a] bg-[#0c0c0e] flex flex-col p-6 min-h-[300px]">
-                    <div className="mb-6 shrink-0">
-                        {selectedAgentSummarySection}
+                <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.55fr)_360px]">
+                    <div className="space-y-6">
+                        <WorkstreamBoard
+                            workstreams={model.workstreams}
+                            onSelectAgent={setSelectedAgent}
+                        />
+                        <LiveScene
+                            zones={model.sceneZones}
+                            selectedAgentId={selectedAgent}
+                            onSelect={setSelectedAgent}
+                        />
+                        <OperationsBoard
+                            groups={model.groups}
+                            selectedAgentId={selectedAgent}
+                            onSelect={setSelectedAgent}
+                        />
                     </div>
 
-                    <div className="mb-6 shrink-0">
-                        {assignedWorkSection}
+                    <div className="space-y-6">
+                        <AgentInspector
+                            selectedAgent={selectedAgentData}
+                            selectedCard={model.selected}
+                            tasks={selectedAgentTasks}
+                            sessions={agentSessions}
+                        />
                     </div>
-
-                    <div className="flex items-center justify-between mb-8 shrink-0">
-                        <div className="flex items-center space-x-3">
-                            <Activity className="w-4 h-4 text-blue-500" />
-                            <h2 className="text-xs font-black text-slate-300 uppercase tracking-widest">Live Activity</h2>
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Last hour</span>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-                        {agentSessions.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center text-center space-y-4 opacity-30 h-full mt-24">
-                                <Activity className="w-8 h-8 text-slate-800" />
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">No recent activity</p>
-                                <p className="text-[10px] font-medium text-slate-600">Events for {selectedAgent} will appear here.</p>
-                            </div>
-                        ) : (
-                            agentSessions.map((session, i: number) => (
-                                <div key={i} className="p-3 rounded-xl bg-[#131315] border border-[#1e1e20] flex flex-col gap-2 relative">
-                                    <div className="flex justify-between items-start">
-                                        <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{session.kind || 'Session'}</span>
-                                        <span className="text-[9px] text-slate-500">
-                                            {session.updatedAt ? new Date(session.updatedAt).toLocaleTimeString() : ''}
-                                        </span>
-                                    </div>
-                                    <div className="text-xs text-slate-300 font-medium break-all line-clamp-2" title={session.key || session.sessionId}>
-                                        {session.key || session.sessionId}
-                                    </div>
-                                    {session.type && (
-                                        <div className="text-[10px] text-slate-400 mt-1 line-clamp-2">
-                                            {session.type}
-                                        </div>
-                                    )}
-                                    <div className="flex justify-between items-center mt-1 pt-2 border-t border-[#1e1e20]">
-                                        <div className="flex items-center space-x-1">
-                                            <Code className="w-3 h-3 text-slate-500" />
-                                            <span className="text-[9px] text-slate-400">{session.model || 'Unknown'}</span>
-                                        </div>
-                                        {session.totalTokens && (
-                                            <div className="flex items-center space-x-1">
-                                                <Zap className="w-3 h-3 text-emerald-500/70" />
-                                                <span className="text-[9px] text-slate-400">{session.totalTokens}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom Agents Bar */}
-            <div className="hidden h-48 shrink-0 border-t border-[#1a1a1a] bg-[#0c0c0e] p-6 xl:block">
-                <div className="flex space-x-4 overflow-x-auto pb-2 h-full items-center">
-                    {displayAgents.map((agent) => (
-                        <div
-                            key={agent.id}
-                            onClick={() => setSelectedAgent(agent.id)}
-                            className={cn(
-                                "flex-shrink-0 w-48 h-full bg-[#101010] border rounded-2xl p-4 transition-all cursor-pointer group flex flex-col justify-between",
-                                selectedAgent === agent.id ? "border-emerald-500/50 ring-1 ring-emerald-500/20" : "border-[#1a1a1a] hover:border-slate-700",
-                                agent.isLive && "border-blue-500/40 shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-                            )}
-                        >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                    <span className="text-lg">{getAgentIcon(agent.id)}</span>
-                                    <h4 className="text-xs font-black text-white">{agent.name}</h4>
-                                </div>
-                                {agent.isLive ? (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                ) : (
-                                    <div className="w-1.5 h-1.5 rounded-full bg-slate-700" />
-                                )}
-                            </div>
-
-                            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">
-                                {agent.isLive ? 'Working...' : 'Standby'}
-                            </div>
-
-                            <div className="flex items-center space-x-2 mt-4 pt-3 border-t border-[#1a1a1a]">
-                                <Activity className={cn("w-3 h-3", agent.isLive ? "text-blue-500" : "text-slate-600")} />
-                                <span className="text-[10px] font-black text-slate-400 truncate tracking-tight">{agent.role}</span>
-                            </div>
-                        </div>
-                    ))}
                 </div>
             </div>
         </div>
     );
 }
 
-function ControlBtn({ icon: Icon, label, color, onClick }: { icon: typeof Monitor; label: string; color: string; onClick: () => void }) {
+function SummaryRail(props: {
+    activeAgents: number;
+    activeWorkItems: number;
+    reviewLoad: number;
+    blockedWorkItems: number;
+    liveSessions: number;
+    handoffPressure: number;
+}) {
     return (
-        <button 
-            onClick={onClick}
-            className="flex items-center space-x-2 bg-[#1a1a1a] px-4 py-2 rounded-xl border border-transparent hover:border-[#333] transition-all hover:scale-105 active:scale-95">
-            <Icon className={cn("w-4 h-4", color)} />
-            <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">{label}</span>
-        </button>
-    )
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <SummaryCard icon={Zap} label="Active Agents" value={props.activeAgents} tone="blue" />
+            <SummaryCard icon={LayoutGrid} label="Active Work" value={props.activeWorkItems} tone="amber" />
+            <SummaryCard icon={Users} label="Review Load" value={props.reviewLoad} tone="emerald" />
+            <SummaryCard icon={AlertTriangle} label="Blocked Items" value={props.blockedWorkItems} tone="red" />
+            <SummaryCard icon={Activity} label="Live Sessions" value={props.liveSessions} tone="emerald" />
+            <SummaryCard icon={Sparkles} label="Handoff Pressure" value={props.handoffPressure} tone="blue" />
+        </div>
+    );
 }
 
-function MapObject({ x, y, type, agent, status, selected, showAvatar = true, onClick }: {
-    x: number;
-    y: number;
-    type: 'desk' | 'character' | 'table' | 'fountain' | 'plant' | 'terminal';
-    agent?: string;
-    status?: string;
-    selected?: boolean;
-    showAvatar?: boolean;
-    onClick?: () => void;
+function SummaryCard({
+    icon: Icon,
+    label,
+    value,
+    tone,
+}: {
+    icon: typeof Activity;
+    label: string;
+    value: number;
+    tone: 'blue' | 'red' | 'amber' | 'emerald';
 }) {
-    const style = {
-        gridColumnStart: x + 1,
-        gridRowStart: y + 1,
-    };
+    const toneClasses = {
+        blue: 'border-blue-500/20 bg-blue-500/[0.05] text-blue-300',
+        red: 'border-red-500/20 bg-red-500/[0.05] text-red-300',
+        amber: 'border-amber-500/20 bg-amber-500/[0.05] text-amber-200',
+        emerald: 'border-emerald-500/20 bg-emerald-500/[0.05] text-emerald-300',
+    }[tone];
 
-    if (type === 'desk') {
-        return (
-            <div 
-                style={style} 
-                className={cn("relative flex flex-col items-center justify-center transition-all cursor-pointer", selected && "scale-110 z-10")}
-                onClick={onClick}
-            >
-                {selected && <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse" />}
-                <div className={cn("w-16 h-10 bg-[#222] border-2 rounded-sm relative shadow-lg z-10 transition-colors", selected ? "border-blue-500/50" : "border-[#333]")}>
-                    <div className="absolute top-1 left-2 w-10 h-6 bg-blue-600/20 border border-blue-500/30 rounded-sm" />
+    return (
+        <div className="rounded-3xl border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+            <div className="flex items-center justify-between gap-4">
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                    <p className="mt-3 text-3xl font-black tracking-tight text-white">{value}</p>
                 </div>
-                {agent && showAvatar && (
-                    <div className="absolute -top-4 flex flex-col items-center z-20">
-                        {status && (
-                            <div className="absolute -top-10 bg-black text-white px-3 py-1 text-[10px] font-bold rounded-lg border border-[#333] whitespace-nowrap z-20 transition-all scale-110">
-                                {status}
+                <div className={cn('flex h-11 w-11 items-center justify-center rounded-2xl border', toneClasses)}>
+                    <Icon className="h-5 w-5" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function OperationsBoard({
+    groups,
+    selectedAgentId,
+    onSelect,
+}: {
+    groups: TeamOperationsGroup[];
+    selectedAgentId: string;
+    onSelect: (agentId: string) => void;
+}) {
+    return (
+        <section className="rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5 md:p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-cyan-300" />
+                        <p className="text-sm font-bold text-white">Operations Board</p>
+                    </div>
+                    <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-500">
+                        The board groups the team by function so you can see load, activity, and blockers without decoding a map.
+                    </p>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                    Function-aligned lanes
+                </span>
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                {groups.map((group) => (
+                    <div key={group.id} className="rounded-3xl border border-[#1a1a1a] bg-black/60 p-4">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className={cn('text-[10px] font-black uppercase tracking-[0.18em]', laneAccent(group.id))}>
+                                    {group.label}
+                                </p>
+                                <p className="mt-2 text-xs leading-relaxed text-slate-500">{group.description}</p>
                             </div>
-                        )}
-                        <span className={cn("text-2xl mt-2 transition-transform", status === 'Active' ? "animate-bounce" : (selected ? "scale-125 drop-shadow-[0_0_10px_rgba(59,130,246,0.4)]" : ""))}>{getAgentIcon(agent)}</span>
-                        <span className={cn("text-[9px] font-black uppercase tracking-widest mt-1 bg-black/80 px-1 rounded transition-colors", selected ? "text-blue-400" : "text-slate-500")}>{agent}</span>
+                            <span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                {group.agents.length}
+                            </span>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            {group.agents.map((card) => (
+                                <button
+                                    key={card.agent.id}
+                                    onClick={() => onSelect(card.agent.id)}
+                                    className={cn(
+                                        'w-full rounded-2xl border p-4 text-left transition-all',
+                                        selectedAgentId === card.agent.id ? 'border-cyan-400/40 bg-cyan-500/10' : 'border-[#202020] bg-[#101012] hover:border-slate-600',
+                                    )}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-black text-sm font-black text-white">
+                                                {getAgentIcon(card.agent)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-white">{card.agent.name}</p>
+                                                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{card.agent.role}</p>
+                                            </div>
+                                        </div>
+                                        <span className={cn('rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em]', statusTone(card.workState))}>
+                                            {card.workState}
+                                        </span>
+                                    </div>
+
+                                    <div className="mt-4 flex flex-wrap gap-2">
+                                        <span className="rounded-full border border-white/10 bg-black px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                            {card.assignedCount} assigned
+                                        </span>
+                                        <span className="rounded-full border border-white/10 bg-black px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                            {card.liveSessionCount} live sessions
+                                        </span>
+                                    </div>
+
+                                    {card.taskTitles.length > 0 ? (
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            {card.taskTitles.slice(0, 2).map((title) => (
+                                                <span key={title} className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-cyan-100">
+                                                    {title}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-4 text-xs text-slate-600">No active assignments in this lane.</p>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                )}
+                ))}
             </div>
-        )
-    }
+        </section>
+    );
+}
 
-    if (type === 'character') {
-        return (
-            <div 
-                style={{
-                    gridColumnStart: x + 1,
-                    gridRowStart: y + 1,
-                    transition: 'all 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
-                }}
-                className={cn("flex flex-col items-center justify-center cursor-pointer transition-all", selected && "scale-125 z-10")}
-                onClick={onClick}
-            >
-                {selected && <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse" />}
-                {status && (
-                    <div className="absolute -top-6 bg-black text-white px-2 py-0.5 text-[9px] font-bold rounded border border-blue-900/50 whitespace-nowrap z-20 text-blue-400 transition-all scale-110">
-                        {status}
+function workstreamTone(id: string) {
+    if (id === 'active') return 'border-blue-500/20 bg-blue-500/[0.04]';
+    if (id === 'review') return 'border-emerald-500/20 bg-emerald-500/[0.04]';
+    if (id === 'blocked') return 'border-red-500/20 bg-red-500/[0.04]';
+    return 'border-white/10 bg-white/[0.03]';
+}
+
+function WorkstreamBoard({
+    workstreams,
+    onSelectAgent,
+}: {
+    workstreams: Array<{
+        id: string;
+        label: string;
+        description: string;
+        items: TeamOperationsWorkItem[];
+    }>;
+    onSelectAgent: (agentId: string) => void;
+}) {
+    return (
+        <section className="rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5 md:p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-cyan-300" />
+                        <p className="text-sm font-bold text-white">Workstream Flow</p>
                     </div>
-                )}
-                <span className={cn(
-                    "text-2xl hover:scale-125 transition-transform drop-shadow-[0_0_10px_rgba(255,255,255,0.1)] z-10",
-                    status === 'Active' && "animate-bounce drop-shadow-[0_0_15px_rgba(59,130,246,0.6)]",
-                    selected && !status && "drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]"
-                )}>{getAgentIcon(agent)}</span>
-                <span className={cn("text-[8px] font-black uppercase tracking-[0.2em] mt-1 z-10 transition-colors", selected ? "text-blue-400" : "text-slate-600")}>{agent}</span>
+                    <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-500">
+                        This is the active work picture: what is moving, what is waiting on review, and what is blocked hard enough to need intervention.
+                    </p>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                    Task-state view
+                </span>
             </div>
-        )
-    }
 
-    if (type === 'table') {
+            <div className="mt-5 grid gap-4 xl:grid-cols-4">
+                {workstreams.map((stream) => (
+                    <div key={stream.id} className={cn('rounded-3xl border p-4', workstreamTone(stream.id))}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white">{stream.label}</p>
+                                <p className="mt-2 text-xs leading-relaxed text-slate-500">{stream.description}</p>
+                            </div>
+                            <span className="rounded-full border border-white/10 bg-black/50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
+                                {stream.items.length}
+                            </span>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            {stream.items.length === 0 ? (
+                                <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-slate-600">
+                                    No tasks in this lane.
+                                </div>
+                            ) : (
+                                stream.items.slice(0, 4).map((item) => (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => item.agentId && onSelectAgent(item.agentId)}
+                                        className={cn(
+                                            'w-full rounded-2xl border border-[#202020] bg-black/70 p-4 text-left',
+                                            item.agentId ? 'transition-colors hover:border-slate-600' : 'cursor-default',
+                                        )}
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <p className="text-sm font-bold text-white">{item.title}</p>
+                                            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
+                                                {item.statusLabel || item.state}
+                                            </span>
+                                        </div>
+                                        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                                            {item.summary || 'No task summary available.'}
+                                        </p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {item.stepTitle && (
+                                                <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100">
+                                                    {item.stepTitle}
+                                                </span>
+                                            )}
+                                            {(item.agentName || item.agentId) && (
+                                                <span className="rounded-full border border-white/10 bg-black px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                                    {item.agentName || item.agentId}
+                                                </span>
+                                            )}
+                                            {item.needsAttention && (
+                                                <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-red-200">
+                                                    attention
+                                                </span>
+                                            )}
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function LiveScene({
+    zones,
+    selectedAgentId,
+    onSelect,
+}: {
+    zones: TeamOperationsZone[];
+    selectedAgentId: string;
+    onSelect: (agentId: string) => void;
+}) {
+    return (
+        <section className="hidden rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5 md:p-6 xl:block">
+            <div className="flex items-end justify-between gap-4">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-cyan-300" />
+                        <p className="text-sm font-bold text-white">Live Scene</p>
+                    </div>
+                    <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-500">
+                        Desktop-only 2D stage. Agents are seated by zone and state, not arbitrary coordinates, so the scene stays readable as the team grows.
+                    </p>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                    deterministic seats
+                </span>
+            </div>
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+                {zones.map((zone) => (
+                    <div key={zone.id} className={cn('rounded-[1.75rem] border p-4', zoneTone(zone.tone))}>
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white">{zone.label}</p>
+                                <p className="mt-2 text-xs text-slate-500">{zone.seats.length} seats occupied</p>
+                            </div>
+                            <div className="rounded-full border border-white/10 bg-black/50 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                zone
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid min-h-40 gap-3 sm:grid-cols-2">
+                            {zone.seats.map((seat) => (
+                                <button
+                                    key={seat.slotId}
+                                    onClick={() => onSelect(seat.card.agent.id)}
+                                    className={cn(
+                                        'relative rounded-2xl border border-white/10 bg-black/60 p-3 text-left transition-all',
+                                        selectedAgentId === seat.card.agent.id ? 'scale-[1.02] border-cyan-400/40 shadow-[0_0_30px_rgba(34,211,238,0.08)]' : 'hover:border-white/20',
+                                    )}
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn(
+                                                'flex h-9 w-9 items-center justify-center rounded-2xl border text-sm font-black transition-transform',
+                                                seat.card.workState === 'active' ? 'border-blue-400/40 bg-blue-500/10 text-blue-100 animate-pulse' : 'border-white/10 bg-white/[0.04] text-white',
+                                            )}>
+                                                {getAgentIcon(seat.card.agent)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-white">{seat.card.agent.name}</p>
+                                                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+                                                    {seat.card.workState}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className={cn(
+                                            'mt-1 h-2.5 w-2.5 rounded-full',
+                                            seat.card.workState === 'active' ? 'bg-blue-400 shadow-[0_0_12px_rgba(96,165,250,0.8)]' :
+                                            seat.card.workState === 'blocked' ? 'bg-red-400' :
+                                            seat.card.workState === 'assigned' ? 'bg-amber-300' :
+                                            'bg-slate-700',
+                                        )} />
+                                    </div>
+
+                                    <div className="mt-3 h-8 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.05] to-transparent" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function AgentInspector({
+    selectedAgent,
+    selectedCard,
+    tasks,
+    sessions,
+}: {
+    selectedAgent?: TeamOperationsAgent;
+    selectedCard: TeamOperationsAgentCard | null;
+    tasks: OfficeTask[];
+    sessions: LiveSession[];
+}) {
+    if (!selectedAgent || !selectedCard) {
         return (
-            <div style={style} className="w-24 h-16 bg-[#1a1a1a] border-4 border-[#222] rounded-[2rem] shadow-xl" />
-        )
+            <section className="rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+                <p className="text-sm text-slate-500">No agent selected.</p>
+            </section>
+        );
     }
 
-    if (type === 'fountain') return <div style={style} className="w-12 h-12 rounded-full bg-blue-500/20 border-4 border-blue-400/30 animate-pulse shadow-[0_0_20px_rgba(59,130,246,0.3)]" />;
-    if (type === 'plant') return <div style={style} className="w-10 h-10 bg-emerald-700/40 rounded-t-full border-b-8 border-orange-950/50" />;
-    if (type === 'terminal') return <div style={style} className="w-10 h-14 bg-slate-800 rounded-lg border-b-4 border-slate-900 flex items-center justify-center"><div className="w-6 h-6 bg-black rounded p-1"><div className="w-1 h-3 bg-green-500 animate-pulse" /></div></div>;
+    return (
+        <>
+            <section className="rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black text-lg font-black text-white">
+                            {getAgentIcon(selectedAgent)}
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Selected Agent</p>
+                            <h2 className="mt-1 text-xl font-black text-white">{selectedAgent.name}</h2>
+                            <p className="mt-1 text-xs font-black uppercase tracking-[0.16em] text-slate-500">{selectedAgent.role}</p>
+                        </div>
+                    </div>
+                    <span className={cn('rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em]', statusTone(selectedCard.workState))}>
+                        {selectedCard.workState}
+                    </span>
+                </div>
 
-    return null;
+                {selectedAgent.mission && (
+                    <p className="mt-4 text-sm leading-relaxed text-slate-400">{selectedAgent.mission}</p>
+                )}
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <InspectorMetric icon={LayoutGrid} label="Assigned" value={selectedCard.assignedCount} />
+                    <InspectorMetric icon={Activity} label="Live Sessions" value={selectedCard.liveSessionCount} />
+                </div>
+            </section>
+
+            <section className="rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <LayoutGrid className="h-4 w-4 text-amber-300" />
+                        <p className="text-sm font-bold text-white">Assigned Work</p>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{tasks.length}</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                    {tasks.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-slate-600">
+                            No active assignments for this agent.
+                        </div>
+                    ) : (
+                        tasks.map((task) => {
+                            const assignment = getActiveTaskAssignment(task);
+                            return (
+                                <div key={task.id} className="rounded-2xl border border-[#202020] bg-black/70 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <p className="text-sm font-bold text-white">{task.title}</p>
+                                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-300">
+                                            {task.status}
+                                        </span>
+                                    </div>
+                                    <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                                        {task.goal || task.description || 'No task summary available.'}
+                                    </p>
+                                    {assignment && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            <span className="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100">
+                                                {assignment.title}
+                                            </span>
+                                            <span className="rounded-full border border-white/10 bg-black px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                                {assignment.status}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            </section>
+
+            <section className="rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e] p-5">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <Clock3 className="h-4 w-4 text-blue-300" />
+                        <p className="text-sm font-bold text-white">Recent Sessions</p>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Live</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                    {sessions.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-slate-600">
+                            No recent session activity for this agent.
+                        </div>
+                    ) : (
+                        sessions.map((session, index) => (
+                            <div key={`${session.sessionId || session.key || index}`} className="rounded-2xl border border-[#202020] bg-black/70 p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-300">
+                                        {session.kind || 'Session'}
+                                    </p>
+                                    <span className="text-[10px] text-slate-500">
+                                        {session.updatedAt ? new Date(session.updatedAt).toLocaleTimeString() : ''}
+                                    </span>
+                                </div>
+                                <p className="mt-2 break-all text-sm text-slate-300">{session.key || session.sessionId}</p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    {session.model && (
+                                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                            {session.model}
+                                        </span>
+                                    )}
+                                    {session.totalTokens && (
+                                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+                                            {session.totalTokens} tokens
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </section>
+        </>
+    );
+}
+
+function InspectorMetric({
+    icon: Icon,
+    label,
+    value,
+}: {
+    icon: typeof Activity;
+    label: string;
+    value: number;
+}) {
+    return (
+        <div className="rounded-2xl border border-white/10 bg-black/60 p-3">
+            <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">{label}</p>
+                <Icon className="h-3.5 w-3.5 text-slate-500" />
+            </div>
+            <p className="mt-2 text-xl font-black text-white">{value}</p>
+        </div>
+    );
 }

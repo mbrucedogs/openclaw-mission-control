@@ -71,6 +71,22 @@ export function getLatestCursor(): number {
 }
 
 /**
+ * Get the newest event for a specific event type.
+ */
+export function getLatestEventByType(eventType: string): RuntimeEvent | null {
+  ensureInit()
+
+  const row = db.prepare(`
+    SELECT * FROM runtime_events
+    WHERE event_type = ?
+    ORDER BY cursor DESC
+    LIMIT 1
+  `).get(eventType) as RuntimeEvent | undefined
+
+  return row ?? null
+}
+
+/**
  * Get a paginated slice of events for testing/inspection.
  */
 export function getEvents(offset: number = 0, limit: number = 100): RuntimeEvent[] {

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { getLatestCursor, replayEvents } from '@/lib/db/runtime'
+import { syncGatewayRuntimeEvents } from '@/lib/openclaw/runtime-bridge'
 import { parseRuntimeEventsCursor } from '@/lib/runtime-events'
 
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,30 @@ export async function GET(request: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
+      let closed = false
+
+      const flushRuntimeEvents = async () => {
+        await syncGatewayRuntimeEvents('api.events.stream')
+
+        const latestCursor = getLatestCursor()
+        if (latestCursor <= cursor) return
+
+        const newEvents = replayEvents(cursor)
+        for (const event of newEvents) {
+          const payload = JSON.parse(event.payload)
+          const sseData = {
+            id: event.id,
+            type: event.event_type,
+            actor: event.actor,
+            payload,
+            cursor: event.cursor,
+            createdAt: event.created_at,
+          }
+          controller.enqueue(encoder.encode(createEvent('event', sseData, event.cursor)))
+        }
+        cursor = latestCursor
+      }
+
       // Send initial replay of missed events if Last-Event-ID provided
       if (afterCursor !== undefined) {
         const missedEvents = replayEvents(afterCursor)
@@ -52,13 +77,19 @@ export async function GET(request: NextRequest) {
         timestamp: new Date().toISOString(),
       }
       controller.enqueue(encoder.encode(createEvent('connection', connectEvent, cursor)))
+
+      void flushRuntimeEvents().catch(() => {
+        closed = true
+      })
       
       // Heartbeat interval
       const heartbeatTimer = setInterval(() => {
         try {
+          if (closed) return
           const ping = `: heartbeat ${new Date().toISOString()}\n\n`
           controller.enqueue(encoder.encode(ping))
         } catch {
+          closed = true
           clearInterval(heartbeatTimer)
         }
       }, HEARTBEAT_INTERVAL)
@@ -66,32 +97,16 @@ export async function GET(request: NextRequest) {
       // Subscribe to runtime events via polling (simple approach)
       // In production, this would integrate with an event bus or pub/sub
       const pollInterval = setInterval(() => {
-        try {
-          const latestCursor = getLatestCursor()
-          if (latestCursor > cursor) {
-            const newEvents = replayEvents(cursor)
-            for (const event of newEvents) {
-              const payload = JSON.parse(event.payload)
-              const sseData = {
-                id: event.id,
-                type: event.event_type,
-                actor: event.actor,
-                payload,
-                cursor: event.cursor,
-                createdAt: event.created_at,
-              }
-              controller.enqueue(encoder.encode(createEvent('event', sseData, event.cursor)))
-            }
-            cursor = latestCursor
-          }
-        } catch {
+        void flushRuntimeEvents().catch(() => {
+          closed = true
           clearInterval(pollInterval)
           clearInterval(heartbeatTimer)
-        }
+        })
       }, 2000) // Poll every 2 seconds
       
       // Cleanup on close
       request.signal.addEventListener('abort', () => {
+        closed = true
         clearInterval(heartbeatTimer)
         clearInterval(pollInterval)
         try {
