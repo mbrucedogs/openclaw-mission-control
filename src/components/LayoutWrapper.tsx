@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { ExecApprovalOverlay } from './exec-approvals/ExecApprovalOverlay';
 
 interface LayoutWrapperProps {
     children: React.ReactNode;
@@ -26,6 +27,7 @@ export function LayoutWrapper({ children, username = 'Admin' }: LayoutWrapperPro
             />
             
             <main className="relative min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain">
+                <ExecApprovalOverlay />
                 {children}
             </main>
         </div>

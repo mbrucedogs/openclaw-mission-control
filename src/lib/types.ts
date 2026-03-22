@@ -253,7 +253,7 @@ export interface Agent {
   type?: string;
   mission?: string;
   status?: string;
-  layer?: string;
+  layer?: AgentLayerHint;
   order?: number;
   responsibilities?: string[];
   folder?: string;
@@ -267,6 +267,8 @@ export interface Agent {
   currentModel?: string;
   percentUsed?: number;
 }
+
+export type AgentLayerHint = 'governance' | 'build' | 'review' | 'automation';
 
 export interface Project {
   taskIds?: string[];

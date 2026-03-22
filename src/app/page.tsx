@@ -16,21 +16,26 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { isSystemReady } from '@/lib/domain/agents';
+import { getAgentsWithGateway } from '@/lib/domain/agents';
+import { getGatewayHealth, isGatewayConnected } from '@/lib/openclaw/gateway';
 import { GatewayPanel } from '@/components/GatewayPanel';
+import { buildDashboardModel } from './dashboard-model';
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   const tasks = getTasks();
   const projects = getProjects();
-  const ready = isSystemReady();
+  const [agents, gatewayHealth] = await Promise.all([
+    getAgentsWithGateway(),
+    getGatewayHealth(),
+  ]);
+  const dashboard = buildDashboardModel({
+    agents,
+    tasks,
+    projects,
+    gatewayConnected: isGatewayConnected(gatewayHealth),
+  });
 
-  const stats = {
-    totalTasks: tasks.length,
-    activeDomains: projects.length,
-    stuckTasks: tasks.filter(t => t.isStuck).length
-  };
-
-  if (!ready) {
+  if (!dashboard.ready) {
     return (
       <div className="max-w-[1400px] p-4 sm:p-8 lg:p-12 space-y-8 sm:space-y-12 animate-in fade-in duration-1000">
         <div className="relative p-8 sm:p-12 lg:p-16 border border-orange-500/20 rounded-[2rem] sm:rounded-[3rem] lg:rounded-[4rem] bg-orange-500/[0.02] overflow-hidden shadow-2xl">
@@ -48,7 +53,7 @@ export default function DashboardPage() {
               </h1>
               <p className="text-xl text-slate-400 font-medium leading-relaxed">
                 Mission Control is online, but your agent roster requires registration. 
-                Assign <span className="text-white font-bold underline decoration-orange-500/50 decoration-4 underline-offset-4">System Types</span> to your discovered agents to unlock orchestration capabilities.
+                Assign <span className="text-white font-bold underline decoration-orange-500/50 decoration-4 underline-offset-4">System Types</span> to the <span className="text-white font-bold">{dashboard.setupNeededCount}</span> discovered agent{dashboard.setupNeededCount === 1 ? '' : 's'} that still need setup.
               </p>
             </div>
 
@@ -70,10 +75,10 @@ export default function DashboardPage() {
 
         {/* Placeholder/Disabled Grid Preview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 opacity-40 grayscale pointer-events-none">
-          <StatCard label="Pipeline Tasks" value="--" icon={Target} color="text-slate-500" sub="Offline" />
-          <StatCard label="Stuck Recovery" value="--" icon={AlertTriangle} color="text-slate-500" sub="Offline" />
-          <StatCard label="Uptime" value="0%" icon={Activity} color="text-slate-500" sub="Offline" />
-          <StatCard label="Agent Roster" value="!" icon={Users} color="text-orange-500" sub="Unassigned" />
+          <StatCard label="Pipeline Tasks" value={dashboard.totalTasks} icon={Target} color="text-slate-500" sub="Awaiting setup" />
+          <StatCard label="Stuck Recovery" value={dashboard.stuckTasks} icon={AlertTriangle} color="text-slate-500" sub="Awaiting setup" />
+          <StatCard label="Runtime" value={dashboard.runtimeValue} icon={Activity} color="text-slate-500" sub={dashboard.runtimeSubLabel} />
+          <StatCard label="Agent Roster" value={dashboard.rosterCount} icon={Users} color="text-orange-500" sub={`${dashboard.setupNeededCount} need setup`} />
         </div>
       </div>
     );
@@ -98,14 +103,14 @@ export default function DashboardPage() {
               Mission <span className="text-blue-500">Control</span>
             </h1>
             <p className="text-lg sm:text-xl text-slate-400 font-medium max-w-2xl leading-relaxed">
-              Canonical system online. Managing <span className="text-white font-black">{stats.totalTasks}</span> durable tasks across <span className="text-white font-black">{stats.activeDomains}</span> active domains.
+              Canonical system online. Managing <span className="text-white font-black">{dashboard.totalTasks}</span> durable tasks across <span className="text-white font-black">{dashboard.activeDomains}</span> active domains.
             </p>
           </div>
 
           <div className="flex md:justify-end">
             <div className="bg-[#09090b] border border-[#1a1a1a] rounded-2xl p-4 sm:p-6 flex flex-col items-center min-w-[120px] w-full sm:w-auto">
               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Status</span>
-              <span className="text-lg sm:text-xl font-black text-emerald-500">NOMINAL</span>
+              <span className="text-lg sm:text-xl font-black text-emerald-500">{dashboard.statusLabel}</span>
             </div>
           </div>
         </div>
@@ -113,10 +118,10 @@ export default function DashboardPage() {
 
       {/* Orchestration Pulse Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6">
-        <StatCard label="Pipeline Tasks" value={stats.totalTasks} icon={Target} color="text-blue-500" sub="Durable" href="/tasks" />
-        <StatCard label="Stuck Recovery" value={stats.stuckTasks} icon={AlertTriangle} color="text-red-500" sub="Alerts active" href="/tasks" />
-        <StatCard label="Uptime" value="100%" icon={Activity} color="text-emerald-500" sub="Real-time" href="/office" />
-        <StatCard label="Agent Roster" value="6" icon={Users} color="text-indigo-500" sub="Canonical" href="/team" />
+        <StatCard label="Pipeline Tasks" value={dashboard.totalTasks} icon={Target} color="text-blue-500" sub="Durable" href="/tasks" />
+        <StatCard label="Stuck Recovery" value={dashboard.stuckTasks} icon={AlertTriangle} color="text-red-500" sub="Alerts active" href="/tasks" />
+        <StatCard label="Runtime" value={dashboard.runtimeValue} icon={Activity} color="text-emerald-500" sub={dashboard.runtimeSubLabel} href="/office" />
+        <StatCard label="Agent Roster" value={dashboard.rosterCount} icon={Users} color="text-indigo-500" sub={`${dashboard.setupNeededCount === 0 ? 'Configured' : 'Needs setup'}`} href="/team" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">

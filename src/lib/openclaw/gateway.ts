@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process'
-import path from 'path'
 import os from 'os'
 
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || 'openclaw'
@@ -32,6 +31,8 @@ function parseGatewayJsonOutput(raw: string): unknown | null {
 export interface GatewayOptions {
   timeoutMs?: number
 }
+
+export type GatewayCall = typeof callGateway
 
 export async function callGateway<T = unknown>(method: string, params: unknown = {}, opts: GatewayOptions = {}): Promise<T> {
   const timeoutMs = opts.timeoutMs ?? GATEWAY_TIMEOUT
@@ -67,6 +68,10 @@ export async function getGatewayHealth() {
   }
 }
 
+export function isGatewayConnected(health: GatewayHealthResponse | null | undefined): boolean {
+  return Boolean(health?.ok)
+}
+
 export async function getGatewayStatus() {
   try {
     return await callGateway<GatewayStatusResponse>('status', {}, { timeoutMs: 10000 })
@@ -78,7 +83,7 @@ export async function getGatewayStatus() {
 export interface GatewayHealthResponse {
   ok: boolean
   ts: number
-  channels: Record<string, any>
+  channels: Record<string, unknown>
   channelOrder: string[]
   heartbeatSeconds: number
   defaultAgentId: string

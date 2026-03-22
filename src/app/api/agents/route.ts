@@ -7,7 +7,7 @@ export async function GET() {
     try {
         const agents = await getAgentsWithGateway();
         return NextResponse.json(agents);
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 });
     }
 }

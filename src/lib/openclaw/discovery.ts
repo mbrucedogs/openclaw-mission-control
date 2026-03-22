@@ -1,288 +1,462 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import { Agent } from '../types';
-import { BASE_WORKSPACE } from '../config';
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 
-const WORKSPACE_ROOT = BASE_WORKSPACE;
+import type { Agent, AgentLayerHint } from '../types'
+import { BASE_WORKSPACE } from '../config'
+
+const WORKSPACE_ROOT = BASE_WORKSPACE
+const ROOT_AGENT_ID = 'main'
+const ROOT_FOLDER = '.'
+const ROOT_AGENT_ROLE_FALLBACK = 'Primary Orchestrator'
+const DISPLAY_NAME_SUFFIX_RE = /(?:-(?:agent|monitor|researcher|implementer|tester|orchestrator|scheduler|reviewer))+$/gi
+const TECHNICAL_SLUG_SUFFIX_RE = /(?:[-\s]+(?:agent|monitor|researcher|implementer|tester|orchestrator|scheduler|reviewer|builder|qa|security))+$/gi
 
 export interface DiscoveredAgent extends Agent {
-    model?: string;
-    folder?: string;
-    layer?: 'governance' | 'pipeline' | 'automation';
-    order?: number;
+  model?: string
+  folder?: string
+  layer?: AgentLayerHint
+  order?: number
+}
+
+export interface RootAgentWorkspaceInput {
+  identityContent?: string
+  soulContent?: string
+}
+
+export interface TechnicalAgentConfig {
+  id: string
+  name?: string
+  identity?: {
+    name?: string
+  }
+  agentDir?: string
+}
+
+export interface MetadataEnrichmentInput {
+  resolvedFolder?: string
+  soulContent?: string
+  agentsContent?: string
+}
+
+export interface AgentLayerHints {
+  layer: AgentLayerHint
+  order: number
+}
+
+function normalize(value: string | undefined): string {
+  return String(value || '').trim()
+}
+
+function normalizeLower(value: string | undefined): string {
+  return normalize(value).toLowerCase()
+}
+
+function cleanDisplayName(value: string): string {
+  return normalize(value.replace(DISPLAY_NAME_SUFFIX_RE, '')) || normalize(value)
+}
+
+function toFriendlyAgentSlug(value: string): string {
+  return normalize(value)
+    .replace(TECHNICAL_SLUG_SUFFIX_RE, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function extractMarkdownField(content: string | undefined, field: string): string {
+  if (!content) return ''
+
+  const patterns = [
+    new RegExp(`^-\\s*\\*\\*${field}:\\*\\*\\s*(.+)$`, 'im'),
+    new RegExp(`^\\*\\*${field}:\\*\\*\\s*(.+)$`, 'im'),
+    new RegExp(`^##\\s*${field}:\\s*(.+)$`, 'im'),
+    new RegExp(`^${field}:\\s*(.+)$`, 'im'),
+  ]
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern)
+    if (match?.[1]) {
+      return normalize(match[1])
+    }
+  }
+
+  return ''
+}
+
+function extractMission(content: string | undefined): string {
+  if (!content) return ''
+
+  const patterns = [
+    /## Core Identity[\s\S]*?-\s*\*\*Mission:\*\*\s*(.+)/i,
+    /-\s*\*\*Mission:\*\*\s*(.+)$/im,
+    /You are \*\*.*?\*\*,\s*(.+)$/im,
+  ]
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern)
+    if (match?.[1]) {
+      return normalize(match[1])
+    }
+  }
+
+  return ''
+}
+
+function extractResponsibilities(content: string | undefined): string[] {
+  if (!content) return []
+
+  const sectionMatch = content.match(/## Skills\n([\s\S]*?)(?:\n##|$)/i)
+    || content.match(/## Typical Tasks\n([\s\S]*?)(?:\n##|$)/i)
+    || content.match(/## Role\n([\s\S]*?)(?:\n##|$)/i)
+
+  if (!sectionMatch?.[1]) {
+    return []
+  }
+
+  return sectionMatch[1]
+    .split('\n')
+    .map((line) => line.replace(/^-\s*/, '').trim())
+    .filter((line) => line !== '' && line !== '-' && !line.startsWith('#'))
+}
+
+function readIfExists(filePath: string): string {
+  return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf-8') : ''
+}
+
+function normalizeFolderPath(folder: string | undefined): string {
+  return normalize(folder).replace(/\\/g, '/').replace(/\/+$/, '')
+}
+
+function mergeRootAgent(agents: DiscoveredAgent[], rootAgent: DiscoveredAgent | null): DiscoveredAgent[] {
+  if (!rootAgent) {
+    return agents
+  }
+
+  const filtered = agents.filter((agent) => (
+    agent.id !== rootAgent.id && normalizeFolderPath(agent.folder) !== ROOT_FOLDER
+  ))
+
+  return [rootAgent, ...filtered]
+}
+
+function findTechnicalAgentMatch(
+  agent: DiscoveredAgent,
+  technicalAgents: TechnicalAgentConfig[],
+): TechnicalAgentConfig | undefined {
+  const agentFolder = normalizeFolderPath(agent.folder)
+  const agentSlug = toFriendlyAgentSlug(agent.id)
+  const agentNameSlug = toFriendlyAgentSlug(agent.name)
+
+  return technicalAgents.find((technicalAgent) => {
+    const technicalFolder = normalizeFolderPath(technicalAgent.agentDir)
+    const technicalName = technicalAgent.identity?.name || technicalAgent.name || technicalAgent.id
+    const technicalSlug = toFriendlyAgentSlug(technicalName)
+    const technicalIdSlug = toFriendlyAgentSlug(technicalAgent.id)
+
+    if (agentFolder && technicalFolder.endsWith(agentFolder)) {
+      return true
+    }
+
+    return technicalSlug === agentSlug
+      || technicalSlug === agentNameSlug
+      || technicalIdSlug === agentSlug
+      || technicalIdSlug === agentNameSlug
+  })
+}
+
+function parseGovernanceFlow(governanceContent: string): string[] {
+  const match = governanceContent.match(/Matt \(creates\)\s*→\s*(.*)\s*→\s*Done/i)
+  if (!match?.[1]) {
+    return []
+  }
+
+  return match[1]
+    .split('→')
+    .map((entry) => toFriendlyAgentSlug(entry.split(' ')[0] || ''))
+    .filter(Boolean)
+}
+
+function resolveBuildOrder(agent: DiscoveredAgent, governanceContent: string): number {
+  const flow = parseGovernanceFlow(governanceContent)
+  const identifiers = [
+    toFriendlyAgentSlug(agent.id),
+    toFriendlyAgentSlug(agent.name),
+  ]
+
+  const flowIndex = flow.findIndex((entry) => identifiers.some((identifier) => identifier.startsWith(entry)))
+  if (flowIndex >= 0) {
+    return (flowIndex + 1) * 10
+  }
+
+  const type = normalizeLower(agent.type)
+  const buildOrderByType: Record<string, number> = {
+    researcher: 10,
+    ux: 20,
+    product: 20,
+    builder: 30,
+    implementer: 30,
+    prototyper: 30,
+  }
+
+  return buildOrderByType[type] ?? 20
+}
+
+function resolveAgentDirectory(workspaceRoot: string, folder: string | undefined): string {
+  const normalizedFolder = normalizeFolderPath(folder)
+  if (!normalizedFolder || normalizedFolder === ROOT_FOLDER) {
+    return workspaceRoot
+  }
+
+  const directPath = path.join(workspaceRoot, normalizedFolder)
+  if (fs.existsSync(directPath)) {
+    return directPath
+  }
+
+  const basename = path.basename(normalizedFolder)
+  const fallbackSlug = toFriendlyAgentSlug(basename)
+  const fallbackPath = path.join(workspaceRoot, 'agents', fallbackSlug)
+  if (fs.existsSync(fallbackPath)) {
+    return fallbackPath
+  }
+
+  return directPath
+}
+
+export function toGatewayAgentId(agentId: string): string {
+  return normalizeLower(agentId) === 'agent-max' ? ROOT_AGENT_ID : agentId
+}
+
+export function parseRegistryTable(content: string): DiscoveredAgent[] {
+  const agents: DiscoveredAgent[] = []
+  const lines = content.split('\n')
+  let inTable = false
+
+  for (const line of lines) {
+    if (line.includes('| Name | Role | Folder |')) {
+      inTable = true
+      continue
+    }
+
+    if (!inTable || !line.includes('|')) {
+      continue
+    }
+
+    const parts = line.split('|').map((part) => part.trim()).filter(Boolean)
+    if (parts.length < 3 || parts.every((part) => /^-+$/.test(part))) {
+      continue
+    }
+
+    const nameMatch = parts[0].match(/\*\*(.*?)\*\*/)
+    const rawName = normalize(nameMatch?.[1] || parts[0])
+    const name = cleanDisplayName(rawName)
+    const baseId = toFriendlyAgentSlug(rawName || name)
+
+    if (!baseId) {
+      continue
+    }
+
+    agents.push({
+      id: `agent-${baseId}`,
+      name,
+      role: normalize(parts[1]),
+      folder: normalize(parts[2].replace(/`/g, '')),
+      status: 'idle',
+      mission: '',
+      responsibilities: [],
+    })
+  }
+
+  return agents
+}
+
+export function createRootAgentFromWorkspace(input: RootAgentWorkspaceInput): DiscoveredAgent | null {
+  const identityContent = normalize(input.identityContent)
+  const soulContent = normalize(input.soulContent)
+
+  if (!identityContent && !soulContent) {
+    return null
+  }
+
+  const name = extractMarkdownField(identityContent, 'Name')
+    || extractMarkdownField(soulContent, 'Name')
+    || 'Main'
+  const role = extractMarkdownField(identityContent, 'Role')
+    || extractMarkdownField(soulContent, 'Role')
+    || ROOT_AGENT_ROLE_FALLBACK
+  const mission = extractMission(soulContent) || extractMission(identityContent)
+  const model = extractMarkdownField(soulContent, 'Model') || extractMarkdownField(identityContent, 'Model')
+
+  return {
+    id: ROOT_AGENT_ID,
+    name,
+    role,
+    mission,
+    status: 'idle',
+    responsibilities: [],
+    folder: ROOT_FOLDER,
+    soulContent: soulContent || identityContent,
+    model: model || undefined,
+    layer: 'governance',
+    order: 0,
+  }
+}
+
+export function parseTechnicalAgentsConfig(raw: string): TechnicalAgentConfig[] {
+  if (!normalize(raw)) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { agents?: { list?: TechnicalAgentConfig[] } }
+    return Array.isArray(parsed.agents?.list) ? parsed.agents.list : []
+  } catch {
+    return []
+  }
+}
+
+export function remapAgentsWithTechnicalConfig(
+  agents: DiscoveredAgent[],
+  technicalAgents: TechnicalAgentConfig[],
+): DiscoveredAgent[] {
+  return agents.map((agent) => {
+    if (agent.id === ROOT_AGENT_ID) {
+      return agent
+    }
+
+    const match = findTechnicalAgentMatch(agent, technicalAgents)
+    if (!match) {
+      return agent
+    }
+
+    const technicalName = normalize(match.identity?.name || match.name)
+
+    return {
+      ...agent,
+      id: match.id,
+      name: technicalName ? cleanDisplayName(technicalName) : agent.name,
+    }
+  })
+}
+
+export function enrichDiscoveredAgentMetadata(
+  agent: DiscoveredAgent,
+  input: MetadataEnrichmentInput,
+): DiscoveredAgent {
+  const soulContent = normalize(input.soulContent)
+  const agentsContent = normalize(input.agentsContent)
+  const mission = extractMission(soulContent)
+  const model = extractMarkdownField(soulContent, 'Model')
+  const type = extractMarkdownField(agentsContent, 'Type').toLowerCase()
+  const responsibilities = extractResponsibilities(agentsContent)
+
+  return {
+    ...agent,
+    folder: normalize(input.resolvedFolder) || agent.folder,
+    soulContent: soulContent || agent.soulContent || agentsContent || undefined,
+    mission: mission || agent.mission || '',
+    model: model || agent.model,
+    type: type || agent.type,
+    responsibilities: responsibilities.length > 0 ? responsibilities : (agent.responsibilities || []),
+  }
+}
+
+export function inferAgentLayerHints(agent: DiscoveredAgent, governanceContent: string): AgentLayerHints {
+  const role = normalizeLower(agent.role)
+  const type = normalizeLower(agent.type)
+  const id = normalizeLower(agent.id)
+  const existingLayer = normalizeLower(agent.layer)
+
+  if (existingLayer === 'governance') {
+    return { layer: 'governance', order: agent.order ?? 0 }
+  }
+
+  if (id === ROOT_AGENT_ID || role.includes('orchestrat') || role.includes('governance')) {
+    return { layer: 'governance', order: 0 }
+  }
+
+  if (existingLayer === 'automation' ||
+      id.includes('monitor') ||
+      id.includes('heartbeat') ||
+      role.includes('automation') ||
+      role.includes('cron') ||
+      role.includes('monitor') ||
+      role.includes('reliability') ||
+      type === 'sre' ||
+      type === 'security' ||
+      type === 'automation') {
+    return { layer: 'automation', order: 100 }
+  }
+
+  if (existingLayer === 'review' ||
+      role.includes('review') ||
+      role.includes('qa') ||
+      role.includes('test') ||
+      role.includes('security') ||
+      type === 'tester' ||
+      type === 'reviewer' ||
+      type === 'qa' ||
+      type === 'security') {
+    return { layer: 'review', order: 40 }
+  }
+
+  return {
+    layer: 'build',
+    order: resolveBuildOrder(agent, governanceContent),
+  }
 }
 
 export function discoverAgents(): DiscoveredAgent[] {
-    const registryPath = path.join(WORKSPACE_ROOT, 'agents', 'TEAM-REGISTRY.md');
-    const governancePath = path.join(WORKSPACE_ROOT, 'TEAM_GOVERNANCE.md');
+  const registryPath = path.join(WORKSPACE_ROOT, 'agents', 'TEAM-REGISTRY.md')
+  const governancePath = path.join(WORKSPACE_ROOT, 'TEAM_GOVERNANCE.md')
 
-    if (!fs.existsSync(registryPath)) {
-        console.warn('TEAM-REGISTRY.md not found at', registryPath);
-        return [];
-    }
+  if (!fs.existsSync(registryPath)) {
+    console.warn('TEAM-REGISTRY.md not found at', registryPath)
+    return []
+  }
 
-    const registryContent = fs.readFileSync(registryPath, 'utf-8');
-    const governanceContent = fs.existsSync(governancePath) ? fs.readFileSync(governancePath, 'utf-8') : '';
+  const registryContent = readIfExists(registryPath)
+  const governanceContent = readIfExists(governancePath)
+  const rootAgent = createRootAgentFromWorkspace({
+    identityContent: readIfExists(path.join(WORKSPACE_ROOT, 'identity.md')),
+    soulContent: readIfExists(path.join(WORKSPACE_ROOT, 'soul.md')),
+  })
 
-    // 1. Parse Registry Table
-    const agents = parseRegistryTable(registryContent);
+  const technicalAgents = parseTechnicalAgentsConfig(
+    readIfExists(path.join(os.homedir(), '.openclaw', 'openclaw.json')),
+  )
 
-    // 1.5. Check for Primary Agent (Max) in Workspace Root
-    const rootSoulPath = path.join(WORKSPACE_ROOT, 'soul.md');
-    const rootIdentityPath = path.join(WORKSPACE_ROOT, 'identity.md');
-    
-    if (fs.existsSync(rootSoulPath) || fs.existsSync(rootIdentityPath)) {
-        const soulContent = fs.existsSync(rootSoulPath) ? fs.readFileSync(rootSoulPath, 'utf-8') : '';
-        const identityContent = fs.existsSync(rootIdentityPath) ? fs.readFileSync(rootIdentityPath, 'utf-8') : '';
-        
-        // Extract name/vibe from identity if possible
-        const nameMatch = identityContent.match(/Name:\*\*? (.*)/i) || identityContent.match(/- \*\*Name:\*\* (.*)/i);
-        const name = nameMatch ? nameMatch[1].trim() : 'Max';
-        
-        agents.unshift({
-            id: 'main',
-            name: name,
-            role: 'Primary Orchestrator & Companion',
-            mission: 'An autonomous organization of AI agents that does work for me and produces value 24/7',
-            status: 'idle',
-            responsibilities: ['Governance', 'Task Routing', 'System Monitoring', 'User Interaction'],
-            folder: '.',
-            soulContent: soulContent || identityContent,
-            layer: 'governance',
-            order: 0
-        });
-    }
+  const discovered = remapAgentsWithTechnicalConfig(
+    mergeRootAgent(parseRegistryTable(registryContent), rootAgent),
+    technicalAgents,
+  )
 
-    // 2. Load Global OpenClaw Config for Technical IDs
-    const globalConfigPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-    if (fs.existsSync(globalConfigPath)) {
-        try {
-            const config = JSON.parse(fs.readFileSync(globalConfigPath, 'utf-8'));
-            const technicalAgents = config.agents?.list || [];
-            
-            agents.forEach(agent => {
-                // Skip the main agent, it already has its ID and metadata
-                if (agent.id === 'main') return;
+  return discovered
+    .map((agent) => {
+      if (agent.folder === ROOT_FOLDER) {
+        const layerHints = inferAgentLayerHints(agent, governanceContent)
+        return { ...agent, ...layerHints }
+      }
 
-                // Try to find a match in the technical config
-                const match = technicalAgents.find((ta: any) => {
-                    // Match by folder name comparison (more robust)
-                    if (agent.folder && ta.agentDir && ta.agentDir.toLowerCase().endsWith(agent.folder.toLowerCase())) return true;
-                    // Match by name as a fallback
-                    if (ta.name?.toLowerCase() === agent.id.replace(/^agent-/, '').toLowerCase()) return true;
-                    return false;
-                });
+      const resolvedDirectory = resolveAgentDirectory(WORKSPACE_ROOT, agent.folder)
+      const resolvedFolder = normalizeFolderPath(path.relative(WORKSPACE_ROOT, resolvedDirectory))
+      const enriched = enrichDiscoveredAgentMetadata(agent, {
+        resolvedFolder,
+        soulContent: readIfExists(path.join(resolvedDirectory, 'SOUL.md')),
+        agentsContent: readIfExists(path.join(resolvedDirectory, 'AGENTS.md')),
+      })
 
-                if (match) {
-                    // Store technical ID but keep clean friendly name
-                    agent.id = match.id;
-                    if (match.identity?.name) agent.name = match.identity.name.replace(/-Agent|-Monitor|-Researcher|-Implementer|-Tester|-Orchestrator|-Scheduler|-Reviewer/g, '');
-                }
-            });
-        } catch (err) {
-            console.error('Failed to parse global openclaw.json', err);
-        }
-    }
+      return {
+        ...enriched,
+        ...inferAgentLayerHints(enriched, governanceContent),
+      }
+    })
+    .sort((left, right) => {
+      const orderDifference = (left.order ?? 999) - (right.order ?? 999)
+      if (orderDifference !== 0) {
+        return orderDifference
+      }
 
-    // 3. Deep Discovery (SOUL.md / AGENTS.md)
-    for (const agent of agents) {
-        if (agent.folder) {
-            const agentDir = path.join(WORKSPACE_ROOT, agent.folder);
-            enrichAgentMetadata(agent, agentDir);
-        }
-    }
-
-    // 4. Determine Layers (Governance/Pipeline/Automation)
-    applyGovernance(agents, governanceContent);
-
-    return agents;
-}
-
-function parseRegistryTable(content: string): DiscoveredAgent[] {
-    const agents: DiscoveredAgent[] = [];
-    const lines = content.split('\n');
-    let inTable = false;
-
-    for (const line of lines) {
-        if (line.includes('| Name | Role | Folder |')) {
-            inTable = true;
-            continue;
-        }
-        if (inTable && line.includes('|') && !line.includes('---|')) {
-            const parts = line.split('|').map(p => p.trim()).filter(p => p !== '');
-            if (parts.length >= 3) {
-                const nameMatch = parts[0].match(/\*\*?(.*?)\*\*?/);
-                let name = nameMatch ? nameMatch[1] : parts[0];
-                
-                // Clean up technical suffixes for a friendly display name
-                name = name.replace(/-Agent|-Monitor|-Researcher|-Implementer|-Tester|-Orchestrator|-Scheduler|-Reviewer/g, '');
-
-                // Skip Max - handled separately via workspace root IDENTITY.md
-                if (name.toLowerCase() === 'max') continue;
-
-                // Strip common titles for a cleaner ID, but keep it unique
-                const baseId = name.toLowerCase()
-                    .replace(/-agent|-monitor|-researcher|-implementer|-tester|-orchestrator|-scheduler|-reviewer/g, '');
-                
-                const id = `agent-${baseId}`;
-                
-                agents.push({
-                    id,
-                    name,
-                    role: parts[1],
-                    folder: parts[2].replace(/`/g, ''),
-                    status: 'idle',
-                    mission: '',
-                    responsibilities: []
-                });
-            }
-        } else if (inTable && line.trim() === '') {
-            // End of table (simple heuristic)
-            // inTable = false; 
-        }
-    }
-
-    return agents;
-}
-
-function enrichAgentMetadata(agent: DiscoveredAgent, dir: string) {
-    const soulPath = path.join(dir, 'SOUL.md');
-    const agentsMdPath = path.join(dir, 'AGENTS.md');
-
-    if (!fs.existsSync(dir)) {
-        // Try fallback directory naming without "-agent" etc
-        const baseDir = dir.split('/').pop()?.split('-')[0];
-        const altDir = path.join(WORKSPACE_ROOT, 'agents', baseDir || '');
-        if (fs.existsSync(altDir)) dir = altDir;
-    }
-
-    // Store relative folder path for reference
-    agent.folder = path.relative(WORKSPACE_ROOT, dir);
-
-    if (fs.existsSync(soulPath)) {
-        const content = fs.readFileSync(soulPath, 'utf-8');
-        agent.soulContent = content; // Store full content for Role Card
-
-        // Extract Mission: Look for "Core Identity" section or first paragraph
-        const missionMatch = content.match(/## Core Identity[\s\S]*?- \*\*Mission:\*\* (.*)/i) || 
-                           content.match(/You are \*\*.*?\*\*, (.*)/i);
-        if (missionMatch) {
-            agent.mission = missionMatch[1].trim();
-        }
-        
-        // Extract Agent Type from SOUL.md (e.g., "Model: openai-codex/gpt-5.4")
-        const typeMatch = content.match(/- \*\*Model:\*\* (.*)/i);
-        if (typeMatch) {
-            agent.model = typeMatch[1].trim();
-        }
-    } else if (fs.existsSync(agentsMdPath)) {
-        const content = fs.readFileSync(agentsMdPath, 'utf-8');
-        agent.soulContent = content; // Fallback to AGENTS.md content
-    }
-
-    if (fs.existsSync(agentsMdPath)) {
-        const content = fs.readFileSync(agentsMdPath, 'utf-8');
-        
-        // Extract Agent Type from AGENTS.md (e.g., "## Type: researcher" or in Role section)
-        const typeMatch = content.match(/## Type:\s*(\w+)/i) ||
-                        content.match(/type[=\s]+['"]?(\w+)['"]?/i);
-        if (typeMatch) {
-            agent.type = typeMatch[1].toLowerCase();
-        }
-        
-        // Extract Responsibilities from "Skills" or "Typical Tasks"
-        const skillsSection = content.match(/## Skills\n([\s\S]*?)(?:\n##|$)/i) ||
-                             content.match(/## Typical Tasks\n([\s\S]*?)(?:\n##|$)/i) ||
-                             content.match(/## Role\n([\s\S]*?)(?:\n##|$)/i);
-        if (skillsSection) {
-            agent.responsibilities = skillsSection[1]
-                .split('\n')
-                .map((l: string) => l.replace(/^-\s*/, '').trim())
-                .filter((l: string) => l !== '' && !l.startsWith('#'));
-        }
-    }
-}
-
-function applyGovernance(agents: DiscoveredAgent[], content: string) {
-    // Layer assignment priority: governance > automation > pipeline
-    // Agents already assigned a layer in earlier passes won't be reassigned
-
-    // 1. Governance (Orchestrator role)
-    const orchestrator = agents.find(a => 
-        a.role.toLowerCase().includes('orchestrat') || 
-        a.role.toLowerCase().includes('governance')
-    );
-    if (orchestrator) {
-        orchestrator.layer = 'governance';
-        orchestrator.order = 0;
-    }
-
-    // 2. Automation (Automation/Cron/SRE/Security roles)
-    agents.forEach(a => {
-        if (a.layer) return; // Already assigned
-        
-        const role = a.role.toLowerCase();
-        const id = a.id.toLowerCase();
-        const type = (a.type || '').toLowerCase();
-        
-        if (id.includes('monitor') || id.includes('heartbeat') || 
-            role.includes('automation') || role.includes('cron') || 
-            role.includes('monitor') || role.includes('reliability') ||
-            type === 'sre' || type === 'security' || type === 'automation') {
-            a.layer = 'automation';
-            a.order = 100;
-        }
-    });
-
-    // 3. Pipeline (The rest)
-    // Extract pipeline order: Researcher -> Builder -> Tester
-    const pipelineMatch = content.match(/Matt \(creates\) → (.*) → Done/);
-    
-    // Base pipeline order from flow
-    const flowOrder: Record<string, number> = {};
-    if (pipelineMatch) {
-        const flow = pipelineMatch[1].split('→').map(s => s.trim().split(' ')[0].toLowerCase());
-        flow.forEach((f, i) => { flowOrder[f] = i + 1; });
-    }
-    
-    // Type-based pipeline order fallback
-    const typeOrder: Record<string, number> = {
-        'researcher': 1,
-        'ux': 2,
-        'product': 2,
-        'builder': 3,
-        'prototyper': 3,
-        'tester': 4,
-        'reviewer': 5
-    };
-    
-    agents.forEach(agent => {
-        // If already assigned governance or automation, skip
-        if (agent.layer === 'governance' || agent.layer === 'automation') return;
-        
-        // Check if explicitly in the flow
-        const flowIndex = Object.keys(flowOrder).findIndex(f => 
-            agent.id.toLowerCase().startsWith(f) || 
-            agent.name.toLowerCase().startsWith(f)
-        );
-        
-        if (flowIndex !== -1) {
-            agent.layer = 'pipeline';
-            agent.order = Object.values(flowOrder)[flowIndex];
-        } else if (agent.type) {
-            // Infer from type
-            const type = agent.type.toLowerCase();
-            if (type in typeOrder) {
-                agent.layer = 'pipeline';
-                agent.order = typeOrder[type] + (agent.order || 0);
-            }
-        }
-        
-        // Fallback: any agent with a type but no layer gets pipeline
-        if (!agent.layer && agent.type) {
-            agent.layer = 'pipeline';
-            agent.order = agent.order || 50;
-        }
-    });
+      return left.name.localeCompare(right.name)
+    })
 }

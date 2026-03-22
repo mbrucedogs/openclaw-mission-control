@@ -41,6 +41,22 @@ export function classifyAgentGroup(agent: {
   }
 
   if (
+    layer === 'build'
+  ) {
+    return 'build';
+  }
+
+  if (
+    layer === 'review' ||
+    role.includes('review') ||
+    role.includes('qa') ||
+    role.includes('test') ||
+    role.includes('security')
+  ) {
+    return 'review';
+  }
+
+  if (
     layer === 'automation' ||
     role.includes('auto') ||
     role.includes('monitor') ||
@@ -49,15 +65,6 @@ export function classifyAgentGroup(agent: {
     status === 'automation'
   ) {
     return 'automation';
-  }
-
-  if (
-    role.includes('review') ||
-    role.includes('qa') ||
-    role.includes('test') ||
-    role.includes('security')
-  ) {
-    return 'review';
   }
 
   return 'build';

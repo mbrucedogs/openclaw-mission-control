@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+
+import { buildGatewayPanelModel } from '../src/components/gateway-panel-model'
+
+test('buildGatewayPanelModel derives counts, recent session rows, and channel states without a hardcoded version', () => {
+  const model = buildGatewayPanelModel({
+    connected: true,
+    gateway: {
+      ts: '2026-03-22T12:00:00.000Z',
+      heartbeatSeconds: 30,
+      defaultAgentId: 'main',
+      channels: {
+        telegram: { running: true },
+        discord: { running: false },
+      },
+      channelOrder: ['telegram', 'discord'],
+    },
+    agents: [
+      { id: 'main', name: 'Max', isDefault: true, heartbeatEnabled: true, heartbeatEvery: '30m', sessionCount: 2 },
+      { id: 'alice', name: 'Alice', isDefault: false, heartbeatEnabled: false, heartbeatEvery: 'disabled', sessionCount: 0 },
+    ],
+    sessions: {
+      count: 5,
+      defaults: { model: 'gpt-5.4', contextTokens: 200000 },
+      recent: [
+        {
+          agentId: 'main',
+          key: 'agent:main:main',
+          sessionId: 'session-1',
+          updatedAt: 1700000000000,
+          age: 120000,
+          inputTokens: 10,
+          outputTokens: 5,
+          totalTokens: 15,
+          remainingTokens: 199985,
+          percentUsed: 8,
+          model: 'gpt-5.4',
+        },
+      ],
+      byAgent: [{ agentId: 'main', count: 2 }],
+    },
+  })
+
+  assert.equal(model.connected, true)
+  assert.deepEqual(model.summary, {
+    agentCount: 2,
+    activeAgentCount: 1,
+    sessionCount: 5,
+  })
+  assert.deepEqual(model.recentSessions, [
+    {
+      id: 'session-1',
+      agentId: 'main',
+      label: 'main',
+      model: 'gpt-5.4',
+      percentUsed: 8,
+      age: 120000,
+    },
+  ])
+  assert.deepEqual(model.channels, [
+    { id: 'telegram', label: 'telegram', isRunning: true },
+    { id: 'discord', label: 'discord', isRunning: false },
+  ])
+  assert.equal('version' in model, false)
+})
+
+test('buildGatewayPanelModel handles disconnected or sparse gateway payloads safely', () => {
+  const model = buildGatewayPanelModel({
+    connected: false,
+    agents: [],
+    sessions: null,
+    gateway: null,
+  })
+
+  assert.equal(model.connected, false)
+  assert.equal(model.summary.agentCount, 0)
+  assert.equal(model.summary.activeAgentCount, 0)
+  assert.equal(model.summary.sessionCount, 0)
+  assert.deepEqual(model.recentSessions, [])
+  assert.deepEqual(model.channels, [])
+})
