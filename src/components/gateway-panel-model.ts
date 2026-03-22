@@ -70,7 +70,7 @@ export function buildGatewayPanelModel(data: GatewayPanelResponse | null): Gatew
       sessionCount: sessions?.count ?? 0,
     },
     recentSessions: (sessions?.recent ?? []).slice(0, 4).map((session) => ({
-      id: session.sessionId || session.key,
+      id: session.key || `${session.agentId}:${session.sessionId}:${session.updatedAt}`,
       agentId: session.agentId,
       label: session.agentId,
       model: session.model,

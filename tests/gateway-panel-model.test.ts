@@ -50,7 +50,7 @@ test('buildGatewayPanelModel derives counts, recent session rows, and channel st
   })
   assert.deepEqual(model.recentSessions, [
     {
-      id: 'session-1',
+      id: 'agent:main:main',
       agentId: 'main',
       label: 'main',
       model: 'gpt-5.4',
@@ -79,4 +79,55 @@ test('buildGatewayPanelModel handles disconnected or sparse gateway payloads saf
   assert.equal(model.summary.sessionCount, 0)
   assert.deepEqual(model.recentSessions, [])
   assert.deepEqual(model.channels, [])
+})
+
+test('buildGatewayPanelModel keeps recent session ids unique when the gateway reuses a sessionId across keys', () => {
+  const model = buildGatewayPanelModel({
+    connected: true,
+    gateway: null,
+    agents: [
+      { id: 'main', name: 'Max', isDefault: true, heartbeatEnabled: true, heartbeatEvery: '30m', sessionCount: 2 },
+    ],
+    sessions: {
+      count: 2,
+      defaults: { model: 'gpt-5.4', contextTokens: 200000 },
+      recent: [
+        {
+          agentId: 'tron',
+          key: 'agent:tron:cron:job-1',
+          sessionId: 'shared-session',
+          updatedAt: 1700000000000,
+          age: 120000,
+          inputTokens: 10,
+          outputTokens: 5,
+          totalTokens: 15,
+          remainingTokens: 199985,
+          percentUsed: 8,
+          model: 'gpt-5.4',
+        },
+        {
+          agentId: 'tron',
+          key: 'agent:tron:cron:job-1:run:shared-session',
+          sessionId: 'shared-session',
+          updatedAt: 1700000000001,
+          age: 120001,
+          inputTokens: 10,
+          outputTokens: 5,
+          totalTokens: 15,
+          remainingTokens: 199985,
+          percentUsed: 8,
+          model: 'gpt-5.4',
+        },
+      ],
+      byAgent: [{ agentId: 'tron', count: 2 }],
+    },
+  })
+
+  assert.deepEqual(
+    model.recentSessions.map((session) => session.id),
+    [
+      'agent:tron:cron:job-1',
+      'agent:tron:cron:job-1:run:shared-session',
+    ],
+  )
 })
