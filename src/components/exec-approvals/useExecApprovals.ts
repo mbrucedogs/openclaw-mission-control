@@ -2,7 +2,15 @@
 
 import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 
-import type { ClientExecApproval, ExecApprovalAction, ExecApprovalsFilter } from './types'
+import type { GatewayDiagnosticsResponse } from '@/app/gateway/gateway-diagnostics-model'
+
+import { buildExecApprovalsDiagnosticsModel } from './diagnostics-model'
+import type {
+  ClientExecApproval,
+  ExecApprovalAction,
+  ExecApprovalsDiagnosticsModel,
+  ExecApprovalsFilter,
+} from './types'
 
 function normalizeRisk(value: string | undefined): ClientExecApproval['risk'] {
   return value === 'low' || value === 'high' ? value : 'medium'
@@ -64,7 +72,28 @@ export function useExecApprovals() {
   const [resolvedApprovals, setResolvedApprovals] = useState<ClientExecApproval[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [diagnostics, setDiagnostics] = useState<ExecApprovalsDiagnosticsModel | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  async function loadDiagnostics() {
+    try {
+      const response = await fetch('/api/gateway/diagnostics', { cache: 'no-store' })
+      if (!response.ok) {
+        setDiagnostics(null)
+        return
+      }
+
+      const payload = await response.json() as GatewayDiagnosticsResponse
+      if (payload.summary.state === 'connected') {
+        setDiagnostics(null)
+        return
+      }
+
+      setDiagnostics(buildExecApprovalsDiagnosticsModel(payload))
+    } catch {
+      setDiagnostics(null)
+    }
+  }
 
   async function refresh() {
     try {
@@ -81,8 +110,10 @@ export function useExecApprovals() {
         ...resolvedApprovals.filter((approval) => !nextPending.some((pending) => pending.id === approval.id)),
       ])
       setError(null)
+      setDiagnostics(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch exec approvals')
+      await loadDiagnostics()
     } finally {
       setLoading(false)
     }
@@ -135,6 +166,7 @@ export function useExecApprovals() {
       await refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to resolve exec approval')
+      await loadDiagnostics()
     } finally {
       setBusyId(null)
     }
@@ -146,6 +178,7 @@ export function useExecApprovals() {
     activeApproval,
     loading,
     error,
+    diagnostics,
     busyId,
     refresh,
     resolveApproval,

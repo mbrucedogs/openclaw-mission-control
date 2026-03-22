@@ -17,6 +17,7 @@ Mission Control is a task orchestration system for OpenClaw organizations built 
 - Uses shared gateway adapters for live status, sessions, runtime events, and exec approvals
 - Shows live operational state across the dashboard, team registry, office operations view, and approvals queue
 - Adds a dedicated `/gateway` diagnostics surface for runtime capability checks and manual probe refresh
+- Adds a dedicated `/runtime` history surface for replaying durable OpenClaw runtime events
 - Uses task lifecycle statuses on the board: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`
 - Shows the current execution stage inside each task as secondary context
 
@@ -128,14 +129,15 @@ Saved templates can be managed directly from `/tasks` through `Manage Templates`
 
 The `/tasks` screen also includes a show/hide live activity panel backed by the task-native activity feed.
 
-The runtime side of the product now has five primary operational surfaces:
+The runtime side of the product now has seven primary operational surfaces:
 
 - `/` for the dashboard summary and truthful gateway status
 - `/gateway` for full runtime diagnostics, compatibility checks, and manual probe refresh
+- `/runtime` for newest-first runtime event history backed by `runtime_events`
 - `/team` for the discovered agent registry and grouping
 - `/team/:agentId` for single-agent live detail, sessions, assignments, and runtime history
 - `/office` for the live team operations view driven by runtime and task state
-- `/approvals` for gateway exec approval review and resolution
+- `/approvals` for gateway exec approval review, resolution, and diagnostics-aware failure guidance
 
 Full request details live in [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md).
 

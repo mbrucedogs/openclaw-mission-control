@@ -18,6 +18,7 @@ import {
     Settings,
     ShieldAlert,
     Wifi,
+    History,
     X
 } from 'lucide-react';
 
@@ -30,6 +31,7 @@ const navigation = [
     { name: 'Docs', href: '/docs', icon: FileText },
     { name: 'Office', href: '/office', icon: Monitor },
     { name: 'Gateway', href: '/gateway', icon: Wifi },
+    { name: 'Runtime', href: '/runtime', icon: History },
     { name: 'Approvals', href: '/approvals', icon: ShieldAlert },
     { name: 'Team', href: '/team', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },

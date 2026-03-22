@@ -1,7 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { ShieldAlert, ShieldCheck, TerminalSquare, XCircle } from 'lucide-react'
+
+import { cn } from '@/lib/utils'
 
 import type { ExecApprovalsFilter } from './types'
 import { filterApprovals, useExecApprovals } from './useExecApprovals'
@@ -13,7 +16,7 @@ function riskTone(risk: string) {
 }
 
 export function ExecApprovalsPage() {
-  const { approvals, pending, loading, error, busyId, resolveApproval } = useExecApprovals()
+  const { approvals, pending, loading, error, diagnostics, busyId, resolveApproval } = useExecApprovals()
   const [filter, setFilter] = useState<ExecApprovalsFilter>('all')
 
   const filteredApprovals = useMemo(() => filterApprovals(approvals, filter), [approvals, filter])
@@ -59,11 +62,37 @@ export function ExecApprovalsPage() {
         </div>
       </section>
 
-      {error && (
+      {error && diagnostics ? (
+        <div className={cn(
+          'rounded-3xl border px-5 py-5',
+          diagnostics.tone === 'degraded'
+            ? 'border-amber-500/20 bg-amber-500/10 text-amber-100'
+            : 'border-red-500/20 bg-red-500/10 text-red-200',
+        )}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-black text-white">{diagnostics.title}</span>
+                <span className="rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-current">
+                  {diagnostics.transportLabel}
+                </span>
+              </div>
+              <p className="text-sm">{diagnostics.detail}</p>
+              <p className="text-xs text-current/80">{error}</p>
+            </div>
+            <Link
+              href="/gateway"
+              className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-white transition hover:border-white/20"
+            >
+              {diagnostics.linkLabel}
+            </Link>
+          </div>
+        </div>
+      ) : error ? (
         <div className="rounded-3xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-200">
           {error}
         </div>
-      )}
+      ) : null}
 
       {loading ? (
         <div className="flex min-h-[240px] items-center justify-center rounded-[2rem] border border-[#1a1a1a] bg-[#0c0c0e]">

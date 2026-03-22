@@ -8,3 +8,11 @@ export interface ClientExecApproval extends ExecApprovalRequest {
   status: ExecApprovalStatus
   expiresAt?: number
 }
+
+export interface ExecApprovalsDiagnosticsModel {
+  tone: 'degraded' | 'failed'
+  title: string
+  detail: string
+  transportLabel: string
+  linkLabel: string
+}

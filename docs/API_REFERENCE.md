@@ -624,6 +624,8 @@ Returns pending gateway exec approvals in normalized shape:
 }
 ```
 
+When this endpoint fails in the authenticated UI, the approvals page also probes `GET /api/gateway/diagnostics` and shows an operator-safe diagnostics banner that links to `/gateway`.
+
 `POST /api/exec-approvals`
 
 Request:
@@ -634,6 +636,8 @@ Request:
   "action": "approve"
 }
 ```
+
+If a resolve call fails, the UI uses the same diagnostics fallback path so operators can distinguish queue errors from gateway auth, scope, or transport failures.
 
 Supported actions:
 
