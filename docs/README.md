@@ -15,17 +15,19 @@ Mission Control now uses a `Task -> Plan -> Run` model.
 
 1. `README.md` - This overview
 2. `API_REFERENCE.md` - Canonical API contract and examples
-3. `ORCHESTRATOR_OPERATING_MODEL.md` - What the primary orchestrator is expected to do
-4. `TASK_AUTHORING_WIZARD.md` - How one-shot creation works
-5. `STEP_EXECUTION.md` - How steps move through start, submission, validation, and retry
-6. `RECOVERY_AND_MONITORING.md` - 10-minute recovery scan behavior
-7. `AI_TRAINING_GUIDE.md` - How to train the primary orchestrator on the rebuilt system
+3. `OPENCLAW_RUNTIME.md` - Explicit runtime transport, discovery, gateway state, and approvals
+4. `ORCHESTRATOR_OPERATING_MODEL.md` - What the primary orchestrator is expected to do
+5. `TASK_AUTHORING_WIZARD.md` - How one-shot creation works
+6. `STEP_EXECUTION.md` - How steps move through start, submission, validation, and retry
+7. `RECOVERY_AND_MONITORING.md` - 10-minute recovery scan behavior
+8. `AI_TRAINING_GUIDE.md` - How to train the primary orchestrator on the rebuilt system
 
 ## Critical Rules
 
 - The wizard-backed task creation contract is the only supported way to create new work.
 - `POST /api/tasks` saves the task and planned stages only.
 - `POST /api/tasks/:id/start` is what instantiates the first run.
+- OpenClaw runtime connectivity is explicit and config-driven; it does not depend on shelling out to the CLI.
 - The primary orchestrator and the human operator use the same API contract.
 - Task detail supports editing task summary fields and editable planned stages in place before the run starts.
 - Each execution packet must name one concrete assigned agent before creation.

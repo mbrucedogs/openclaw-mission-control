@@ -12,6 +12,8 @@ Mission Control is a task orchestration system for OpenClaw organizations built 
 - Tracks live step events, comments, and evidence
 - Tracks blocker conversations through task-bound issue threads with replies
 - Surfaces stalled work to the primary orchestrator through a recovery scan instead of silently retrying
+- Discovers the OpenClaw agent roster dynamically from workspace metadata
+- Connects to OpenClaw through an explicit native gateway client configured by URL/token instead of shelling out to the CLI
 - Uses task lifecycle statuses on the board: `Backlog`, `In Progress`, `In Review`, `Blocked`, `Done`
 - Shows the current execution stage inside each task as secondary context
 
@@ -40,6 +42,7 @@ AI training and operating docs live in [`docs/`](./docs):
 
 - [`docs/README.md`](./docs/README.md)
 - [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md)
+- [`docs/OPENCLAW_RUNTIME.md`](./docs/OPENCLAW_RUNTIME.md)
 - [`docs/ORCHESTRATOR_OPERATING_MODEL.md`](./docs/ORCHESTRATOR_OPERATING_MODEL.md)
 - [`docs/TASK_AUTHORING_WIZARD.md`](./docs/TASK_AUTHORING_WIZARD.md)
 - [`docs/STEP_EXECUTION.md`](./docs/STEP_EXECUTION.md)
@@ -82,6 +85,26 @@ The `/tasks` screen also includes a show/hide live activity panel backed by the 
 Full request details live in [`docs/API_REFERENCE.md`](./docs/API_REFERENCE.md).
 
 All API requests require the `X-API-Key` header when made outside the authenticated UI session.
+
+## OpenClaw Runtime Config
+
+Mission Control now talks to OpenClaw through an explicit native gateway client.
+
+Primary runtime config:
+
+```bash
+OPENCLAW_GATEWAY_URL=ws://127.0.0.1:18789
+OPENCLAW_GATEWAY_TOKEN=
+OPENCLAW_GATEWAY_TIMEOUT_MS=10000
+OPENCLAW_WORKSPACE=~/openclaw/workspace
+```
+
+Notes:
+
+- `OPENCLAW_GATEWAY_URL` can stay loopback for same-machine deployments.
+- If OpenClaw moves to another machine later, point the URL at the remote gateway and provide the token if required.
+- `OPENCLAW_WORKSPACE` is still used for local discovery of agent metadata and docs.
+- Runtime access no longer depends on spawning the `openclaw` CLI from Mission Control.
 
 ## Development
 

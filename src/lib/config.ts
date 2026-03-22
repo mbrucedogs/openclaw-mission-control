@@ -20,6 +20,9 @@ const DEFAULTS: Record<string, string> = {
   PLANS_PATH: path.join(os.homedir(), '.openclaw', 'workspace', 'docs', 'plans'),
   API_KEY: '', // Must be set via env or database
   API_URL: 'http://localhost:4000',
+  OPENCLAW_GATEWAY_URL: 'ws://127.0.0.1:18789',
+  OPENCLAW_GATEWAY_TOKEN: '',
+  OPENCLAW_GATEWAY_TIMEOUT_MS: '10000',
   MEMORY_ROOT: '', // Fallback to BASE_WORKSPACE/memory
   TMP_ROOT: '',    // Fallback to BASE_WORKSPACE/tmp
   DOCS_ROOT: '',   // Fallback to BASE_WORKSPACE/docs
@@ -62,7 +65,7 @@ export function getConfig(key: string): string {
     if (row?.value) {
       return row.value;
     }
-  } catch (err) {
+  } catch {
     // Database not ready yet, fall through to defaults
   }
 
@@ -96,7 +99,7 @@ export function getAllConfig(): Record<string, string> {
     for (const row of rows) {
       config[row.key] = row.value;
     }
-  } catch (err) {
+  } catch {
     // Database not ready
   }
 
@@ -122,6 +125,25 @@ export const PLANS_PATH = () => getConfig('PLANS_PATH');
 export const API_KEY = () => getConfig('API_KEY');
 export const API_URL = () => getConfig('API_URL');
 
+export interface OpenClawGatewayRuntimeConfig {
+  url: string;
+  token?: string;
+  timeoutMs: number;
+}
+
+export function getOpenClawGatewayRuntimeConfig(env: NodeJS.ProcessEnv = process.env): OpenClawGatewayRuntimeConfig {
+  const rawUrl = String(env.OPENCLAW_GATEWAY_URL ?? env.MC_OPENCLAW_GATEWAY_URL ?? getConfig('OPENCLAW_GATEWAY_URL')).trim();
+  const rawToken = String(env.OPENCLAW_GATEWAY_TOKEN ?? env.MC_OPENCLAW_GATEWAY_TOKEN ?? getConfig('OPENCLAW_GATEWAY_TOKEN')).trim();
+  const rawTimeout = String(env.OPENCLAW_GATEWAY_TIMEOUT_MS ?? env.MC_OPENCLAW_GATEWAY_TIMEOUT_MS ?? getConfig('OPENCLAW_GATEWAY_TIMEOUT_MS')).trim();
+  const parsedTimeout = Number.parseInt(rawTimeout, 10);
+
+  return {
+    url: rawUrl || 'ws://127.0.0.1:18789',
+    token: rawToken || undefined,
+    timeoutMs: Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 10000,
+  };
+}
+
 // ============================================================================
 // WORKSPACE CONFIGURATION
 // ============================================================================
@@ -145,4 +167,3 @@ export const EXCLUDED_FOLDERS = [
 ];
 
 export const ALLOWED_EXTENSIONS = ['.md', '.txt'];
-
