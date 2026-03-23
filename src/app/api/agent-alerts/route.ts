@@ -20,16 +20,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { alertType, taskId, agentId, message } = body;
-
-    if (!alertType || !message) {
-      return NextResponse.json({ error: 'alertType and message required' }, { status: 400 });
-    }
+    const alertType = body.alertType || 'agent_unresponsive';
+    const taskId = body.taskId || null;
+    const agentId = body.agentId || null;
+    const message = body.message || 'Agent alert triggered';
 
     const result = db.prepare(`
       INSERT INTO agent_alerts (alert_type, task_id, agent_id, message, created_at)
       VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(alertType, taskId || null, agentId || null, message);
+    `).run(alertType, taskId, agentId, message);
 
     const alert = db.prepare('SELECT * FROM agent_alerts WHERE id = ?').get(result.lastInsertRowid);
 

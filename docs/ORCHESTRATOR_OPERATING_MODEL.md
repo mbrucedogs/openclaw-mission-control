@@ -64,7 +64,7 @@ The primary orchestrator is woken when:
 - a completion packet is submitted
 - the recovery scan blocks a stale stage
 
-The default monitor that should wake the primary orchestrator on schedule is [`tron-monitor.sh`](/Volumes/Data/openclaw/workspace/projects/Web/alex-mission-control/tron-monitor.sh).
+The default monitor that should wake the primary orchestrator on schedule is [`tron-monitor.sh`](../../tron-monitor.sh).
 
 ## One-Shot Creation Contract
 
@@ -80,3 +80,45 @@ When the primary orchestrator creates a task through `POST /api/tasks`, every st
 - `boundaries`
 
 The primary orchestrator should not create role-only stages and defer agent choice to later.
+
+## The Delegation Rule (Non-Negotiable)
+
+**The orchestrator must never execute work itself. Always delegate.**
+
+When a task or step requires execution:
+- If the step assigns Alice → spawn Alice (or another researcher)
+- If the step assigns Bob → spawn Bob (or another builder)
+- If the step assigns Charlie → spawn Charlie (or another tester)
+- If an agent is stuck/failed → re-spawn that same agent, do not substitute
+
+### Why This Matters
+
+The entire task/run/step system exists so that:
+1. Work is traceable — every action is attributed to an agent
+2. Agents can fail independently without stopping the pipeline
+3. The orchestrator can observe, route, and recover — not do
+
+If the orchestrator handles work directly, the agent layer becomes decoration. There is no team — only the orchestrator pretending to have a team.
+
+### The Recovery Loop
+
+When Tron detects a stuck agent:
+
+```
+Tron → wakes orchestrator with task IDs
+Orchestrator → queries task stage, finds assigned agent is dark
+Orchestrator → spawns the same agent with the step context
+Agent → executes and reports completion
+Orchestrator → validates submitted completion
+Orchestrator → advances to next step or re-spawns if blocked
+```
+
+### Spawning an Agent
+
+Use `sessions_spawn` with:
+- `agentId`: the assigned agent's ID from the step (e.g., `alice-researcher`, `bob-implementer`)
+- `runtime`: `"subagent"`
+- `mode`: `"run"` (one-shot)
+- `task`: the step's goal, boundaries, and required outputs
+
+The orchestrator owns the pipeline. Agents do the work.

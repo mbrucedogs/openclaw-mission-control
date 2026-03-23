@@ -242,6 +242,20 @@ CREATE TABLE IF NOT EXISTS task_evidence (
 CREATE INDEX IF NOT EXISTS idx_task_evidence_task_id ON task_evidence(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_evidence_step_id ON task_evidence(step_id);
 
+CREATE TABLE IF NOT EXISTS agent_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    alert_type TEXT NOT NULL,
+    task_id TEXT,
+    agent_id TEXT,
+    message TEXT NOT NULL,
+    resolved INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    resolved_at TEXT,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_alerts_resolved_created ON agent_alerts(resolved, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,

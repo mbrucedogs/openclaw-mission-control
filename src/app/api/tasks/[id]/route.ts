@@ -4,6 +4,27 @@ import type { TaskStatus } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
+function normalizeTaskStatus(status: unknown): TaskStatus | undefined {
+  if (typeof status !== 'string') {
+    return undefined;
+  }
+
+  const normalized = status.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized === 'Review') {
+    return 'In Review';
+  }
+
+  if (normalized === 'In Review' || normalized === 'Backlog' || normalized === 'In Progress' || normalized === 'Blocked' || normalized === 'Done') {
+    return normalized;
+  }
+
+  throw new Error(`Invalid task status: ${normalized}`);
+}
+
 function parseInclude(url: URL) {
   const includeParam = url.searchParams.get('include');
   const include = new Set((includeParam || '').split(',').map((value) => value.trim()).filter(Boolean));
@@ -49,7 +70,7 @@ export async function PATCH(
       owner: body.owner,
       project: body.project,
       acceptanceCriteria: body.acceptanceCriteria,
-      status: body.status as TaskStatus | undefined,
+      status: normalizeTaskStatus(body.status),
     }, body.actor || 'system');
 
     if (!updated) {
@@ -59,6 +80,9 @@ export async function PATCH(
     return NextResponse.json(updated);
   } catch (error) {
     console.error('PATCH /api/tasks/[id] error:', error);
+    if (error instanceof Error && error.message.startsWith('Invalid task status:')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
   }
 }
