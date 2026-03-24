@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 import { inferStepRoleForAgent } from '@/lib/agent-matching';
 import { hasMeaningfulMultilineContent, normalizeMultilineItems, parseMultilineDraft } from '@/lib/multiline-fields';
 import { isTaskIntakeValid, toAcceptanceCriteria } from '@/lib/task-authoring';
+import { getMaxControlsCopy, getStagePrimaryAction } from './max-controls';
 import type {
   Agent,
   Priority,
@@ -1263,6 +1264,7 @@ function TaskDetail({
   const taskTitle = task.title;
   const run = task.currentRun;
   const step = currentStep(task);
+  const stagePrimaryAction = getStagePrimaryAction(step?.status);
   const stageList = (run?.steps || task.stagePlan || []) as Array<RunStep | TaskStagePlan>;
 
   async function runAction(label: string, action: () => Promise<void>, options?: { refresh?: boolean }) {
@@ -1737,11 +1739,9 @@ function TaskDetail({
               <div className="mb-4 flex items-center gap-3">
                 <Sparkles className="h-5 w-5 text-amber-400" />
                 <div>
-                  <p className="text-sm font-bold text-white">Max Controls</p>
+                  <p className="text-sm font-bold text-white">Execution Controls</p>
                   <p className="text-xs text-slate-500">
-                    {run
-                      ? 'Progress, validation, retries, and reruns all operate on the active stage.'
-                      : 'This task is saved in backlog. Start it when the plan is ready to execute.'}
+                    {getMaxControlsCopy(Boolean(run))}
                   </p>
                 </div>
               </div>
@@ -1763,80 +1763,36 @@ function TaskDetail({
                 </div>
               ) : step && (
                 <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => runAction('start', async () => {
-                        await fetch(`/api/tasks/${taskId}/steps/${step.id}`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'start', actor: 'max' }),
-                        });
-                      })}
-                      className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-300"
-                    >
-                      <Play className="mr-2 inline h-3.5 w-3.5" />
-                      {actionLoading === 'start' ? 'Starting...' : 'Start Stage'}
-                    </button>
-                    <button
-                      onClick={() => runAction('heartbeat', async () => {
-                        await fetch(`/api/tasks/${taskId}/steps/${step.id}/events`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            actor: 'max',
-                            actorType: 'system',
-                            eventType: 'heartbeat',
-                            message: 'Heartbeat acknowledged by Max',
-                            heartbeatAt: new Date().toISOString(),
-                          }),
-                        });
-                      })}
-                      className="rounded-xl border border-[#333] bg-black px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-300"
-                    >
-                      <Clock3 className="mr-2 inline h-3.5 w-3.5" />
-                      Pulse
-                    </button>
-                    <button
-                      onClick={() => runAction('retry', async () => {
-                        await fetch(`/api/tasks/${taskId}/steps/${step.id}`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'retry', actor: 'max', reason: 'Retry requested by Max' }),
-                        });
-                      })}
-                      className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-300"
-                    >
-                      Retry Stage
-                    </button>
-                    <button
-                      onClick={() => runAction('block', async () => {
-                        await fetch(`/api/tasks/${taskId}/steps/${step.id}`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'block', actor: 'max', reason: 'Manual intervention required from Max' }),
-                        });
-                      })}
-                      className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-red-300"
-                    >
-                      Block
-                    </button>
-                    <button
-                      onClick={() => runAction('rerun', async () => {
-                        await fetch(`/api/tasks/${taskId}/rerun`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            stepNumber: step.stepNumber,
-                            actor: 'max',
-                            reason: `Rerun from step ${step.stepNumber}`,
-                          }),
-                        });
-                      })}
-                      className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-purple-300"
-                    >
-                      Rerun From Here
-                    </button>
-                  </div>
+                  {stagePrimaryAction ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => runAction('start', async () => {
+                          const response = await fetch(`/api/tasks/${taskId}/steps/${step.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'start', actor: 'max' }),
+                          });
+                          await parseApiResponse(response, 'Failed to start stage');
+                        })}
+                        className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] text-blue-300"
+                      >
+                        <Play className="mr-2 inline h-3.5 w-3.5" />
+                        {actionLoading === 'start' ? 'Starting...' : stagePrimaryAction.label}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-[#202020] bg-black/70 p-4">
+                      <p className="text-sm text-slate-300">
+                        {step.status === 'running'
+                          ? 'The active stage is already running.'
+                          : step.status === 'submitted'
+                            ? 'The active stage has been submitted and is waiting for validation.'
+                            : step.status === 'complete'
+                              ? 'The active stage is complete.'
+                              : 'The active stage does not need an operator action right now.'}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="rounded-2xl border border-[#202020] bg-black/70 p-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Progress Note</p>
@@ -1849,7 +1805,7 @@ function TaskDetail({
                       <button
                         onClick={() => runAction('progress', async () => {
                           if (!progressNote.trim()) return;
-                          await fetch(`/api/tasks/${taskId}/steps/${step.id}/events`, {
+                          const response = await fetch(`/api/tasks/${taskId}/steps/${step.id}/events`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -1860,6 +1816,7 @@ function TaskDetail({
                               heartbeatAt: new Date().toISOString(),
                             }),
                           });
+                          await parseApiResponse(response, 'Failed to add progress note');
                           setProgressNote('');
                         })}
                         className="rounded-xl bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.18em] text-black"

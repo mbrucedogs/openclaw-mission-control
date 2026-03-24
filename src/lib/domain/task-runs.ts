@@ -6,6 +6,7 @@ import type {
   AuthorType,
   RunStep,
   RunStepEvent,
+  RunStepRuntimeLink,
   RunStepRole,
   RunStepStatus,
   StepCompletionPacket,
@@ -338,6 +339,43 @@ export function getRunSteps(runId: string): RunStep[] {
 export function getRunStepById(stepId: string): RunStep | null {
   const row = db.prepare('SELECT * FROM run_steps WHERE id = ?').get(stepId) as StepRow | undefined;
   return row ? parseStepRow(row) : null;
+}
+
+function parseRuntimeLink(payload: Record<string, unknown> | undefined): RunStepRuntimeLink | null {
+  if (!payload || typeof payload !== 'object') return null;
+
+  const sessionKey = typeof payload.sessionKey === 'string' ? payload.sessionKey : undefined;
+  const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+  const runtimeRunId = typeof payload.runtimeRunId === 'string' ? payload.runtimeRunId : undefined;
+
+  if (!sessionKey && !sessionId && !runtimeRunId) {
+    return null;
+  }
+
+  return { sessionKey, sessionId, runtimeRunId };
+}
+
+export function getLatestRunStepRuntimeLink(stepId: string): RunStepRuntimeLink | null {
+  const rows = db.prepare(`
+    SELECT payload
+    FROM run_step_events
+    WHERE step_id = ? AND payload IS NOT NULL
+    ORDER BY created_at DESC
+  `).all(stepId) as Array<{ payload: string | null }>;
+
+  for (const row of rows) {
+    if (!row.payload) continue;
+
+    try {
+      const parsed = JSON.parse(row.payload) as Record<string, unknown>;
+      const runtime = parseRuntimeLink(parsed);
+      if (runtime) return runtime;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 export function getTaskStagePlanById(stageId: string): TaskStagePlan | null {
@@ -898,7 +936,7 @@ export function startTaskRun(taskId: string, input: { actor: string; reason?: st
   return getTaskById(taskId, { includeCurrentRun: true, includePlan: true }) as Task;
 }
 
-export function startRunStep(stepId: string, input: { actor: string; assignedAgentId?: string; assignedAgentName?: string; heartbeatAt?: string }) {
+export function startRunStep(stepId: string, input: { actor: string; assignedAgentId?: string; assignedAgentName?: string; heartbeatAt?: string; runtime?: RunStepRuntimeLink }) {
   const step = getRunStepById(stepId);
   if (!step) {
     throw new Error(`Unknown step ${stepId}`);
@@ -925,6 +963,7 @@ export function startRunStep(stepId: string, input: { actor: string; assignedAge
     actorType: 'system',
     eventType: 'started',
     message: `${step.title} started`,
+    payload: input.runtime ? { ...input.runtime } : undefined,
     heartbeatAt: startedAt,
   });
 
@@ -1074,7 +1113,7 @@ export function validateRunStep(stepId: string, input: { actor: string; decision
   return syncTaskFromRun(step.taskId, step.runId, input.actor);
 }
 
-export function blockRunStep(stepId: string, input: { actor: string; reason: string }) {
+export function blockRunStep(stepId: string, input: { actor: string; reason: string; payload?: Record<string, unknown> }) {
   const step = getRunStepById(stepId);
   if (!step) throw new Error(`Unknown step ${stepId}`);
 
@@ -1092,6 +1131,7 @@ export function blockRunStep(stepId: string, input: { actor: string; reason: str
     actorType: 'system',
     eventType: 'blocked',
     message: input.reason,
+    payload: input.payload,
   });
 
   return syncTaskFromRun(step.taskId, step.runId, input.actor);

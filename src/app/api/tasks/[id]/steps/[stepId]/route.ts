@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { blockRunStep, getRunStepById, getTaskStagePlanById, retryRunStep, startRunStep, updateRunStep, updateTaskStagePlan, validateRunStep } from '@/lib/domain/task-runs';
+import { getRunStepById, getTaskStagePlanById, updateRunStep, updateTaskStagePlan, validateRunStep } from '@/lib/domain/task-runs';
+import { blockTaskStageRuntime, retryTaskStageRuntime, startTaskStageRuntime } from '@/lib/openclaw/task-stage-runtime';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,19 +36,17 @@ export async function POST(
 
     switch (action) {
       case 'start':
-        return NextResponse.json(startRunStep(stepId, {
+        return NextResponse.json(await startTaskStageRuntime(stepId, {
           actor: body.actor || 'max',
-          assignedAgentId: body.assignedAgentId,
-          assignedAgentName: body.assignedAgentName,
-          heartbeatAt: body.heartbeatAt,
+          reason: body.reason,
         }));
       case 'block':
-        return NextResponse.json(blockRunStep(stepId, {
+        return NextResponse.json(await blockTaskStageRuntime(stepId, {
           actor: body.actor || 'max',
           reason: body.reason || 'Blocked by operator',
         }));
       case 'retry':
-        return NextResponse.json(retryRunStep(stepId, {
+        return NextResponse.json(await retryTaskStageRuntime(stepId, {
           actor: body.actor || 'max',
           reason: body.reason || 'Retry requested',
         }));

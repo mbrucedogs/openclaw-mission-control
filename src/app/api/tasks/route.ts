@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let steps: StepPacketInput[] = body.steps || [];
+    let steps: StepPacketInput[] = body.steps || body.stagePlan || [];
     let templateDefaults: { goal?: string; acceptanceCriteria?: string[] } | undefined;
 
     if (body.templateId) {

@@ -40,6 +40,12 @@ export interface StepCompletionPacket {
   nextStepRecommendation: string;
 }
 
+export interface RunStepRuntimeLink {
+  sessionKey?: string;
+  sessionId?: string;
+  runtimeRunId?: string;
+}
+
 export interface TaskComment {
   id: string;
   taskId: string;
